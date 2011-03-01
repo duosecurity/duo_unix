@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libduo
+Description: Duo two-factor authentication for Unix systems
+Version: @VERSION@
+Requires: libcurl
+
+Libs: -L${libdir} -lduo @LIBCURL@
+Cflags: -I${includedir}

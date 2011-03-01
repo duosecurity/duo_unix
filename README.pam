@@ -1,0 +1,67 @@
+
+How to setup Duo via PAM
+------------------------
+
+You will need your Duo integration key (ikey) and secret key (skey) to
+use the pam_duo module. pam_duo supports PAM's 'auth' facility.
+
+To add support for Duo authentication to a PAM-enabled application
+(eg. sudo, sshd, etc), modify your system's PAM configuration to
+include a line like the following:
+
+    auth required pam_duo.so
+
+See the pam_duo(8) manpage for a full list of configuration options.
+
+The location of this line in your PAM config and the specified control
+flag (eg. required, requisite, sufficient) may vary. For most common
+configurations, place pam_duo directly after pam_unix (frequently
+found in common-auth/system-auth on Linux), set pam_unix's control
+flag to 'requisite', and set pam_duo's control flag to whatever
+pam_unix used to be.
+
+The following are some PAM configuration examples for common systems:
+
+Ubuntu 10.04 LTS (/etc/pam.d/common-auth)
+
+  Before:
+
+    auth    [success=1 default=ignore]   pam_unix.so nullok_secure
+    auth    requisite                    pam_deny.so
+
+  After:
+
+    auth    requisite                    pam_unix.so nullok_secure
+    auth    [success=1 default=ignore]   pam_duo.so
+    auth    requisite                    pam_deny.so
+
+CentOS 5.5 (/etc/pam.d/system-auth)
+
+  Before:
+
+    auth    required      pam_env.so
+    auth    sufficient    pam_unix.so nullok try_first_pass
+    auth    requisite     pam_succeed_if.so uid >= 500 quiet
+    auth    required      pam_deny.so
+
+  After:
+
+    auth    required      pam_env.so
+    auth    requisite     pam_unix.so nullok try_first_pass
+    auth    sufficient    pam_duo.so
+    auth    requisite     pam_succeed_if.so uid >= 500 quiet
+    auth    required      pam_deny.so
+
+Gentoo (/etc/pam.d/system-auth)
+
+  Before:
+
+    auth    required      pam_env.so 
+    auth    required      pam_unix.so try_first_pass likeauth nullok 
+
+  After:
+
+    auth    required      pam_env.so 
+    auth    requisite     pam_unix.so try_first_pass likeauth nullok 
+    auth    required      pam_duo.so
+

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+AUTOTOOLS_PATH=$HOME/autotools/bin
+
+export PATH=$AUTOTOOLS_PATH:$PATH
+
+exec autoreconf -vfi -I autotools
+
+# XXX - if autoreconf is b0rked, comment it out to try the following:
+aclocal -I autotools &&
+libtoolize -f -c -i &&
+autoconf &&
+autoheader &&
+automake --foreign -a -c -f

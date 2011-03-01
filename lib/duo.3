@@ -1,0 +1,128 @@
+.\"
+.\" Copyright (c) 2010 Duo Security
+.\" All rights reserved, all wrongs reversed.
+.\"
+.Dd October 31, 2010
+.Dt DUO 3
+.Os
+.Sh NAME
+.Nm duo
+.Nd Duo authentication service
+.Sh SYNOPSIS
+.Fd #include <duo.h>
+.Ft duo_t *
+.Fn duo_open "const char *ikey" "const char *skey"
+.Ft void
+.Fn duo_set_conv_funcs "duo_t *d" "char *(*conv_prompt)(void *conv_arg, const char *prompt, char *buf, size_t bufsz)" "void (*conv_status)(void *conv_arg, const char *msg)" "void *conv_arg"
+.Ft void
+.Fn duo_set_host "duo_t *d" "const char *hostname"
+.Ft void
+.Fn duo_set_ssl_verify "duo_t *d" "int bool"
+.Ft duo_code_t
+.Fn duo_login "duo_t *d" "const char *username" "const char *client_ip" "int flags"
+.Ft const char *
+.Fn duo_geterr "duo_t *d"
+.Ft void
+.Fn duo_close "duo_t *d"
+.Sh DESCRIPTION
+The
+.Nm
+API provides access to the Duo two-factor authentication service.
+.Pp
+.Fn duo_open
+is used to obtain a handle to the Duo service.
+.Fa ikey
+and
+.Fa skey
+are the required integration and secret keys, respectively, for a Duo customer
+account.
+.Pp
+.Fn duo_set_conv_funcs
+may be used to override the internal user conversation functions.
+.Fa conv_prompt
+is called to present the user a login menu and 
+.Fa prompt ,
+and gather their response, returning 
+.Fa buf 
+or NULL on error. It may be set to NULL if automatic login is
+specified with DUO_FLAG_AUTO.
+.Fa conv_status
+is called to display status messages to the user, and may be NULL if
+no status display is needed.
+.Fa conv_arg
+is passed as the first argument to these conversation functions.
+.Pp
+.Fn duo_set_host
+may be used to override the default Duo API host.
+.Pp
+.Fn duo_set_ssl_verify
+may be used to override SSL certificate verification (enabled by
+default).
+.Pp
+.Fn duo_login
+performs secondary authentication via the Duo service for the specified
+.Fa username Ns .
+.Fa client_ip
+is the source IP address of the connection to be authenticated, and may be 
+.Li NULL
+if unknown. The following bitmask values are defined for
+.Fa flags :
+.Pp
+.Bl -tag -width "DUO_SERVER_ERROR" -compact -offset indent
+.It Li DUO_FLAG_AUTO
+Attempt authentication without prompting the user, using their default
+out-of-band authentication factor.
+.It Li DUO_FLAG_SYNC
+Do not report incremental status during authentication (e.g. voice
+callback progress) - only issue one status message per authentication
+attempt.
+.El
+.Pp
+.Fn duo_geterr
+returns a description of the last-seen error on the specified Duo API
+handle. The returned constant string should not be modified or freed
+by the caller.
+.Pp
+.Fn duo_close
+closes and frees the specified Duo API handle.
+.Sh RETURN VALUES
+.Fn duo_open
+returns a pointer to the configured Duo API handle, or 
+.Li NULL
+on failure.
+.Pp
+.Fn duo_login
+returns status codes of type 
+.Ft duo_code_t ,
+which may have the following values:
+.Pp
+.Bl -tag -width "DUO_SERVER_ERROR" -compact -offset indent
+.It Li DUO_OK
+User authenticated
+.It Li DUO_FAIL
+User failed to authenticate
+.It Li DUO_ABORT
+User denied by policy
+.It Li DUO_LIB_ERROR
+Unexpected library error
+.It Li DUO_CONN_ERROR
+Duo service unreachable
+.It Li DUO_CLIENT_ERROR
+Invalid client parameters to API call
+.It Li DUO_SERVER_ERROR
+Duo service error
+.El
+.Pp
+In the event of a DUO_*_ERROR return, 
+.Xr duo_geterr
+may be called to recover a human-readable error message.
+.Pp
+.Fn duo_geterr
+returns a constant string which should not be modified or freed by the
+caller.
+.Sh SEE ALSO
+.Xr pam_duo 8 ,
+.Xr login_duo 1
+.Sh AUTHORS
+Duo Security
+.Aq duo_unix@duosecurity.com

@@ -1,0 +1,131 @@
+.Dd September 3, 2010
+.Dt LOGIN_DUO 8
+.Os
+.Sh NAME
+.Nm login_duo
+.Nd second-factor authentication via Duo login service
+.Sh SYNOPSIS
+login_duo
+.Op Fl c Ar file
+.Op Fl h Ar host
+.Op Fl f Ar user
+.Op Ar command Op Ar args...
+.Sh DESCRIPTION
+.Nm
+provides secondary authentication via the Duo authentication service,
+executing the user's login shell or command only if successful.
+.Pp
+The following options are available:
+.Bl -tag -width ".Cm noconn"
+.It Fl c
+Specify an alternate configuration file to load.
+.It Fl h
+Specify the IP address from which the user is authenticating.
+.It Fl f
+Specify an alternate Duo user to authenticate as.
+.El
+.Pp
+If 
+.Nm
+is installed setuid root (the default), these options are
+only available to the super-user.
+.Pp
+After successful Duo authentication, the user's login shell is
+invoked, or if an alternate
+.Ar command
+or
+.Ev SSH_ORIGINAL_COMMAND
+environment variable is specified, it will be executed via the user's
+shell with a -c option.
+.Sh CONFIGURATION
+The INI-format configuration file must have a
+.Dq Li duo
+section with the following options:
+.Pp
+.Bl -tag -width ".Cm noconn"
+.It Cm ikey
+Duo integration key (required).
+.It Cm skey
+Duo secret key (required).
+.It Cm group
+Skip Duo authentication for users not in a specific Unix group.
+.It Cm minuid
+Skip Duo authentication for users below a specified user ID.
+.It Cm noconn
+Either 
+.Dq Li allow
+or
+.Dq Li deny
+authentication attempts that fail to contact Duo successfully. The
+default is
+.Dq Li allow .
+.It Cm host
+Override Duo API host for debugging.
+.El
+.Pp
+An example configuration file:
+.Bd -literal -offset 8n
+[duo]
+ikey=SI9F...53RI
+skey=4MjR...Q2NmRiM2Q1Y
+minuid=500
+noconn=allow
+.Ed
+.Pp
+If installed setuid root (the default), 
+.Nm
+performs Duo authentication as a dedicated privilege separation user,
+requiring that the configuration file be owned and readable only by
+this user.
+.Sh EXAMPLES
+.Nm
+can be enabled system-wide by specifying its full path as a
+.Cm ForceCommand 
+in 
+.Xr sshd_config 5
+to capture any SSH remote login (including subsystems, remote
+commands, and interactive login):
+.Bd -literal -offset 8n
+ForceCommand /usr/local/sbin/login_duo
+.Ed
+.Pp
+Similarly, a group of administrators could require two-factor
+authentication for login to a shared root account by specifying
+.Nm
+as the forced command for each public key in
+.Pa ~root/.ssh/authorized_keys :
+.Pp
+.Bd -literal -offset 8n
+command="/usr/local/sbin/login_duo -f alice"
+ssh-rsa AAAAB2...19Q== alice@example.net
+command="/usr/local/sbin/login_duo -f bob"
+ssh-dss AAAAC3...51R== bob@example.net
+.Ed
+.Pp
+A user without root access could configure their own account to
+require Duo authentication via the same
+.Pa ~/.ssh/authorized_keys
+forced command mechanism and a user-installed (non-setuid) 
+.Nm .
+.Sh FILES
+.Bl -tag -width ".Cm noconn"
+.It Pa /etc/duo/login_duo.conf
+Default configuration file path
+.El
+.Sh AUTHORS
+.Nm
+was written by 
+.An "Duo Security" Aq duo_unix@duosecurity.com
+.Sh NOTES
+When used to protect remote SSH access, only interactive sessions
+support interactive Duo login. For
+.Xr scp 1 ,
+.Xr sftp 1 ,
+.Xr rsync 1 ,
+and other
+.Xr ssh 1
+remote commands, 
+.Nm
+automatically uses the default configured out-of-band factor
+(smartphone push or voice callback) and disables real-time login
+progress reporting (to provide a clean shell environment).

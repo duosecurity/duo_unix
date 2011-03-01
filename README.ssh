@@ -1,0 +1,56 @@
+
+duo_unix for OpenSSH
+--------------------
+
+Solaris, HP-UX, and AIX will need a modern OpenSSH installed from
+http://openssh.org to replace the system sshd in order to support PAM
+or ForceCommand integration.
+
+All other Unix systems (Linux, *BSD, MacOS, etc.) should support Duo
+without any changes to system binaries.
+
+pam_duo
+-------
+
+If you want to use pam_duo with OpenSSH sshd, ensure that the "UsePAM"
+and "ChallengeResponseAuthentication" options are both set to "yes" in
+your sshd_config.
+
+Please note that pam_duo will only be invoked when using password
+authentication and will not be invoked if public key authentication is
+used - in OpenSSH sshd, PAM is bypassed by pubkey auth. :-(
+
+Try login_duo if you need to support pubkey auth!
+
+login_duo
+---------
+
+For a system-wide install (enabling Duo for more than one user), add
+it to your sshd_config, e.g.
+
+	ForceCommand /usr/local/sbin/login_duo
+
+Make sure your /etc/duo/login_duo.conf is owned and readable by only
+the privsep user.
+
+ForceCommand also intercepts sshd Subsystem requests, such as for sftp
+(so you literally only need line to enable Duo for sshd), and remote
+commands, such as for scp and rsync.
+
+Another option is to tie Duo auth to the use of specific SSH pubkeys
+used to login to shared accounts such as root. The "command" option
+may be used in authorized_keys for each pubkey similarly to
+ForceCommand above:
+
+	command="/usr/local/sbin/login_duo -f alice" ssh-ssh‐rsa AAAAB2...19Q== alice@example.net
+
+login_duo honors the $SSH_ORIGINAL_COMMAND environment variable set by
+sshd on remote command invocation such as for scp and sftp. To
+override this, specify a command argument to login_duo instead, e.g.
+
+	command="/usr/local/sbin/login_duo -f alice /usr/bin/top" ...
+
+If not installed setuid root, each user must have their own login_duo
+configuration file as the privacy of a shared configuration file
+cannot be guaranteed.
+

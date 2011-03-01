@@ -1,0 +1,100 @@
+
+Overview
+--------
+
+duo_unix - Duo two-factor authentication for Unix systems
+
+This package allows an admin (or even an ordinary user) to quickly set
+up two-factor authentication for login - without setting up user
+accounts, directory synchronization, servers, hardware, etc.
+
+What's here:
+
+lib
+	Simple C API for the Duo two-factor authentication service.
+
+login_duo
+	Login utility to add secondary Duo authentication to any login
+	session (e.g. for SSH, ForceCommand in sshd_config or a forced
+	command in authorized_keys to follow any password, pubkey, or
+	other auth method).
+
+pam_duo
+	Pluggable Authentication Module for Linux, FreeBSD, NetBSD,
+	MacOS X, Solaris, AIX, HP-UX to add Duo authentication
+	system-wide (e.g. sshd, sudo, su, samba, etc.)
+
+Build
+-----
+
+Build dependencies for libduo (install these first!):
+
+OpenSSL
+	OpenSSL (http://openssl.org) development headers and libraries
+	are installed by default on *BSD and MacOS X.
+
+	Solaris, HP-UX, AIX:	3rd party packages or source build
+	Redhat/Fedora/CentOS:	yum install openssl-devel
+	Debian/Ubuntu: 		apt-get install libssl-dev
+
+libcurl
+	The curl (http://curl.haxx.se) development headers and library
+	are installed by default on MacOS X, and require OpenSSL.
+
+	FreeBSD/NetBSD:		www/curl port or package
+	Solaris, HP-UX, AIX	3rd party packages or source build
+	Redhat/Fedora/CentOS:	yum install curl-devel
+	Debian/Ubuntu:		apt-get install libcurl-dev 
+				(use the openssl version)
+
+Build dependencies for pam_duo:
+
+libpam
+	System PAM development headers and libraries are installed by
+	default on FreeBSD, NetBSD, MacOS X, Solaris, HP-UX, and AIX.
+
+	RedHat/Fedora/CentOS:	yum install pam-devel
+	Debian/Ubuntu:		apt-get install libpam-dev
+
+Options to ./configure:
+
+--with-curl=DIR
+	Specify location of libcurl build or install directory
+	(e.g. "/usr/local", "/opt/csw"), if not installed in a system
+	location (e.g. /usr/lib).
+
+--with-pam[=DIR]
+	Build PAM module, and optionally override the default install
+	directory (determined automatically by platform) if necessary.
+
+--with-privsep-user=USER
+	Specify a different user for privilege separation (e.g. "_duo")
+	in login_duo - by default, "sshd" (or "_sshd" on MacOS X).
+
+Install
+-------
+
+"make install" as root should do it.
+
+The pam_duo module will be installed in the system PAM module location
+by default (/lib/security, /usr/lib/security, /usr/lib/pam, /usr/lib
+depending on platform).
+
+login_duo will be installed setuid root by default in order to keep
+the Duo service credentials (ikey/skey) in login_duo.conf secret. It
+may also be installed non-setuid, such as for a user installation with
+an individual (not system-wide) configuration file.
+
+Usage
+-----
+
+See README.pam, README.ssh, and the login_duo.8 and pam_duo.8 manpages
+for detailed setup instructions.
+
+To build C applications with libduo, use "pkg-config libduo" with
+--cflags and --libs arguments to locate the development headers and
+library. See the duo.3 manpage for API documentation.
+
+
+---
+http://duosecurity.com

@@ -1,0 +1,77 @@
+.Dd September 3, 2010
+.Dt PAM_DUO 8
+.Os
+.Sh NAME
+.Nm pam_duo
+.Nd PAM module for Duo authentication
+.Sh SYNOPSIS
+pam_duo.so
+.Op Cm conf= Ns Aq Ar FILENAME
+.Sh DESCRIPTION
+.Nm
+provides secondary authentication (typically after successful
+password-based authentication) through the Duo authentication service.
+.Sh OPTIONS
+Only one PAM module configuration option is supported:
+.Pp
+.Bl -tag -width ".Cm noconn"
+.It conf
+Specify an alternate configuration file to load.
+.El
+.Sh CONFIGURATION
+The INI-format configuration file must have a
+.Dq Li duo
+section with the following options:
+.Pp
+.Bl -tag -width ".Cm noconn"
+.It Cm ikey
+Duo integration key (required).
+.It Cm skey
+Duo secret key (required).
+.It Cm group
+Skip Duo authentication for users not in a specific Unix group.
+.It Cm minuid
+Skip Duo authentication for users below a specified user ID.
+.It Cm noconn
+Either 
+.Dq Li allow
+or
+.Dq Li deny
+authentication attempts that fail to contact Duo successfully. The
+default is
+.Dq Li allow .
+.It Cm host
+Override Duo API host for debugging.
+.El
+.Pp
+An example configuration file:
+.Bd -literal -offset 8n
+[duo]
+ikey=SI9F...53RI
+skey=4MjR...Q2NmRiM2Q1Y
+minuid=500
+noconn=allow
+.Ed
+.Pp
+Other authentication restrictions may be implemented using 
+.Xr pam_listfile 8 ,
+.Xr pam_access 8 ,
+etc.
+.Sh FILES
+.Bl -tag -width ".Cm noconn"
+.It Pa /etc/duo/pam_duo.conf
+Default configuration file path
+.El
+.Sh AUTHORS
+.Nm
+was written by 
+.An "Duo Security" Aq pam_duo@duosecurity.com
+.Sh NOTES
+When used with OpenSSH's 
+.Xr sshd 8 ,
+only PAM-based authentication can be protected with this module;
+pubkey authentication bypasses PAM entirely. OpenSSH's PAM
+integration also does not honor an interactive 
+.Xr pam_conv 3
+conversation, prohibiting real-time Duo status messages (such as
+during voice callback).
