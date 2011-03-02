@@ -8,9 +8,9 @@ This package allows an admin (or even an ordinary user) to quickly set
 up two-factor authentication for login - without setting up user
 accounts, directory synchronization, servers, hardware, etc.
 
-You'll need to create a Duo account first at http://duosecurity.com
-(for now, e-mail duo_unix@duosecurity.com for access), and configure
-your Duo API host as api-eval.duosecurity.com.
+You'll need to create a Duo account first (for now, e-mail
+duo_unix@duosecurity.com for access), and configure your Duo API host
+as api-eval.duosecurity.com.
 
 What's here:
 
