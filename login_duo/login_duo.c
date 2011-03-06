@@ -176,7 +176,11 @@ do_auth(struct login_ctx *ctx)
 	/* Load our private config. */
 	i = duo_parse_config(config, __ini_handler, &cfg);
 	if (i == -2) {
-		die("%s must be readable only by owner", config);
+		struct passwd *pw;
+		if ((pw = getpwuid(getuid())) == NULL)
+			die("who are you?");
+		die("%s must be readable only by user '%s'",
+		    config, pw->pw_name);
 	} else if (i == -1) {
 		die("Couldn't open %s: %s", config, strerror(errno));
 	} else if (i > 0) {
