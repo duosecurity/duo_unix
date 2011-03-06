@@ -75,6 +75,11 @@ Options to ./configure:
 	Specify a different user for privilege separation (e.g. "_duo")
 	in login_duo - by default, "sshd" (or "_sshd" on MacOS X).
 
+If you're missing the configure script, you accidentally downloaded
+the git source tree - get a versioned package tarball instead:
+
+       https://github.com/duosecurity/duo_unix/downloads
+
 Install
 -------
 
