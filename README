@@ -4,13 +4,17 @@ Overview
 
 duo_unix - Duo two-factor authentication for Unix systems
 
-This package allows an admin (or even an ordinary user) to quickly set
-up two-factor authentication for login - without setting up user
-accounts, directory synchronization, servers, hardware, etc.
+Duo provides simple two-factor authentication as a service via:
 
-You'll need to create a Duo account first (for now, e-mail
-duo_unix@duosecurity.com for access), and configure your Duo API host
-as api-eval.duosecurity.com.
+    1.  Phone callback
+    2.  SMS-delivered one-time passcodes
+    3.  Duo mobile app to generate one-time passcodes
+    4.  Duo mobile app for smartphone push authentication
+    5.  Duo hardware token to generate one-time passcodes (legacy)
+
+This package allows an admin (or ordinary user) to quickly add Duo
+authentication to any Unix login without setting up secondary user
+accounts, directory synchronization, servers, or hardware.
 
 What's here:
 
@@ -19,13 +23,12 @@ lib
 
 login_duo
 	Login utility to add secondary Duo authentication to any login
-	session (e.g. for SSH, ForceCommand in sshd_config or a forced
-	command in authorized_keys to follow any password, pubkey, or
-	other auth method).
+	(e.g. via sshd ForceCommand or ~/.ssh/authorized_keys command)
+	to augment password, pubkey, or other primary auth method.
 
 pam_duo
-	Pluggable Authentication Module for Linux, FreeBSD, NetBSD,
-	MacOS X, Solaris, AIX, HP-UX to add Duo authentication
+	Optional Pluggable Authentication Module for Linux, FreeBSD,
+	NetBSD, MacOS X, Solaris, AIX, HP-UX to add Duo authentication
 	system-wide (e.g. sshd, sudo, su, samba, etc.)
 
 Build
@@ -75,10 +78,10 @@ Options to ./configure:
 	Specify a different user for privilege separation (e.g. "_duo")
 	in login_duo - by default, "sshd" (or "_sshd" on MacOS X).
 
-If you're missing the configure script, you accidentally downloaded
-the git source tree - get a versioned package tarball instead:
+NOTE: If you're missing ./configure you accidentally downloaded the
+git source tree tarball - get a versioned package tarball instead:
 
-       https://github.com/duosecurity/duo_unix/downloads
+	https://github.com/duosecurity/duo_unix/downloads
 
 Install
 -------
@@ -104,6 +107,21 @@ To build C applications with libduo, use "pkg-config libduo" with
 --cflags and --libs arguments to locate the development headers and
 library. See the duo.3 manpage for API documentation.
 
+Eval users (e-mail <duo_unix@duosecurity.com> to request a trial):
+be sure to set your Duo API host to "api-eval.duosecurity.com".
+
+Support
+-------
+
+Join our mailing list for technical discussion of duo_unix:
+
+	http://groups.google.com/group/duo_unix
+
+Report any bugs, feature requests, etc. to us directly:
+
+	https://github.com/duosecurity/duo_unix/issues
+
+Thank you for your feedback!
 
 ---
 http://duosecurity.com
