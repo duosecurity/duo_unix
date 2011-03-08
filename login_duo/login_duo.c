@@ -229,13 +229,19 @@ do_auth(struct login_ctx *ctx)
 	
 	for (i = 0; i < tries; i++) {
 		code = duo_login(duo, user, ip, flags);
-		if ((flags & DUO_FLAG_SYNC) == 0)
-			printf("\n");
 		if (code == DUO_OK) {
 			ret = EXIT_SUCCESS;
 			break;
-		} else if (code != DUO_FAIL)
+		} else if (code != DUO_FAIL) {
+			if (code == DUO_CLIENT_ERROR) {
+				fprintf(stderr, "%s\n", duo_geterr(duo));
+			} else {
+				_err("%s", duo_geterr(duo));
+			}
 			break;
+		}
+		if ((flags & DUO_FLAG_SYNC) == 0)
+			printf("\n");
 	}
 	duo_close(duo);
 
