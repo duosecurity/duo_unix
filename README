@@ -79,9 +79,11 @@ Options to ./configure:
 	in login_duo - by default, "sshd" (or "_sshd" on MacOS X).
 
 NOTE: If you're missing ./configure you accidentally downloaded the
-git source tree tarball - get a versioned package tarball instead:
+git source tree tarball. Get a versioned package tarball instead:
 
 	https://github.com/duosecurity/duo_unix/downloads
+
+Then just run "make".
 
 Install
 -------
@@ -93,9 +95,12 @@ by default (/lib/security, /usr/lib/security, /usr/lib/pam, /usr/lib
 depending on platform).
 
 login_duo will be installed setuid root by default in order to keep
-the Duo service credentials (ikey/skey) in login_duo.conf secret. It
+your Duo credentials (ikey/skey) in /etc/duo/login_duo.conf secret. It
 may also be installed non-setuid, such as for a user installation with
 an individual (not system-wide) configuration file.
+
+Add your Duo integration and secret keys to /etc/duo/login_duo.conf ;
+for PAM, you'll need to create /etc/duo/pam_duo.conf manually.
 
 Usage
 -----
@@ -108,7 +113,7 @@ To build C applications with libduo, use "pkg-config libduo" with
 library. See the duo.3 manpage for API documentation.
 
 Eval users (e-mail <duo_unix@duosecurity.com> to request a trial):
-be sure to set your Duo API host to "api-eval.duosecurity.com".
+be sure your Duo API host is set to "api-eval.duosecurity.com"
 
 Support
 -------
@@ -121,7 +126,7 @@ Report any bugs, feature requests, etc. to us directly:
 
 	https://github.com/duosecurity/duo_unix/issues
 
-Thank you for your feedback!
+Have fun!
 
 ---
 http://duosecurity.com
