@@ -385,9 +385,6 @@ main(int argc, char *argv[])
 		}
 	} else {
 		/* Non-setuid root operation or running as root. */
-		if (getuid() != 0 && ctx->duouser != NULL) {
-			die("Only root may specify an alternate user");
-		}
 		if (do_auth(ctx) == EXIT_SUCCESS) {
 			do_exec(ctx, argc, argv);
 		}
