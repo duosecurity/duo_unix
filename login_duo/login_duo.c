@@ -185,7 +185,7 @@ do_auth(struct login_ctx *ctx)
 		die("Couldn't open %s: %s", config, strerror(errno));
 	} else if (i > 0) {
 		die("Parse error in %s, line %d", config, i);
-	} else if (!cfg.skey || !cfg.ikey) {
+	} else if (!cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0]) {
 		die("Missing ikey or skey in %s", config);
 	}
 	/* Check group membership. */
