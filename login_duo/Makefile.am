@@ -12,13 +12,14 @@ install-exec-hook:
 	-chown root $(DESTDIR)$(sbindir)/login_duo && \
 	 chmod 4755 $(DESTDIR)$(sbindir)/login_duo
 	@if [ ! -f /etc/duo/login_duo.conf ]; then \
-	  cp login_duo.conf /etc/duo/login_duo.conf; \
-	  echo "Created /etc/duo/login_duo.conf"; \
+	  mkdir -p -m 755 $(DESTDIR)/etc/duo; \
+	  cp login_duo.conf $(DESTDIR)/etc/duo/login_duo.conf; \
+	  echo "Created ${DESTDIR}/etc/duo/login_duo.conf"; \
 	  echo "Please edit it to add your Duo integration and secret keys"; \
 	else \
-	  echo "Found existing /etc/duo/login_duo.conf - updating permissions"; \
+	  echo "Found existing ${DESTDIR}/etc/duo/login_duo.conf - updating permissions"; \
 	fi
-	chown $(DUO_PRIVSEP_USER) /etc/duo/login_duo.conf
-	chmod 600 /etc/duo/login_duo.conf
+	chown $(DUO_PRIVSEP_USER) $(DESTDIR)/etc/duo/login_duo.conf
+	chmod 600 $(DESTDIR)/etc/duo/login_duo.conf
 
 EXTRA_DIST = login_duo.conf
