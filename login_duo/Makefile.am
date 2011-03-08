@@ -11,7 +11,7 @@ notrans_dist_man8_MANS = login_duo.8
 install-exec-hook:
 	-chown root $(DESTDIR)$(sbindir)/login_duo && \
 	 chmod 4755 $(DESTDIR)$(sbindir)/login_duo
-	@if [ ! -f /etc/duo/login_duo.conf ]; then \
+	-@if [ ! -f /etc/duo/login_duo.conf ]; then \
 	  mkdir -p -m 755 $(DESTDIR)/etc/duo; \
 	  cp login_duo.conf $(DESTDIR)/etc/duo/login_duo.conf; \
 	  echo "Created ${DESTDIR}/etc/duo/login_duo.conf"; \
@@ -19,7 +19,7 @@ install-exec-hook:
 	else \
 	  echo "Found existing ${DESTDIR}/etc/duo/login_duo.conf - updating permissions"; \
 	fi
-	chown $(DUO_PRIVSEP_USER) $(DESTDIR)/etc/duo/login_duo.conf
-	chmod 600 $(DESTDIR)/etc/duo/login_duo.conf
+	-chown $(DUO_PRIVSEP_USER) $(DESTDIR)/etc/duo/login_duo.conf
+	-chmod 600 $(DESTDIR)/etc/duo/login_duo.conf
 
 EXTRA_DIST = login_duo.conf
