@@ -61,12 +61,11 @@
 #define PAM_EXTERN
 #endif
 
-#define DUO_CONF	"/etc/duo/pam_duo.conf"
-#define MAX_RETRIES	3
-
-#define _err(...)	syslog(LOG_ERR, __VA_ARGS__)
-#define _info(...)	syslog(LOG_INFO, __VA_ARGS__)
-#define _warn(...)	syslog(LOG_WARNING, __VA_ARGS__)
+#ifndef DUO_PRIVSEP_USER
+# define DUO_PRIVSEP_USER	"duo"
+#endif
+#define DUO_CONF		"/etc/duo/pam_duo.conf"
+#define MAX_RETRIES		3
 
 enum {
 	DUO_OPT_DENY = 0,
@@ -82,6 +81,10 @@ struct duo_config {
 	int	 noconn;	/* Duo connection failure: DUO_OPT_* */
 	int	 noverify;
 };
+
+#define _err(...)	syslog(LOG_ERR, __VA_ARGS__)
+#define _info(...)	syslog(LOG_INFO, __VA_ARGS__)
+#define _warn(...)	syslog(LOG_WARNING, __VA_ARGS__)
 
 static int
 __ini_handler(void *u, const char *section, const char *name, const char *val)
@@ -189,7 +192,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.minuid = cfg.gid = -1;
+	cfg.noconn = DUO_OPT_ALLOW;
 
+	/* Check user */
+	if ((pam_err = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS ||
+	    (pw = getpwnam(user)) == NULL) {
+		return (PAM_USER_UNKNOWN);
+	}
 	/* Parse configuration */
 	config = DUO_CONF;
 	if (argc == 1 && strncmp("conf=", argv[0], 5) == 0) {
@@ -199,28 +208,21 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		return (PAM_SERVICE_ERR);
 	}
 	i = duo_parse_config(config, __ini_handler, &cfg);
-	if (i == 0) {
-		if (!cfg.skey || !cfg.ikey) {
-			_err("Missing ikey or skey in %s", config);
-			return (PAM_SERVICE_ERR);
-		}
-	} else {
-		if (i == -2) {
-			_err("%s must be readable only by owner", config);
-		} else if (i == -1) {
-			_err("Couldn't open %s: %s", config, strerror(errno));
-		} else {
-			_err("Parse error in %s, line %d", config, i);
-		}
+	if (i == -2) {
+		_err("%s must be readable only by owner", config);
+		return (PAM_SERVICE_ERR);
+	} else if (i == -1) {
+		_err("Couldn't open %s: %s", config, strerror(errno));
+		return (PAM_SERVICE_ERR);
+	} else if (i > 0) {
+		_err("Parse error in %s, line %d", config, i);
+		return (PAM_SERVICE_ERR);
+	} else if (!cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0]) {
+		_err("Missing ikey or skey in %s", config);
 		return (PAM_SERVICE_ERR);
 	}
-	/* Check user */
-	if ((pam_err = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS ||
-	    (pw = getpwnam(user)) == NULL) {
-		return (PAM_USER_UNKNOWN);
-	}
 	/* Check group membership */
-	if (cfg.gid >= 0) {
+	if (cfg.gid != -1) {
 		if ((i = _check_group(user, cfg.gid)) < 0) {
 			_err("Couldn't get groups for '%s': %m", user);
 			return (PAM_SERVICE_ERR);
@@ -230,8 +232,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		}
 	}
 	/* Check UID range */
-	if (cfg.minuid >= 0 && pw->pw_uid < cfg.minuid) {
-		/* User below minimum UID - skip Duo auth */
+	if (cfg.minuid != -1 && pw->pw_uid < cfg.minuid) {
+		/* User below minimum UID for Duo auth */
 		return (PAM_SUCCESS);
 	}
 	/*
@@ -272,20 +274,24 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		duo_set_host(duo, cfg.host);
 	if (cfg.noverify)
 		duo_set_ssl_verify(duo, 0);
+
 	pam_err = PAM_SERVICE_ERR;
 	
 	for (i = 0; i < MAX_RETRIES; i++) {
 		code = duo_login(duo, user, ip, flags);
 
-		pam_info(pamh, "%s", "");
-		
+		if (code == DUO_FAIL) {
+			_warn("Failed Duo login for %s: %s",
+			    user, duo_geterr(duo));
+			if ((flags & DUO_FLAG_SYNC) == 0)
+				pam_info(pamh, "%s", "");
+			/* Keep going */
+			continue;
+		}
+		/* Terminal conditions */
 		if (code == DUO_OK) {
 			_info("Successful Duo login for %s", user);
 			pam_err = PAM_SUCCESS;
-		} else if (code == DUO_FAIL) {
-			_warn("Failed Duo login for %s: %s",
-			    user, duo_geterr(duo));
-			pam_err = PAM_AUTH_ERR;
 		} else if (code == DUO_ABORT) {
 			_warn("Aborted Duo login for %s: %s",
 			    user, duo_geterr(duo));
@@ -299,8 +305,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 			    user, code, duo_geterr(duo));
 			pam_err = PAM_SERVICE_ERR;
 		}
-		if (pam_err == PAM_SUCCESS || pam_err != PAM_AUTH_ERR)
-			break;
+		break;
 	}
 	if (i == MAX_RETRIES) {
 		pam_err = PAM_MAXTRIES;

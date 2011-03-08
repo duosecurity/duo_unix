@@ -27,13 +27,11 @@
 #include "duo.h"
 #include "ini.h"
 
-#define DUO_CONF		"/etc/duo/login_duo.conf"
-
 #ifndef DUO_PRIVSEP_USER
 # define DUO_PRIVSEP_USER	"duo"
 #endif
-
-#define MAX_RETRIES	3
+#define DUO_CONF		"/etc/duo/login_duo.conf"
+#define MAX_RETRIES		3
 
 enum {
 	DUO_OPT_DENY = 0,
@@ -44,8 +42,8 @@ struct duo_config {
 	char	*ikey;
 	char	*skey;
 	char	*host;
-	uid_t	 minuid;
-	gid_t	 gid;
+	int	 minuid;
+	int	 gid;
 	int	 noconn;	/* Duo connection failure: DUO_OPT_* */
 	int	 noverify;
 };
@@ -58,6 +56,8 @@ struct login_ctx {
 };
 
 #define _err(...)	syslog(LOG_ERR, __VA_ARGS__)
+#define _info(...)	syslog(LOG_INFO, __VA_ARGS__)
+#define _warn(...)	syslog(LOG_WARNING, __VA_ARGS__)
 
 static void
 die(const char *fmt, ...)
@@ -85,7 +85,7 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 	} else if (strcmp(name, "group") == 0) {
 		struct group *gr;
 		if ((gr = getgrnam(val)) == NULL) {
-			_err("No such group: '%s'", val);
+			fprintf(stderr, "No such group: '%s'\n", val);
 			return (0);
 		}
 		cfg->gid = gr->gr_gid;
@@ -93,7 +93,7 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 		char *p;
 		cfg->minuid = strtol(val, &p, 10);
 		if (p == val) {
-			_err("Invalid minimum UID: '%s'", val);
+			fprintf(stderr, "Invalid minimum UID: '%s'\n", val);
 			return (0);
 		}
 	} else if (strcmp(name, "noconn") == 0) {
@@ -102,7 +102,7 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 		} else if (strcmp(val, "allow") == 0) {
 			cfg->noconn = DUO_OPT_ALLOW;
 		} else {
-			_err("Invalid noconn value: '%s'", val);
+			fprintf(stderr, "Invalid noconn value: '%s'\n", val);
 			return (0);
 		}
 	} else if (strcmp(name, "noverify") == 0) {
@@ -111,7 +111,7 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 			cfg->noverify = 1;
 		}
 	} else {
-		_err("Invalid login_duo option: '%s'", name);
+		fprintf(stderr, "Invalid login_duo option: '%s'\n", name);
 		return (0);
 	}
 	return (1);
@@ -170,7 +170,7 @@ do_auth(struct login_ctx *ctx)
 	tries = MAX_RETRIES;
 	
 	memset(&cfg, 0, sizeof(cfg));
-	cfg.gid = -1;
+	cfg.minuid = cfg.gid = -1;
 	cfg.noconn = DUO_OPT_ALLOW;
 	
 	/* Load our private config. */
@@ -199,7 +199,7 @@ do_auth(struct login_ctx *ctx)
 		}
 	}
 	/* Check UID range */
-	if (cfg.minuid > 0 && ctx->pw->pw_uid < cfg.minuid) {
+	if (cfg.minuid != -1 && ctx->pw->pw_uid < cfg.minuid) {
 		/* User below minimum UID for Duo auth */
 		return (EXIT_SUCCESS);
 	}
@@ -229,19 +229,32 @@ do_auth(struct login_ctx *ctx)
 	
 	for (i = 0; i < tries; i++) {
 		code = duo_login(duo, user, ip, flags);
-		if (code == DUO_OK) {
-			ret = EXIT_SUCCESS;
-			break;
-		} else if (code != DUO_FAIL) {
-			if (code == DUO_CLIENT_ERROR) {
-				fprintf(stderr, "%s\n", duo_geterr(duo));
-			} else {
-				_err("%s", duo_geterr(duo));
-			}
-			break;
+
+		if (code == DUO_FAIL) {
+			_warn("Failed Duo login for %s: %s",
+			    user, duo_geterr(duo));
+			if ((flags & DUO_FLAG_SYNC) == 0)
+				printf("\n");
+			/* Keep going */
+			continue;
 		}
-		if ((flags & DUO_FLAG_SYNC) == 0)
-			printf("\n");
+		/* Terminal conditions */
+		if (code == DUO_OK) {
+			_info("Successful Duo login for %s", user);
+			ret = EXIT_SUCCESS;
+		} else if (code == DUO_ABORT) {
+			_warn("Aborted Duo login for %s: %s",
+			    user, duo_geterr(duo));
+		} else if (code == DUO_CONN_ERROR && cfg.noconn) {
+			_warn("Allowed Duo login for '%s' on connection failure: %s",
+			    user, duo_geterr(duo));
+		} else if (code == DUO_CLIENT_ERROR) {
+			fprintf(stderr, "%s\n", duo_geterr(duo));
+		} else {
+			_err("Error in Duo login for %s: (%d) %s",
+			    user, code, duo_geterr(duo));
+		}
+		break;
 	}
 	duo_close(duo);
 
