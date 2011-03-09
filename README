@@ -112,10 +112,10 @@ your target user - for the default setuid-root install:
 
 For a non-setuid install:
 
-	./login_duo -c login_duo.conf echo YOU ROCK
+	$ ./login_duo -c login_duo.conf echo YOU ROCK
 
-If your Duo integration and secret keys are for a valid account, you
-will be able to enroll and authenticate successfully. Congratulations!
+If your Duo integration and secret keys are valid, you will be able to
+enroll and authenticate successfully, and congratulate yourself. :-)
 
 Usage
 -----
