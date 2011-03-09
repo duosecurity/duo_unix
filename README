@@ -96,11 +96,26 @@ depending on platform).
 
 login_duo will be installed setuid root by default in order to keep
 your Duo credentials (ikey/skey) in /etc/duo/login_duo.conf secret. It
-may also be installed non-setuid, such as for a user installation with
-an individual (not system-wide) configuration file.
+may also be installed non-setuid manually, such as for a user
+installation with an individual (not system-wide) configuration file.
 
 Add your Duo integration and secret keys to /etc/duo/login_duo.conf ;
 for PAM, you'll need to create /etc/duo/pam_duo.conf manually.
+
+Test
+----
+
+To test your Duo configuration, run login_duo from the command line as
+your target user - for the default setuid-root install:
+
+	$ login_duo echo YOU ROCK
+
+For a non-setuid install:
+
+	./login_duo -c login_duo.conf echo YOU ROCK
+
+If your Duo integration and secret keys are for a valid account, you
+will be able to enroll and authenticate successfully. Congratulations!
 
 Usage
 -----
