@@ -65,7 +65,7 @@ libpam
 
 Options to ./configure:
 
---with-curl=DIR
+--with-libcurl=DIR
 	Specify location of libcurl build or install directory
 	(e.g. "/usr/local", "/opt/csw"), if not installed in a system
 	location (e.g. /usr/lib).
