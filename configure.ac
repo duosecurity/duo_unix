@@ -21,8 +21,11 @@ AM_MAINTAINER_MODE
 # Init header
 AC_CONFIG_HEADER(config.h)
 
-# Check for programs
+# Determine platform
 AC_CANONICAL_HOST
+AC_DEFINE_UNQUOTED([CANONICAL_HOST], ["${host}"], [Canonical host])
+
+# Check for programs
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_USE_SYSTEM_EXTENSIONS
