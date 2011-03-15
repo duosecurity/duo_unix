@@ -21,6 +21,11 @@ AM_MAINTAINER_MODE
 # Init header
 AC_CONFIG_HEADER(config.h)
 
+# Default sysconfdir to /etc, if no --prefix is given
+case "$prefix" in
+     NONE) test "$sysconfdir" = '${prefix}/etc' && sysconfdir=/etc ;;
+esac
+
 # Determine platform
 AC_CANONICAL_HOST
 AC_DEFINE_UNQUOTED([CANONICAL_HOST], ["${host}"], [Canonical host])
