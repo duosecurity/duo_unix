@@ -31,7 +31,7 @@
 #ifndef DUO_PRIVSEP_USER
 # define DUO_PRIVSEP_USER	"duo"
 #endif
-#define DUO_CONF		"/etc/duo/login_duo.conf"
+#define DUO_CONF		DUO_CONF_DIR "/login_duo.conf"
 #define MAX_RETRIES		3
 
 enum {
