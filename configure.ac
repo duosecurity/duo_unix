@@ -113,11 +113,13 @@ case "$host" in
      *)			DUO_PRIVSEP_USER="sshd" ;;
 esac
 AC_ARG_WITH(privsep-user,
-  AS_HELP_STRING([--with-privsep-user=USER],[Specify user for privilege separation (default sshd)]),
+  AS_HELP_STRING([--with-privsep-user=USER],[Specify user for privilege separation (default "sshd")]),
   [
-	if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
-	    test "x${withval}" != "xyes"; then
+	if test -n "$withval" && test "x$withval" != "xno" && \
+	    test "x${withval}" != "xyes" && test "x${withval}" != "xroot" ; then
 	    	DUO_PRIVSEP_USER=$withval
+	else
+		AC_MSG_ERROR(["Invalid privsep user specified"])
 	fi
   ]
 )
