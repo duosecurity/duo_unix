@@ -438,10 +438,10 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *fmt, ...)
 	} else if (ccode == CURLE_SSL_CONNECT_ERROR) {
 		ret = DUO_CLIENT_ERROR;
 	} else if (ccode == CURLE_SSL_CACERT
-#if defined(CURLE_PEER_FAILED_VERIFICATION)
-	    || ccode == CURLE_PEER_FAILED_VERIFICATION
-#elif defined(CURLE_SSL_PEER_CERTIFICATE)
+#if LIBCURL_VERSION_NUM < 0x071701
 	    || ccode == CURLE_SSL_PEER_CERTIFICATE
+#else
+	    || ccode == CURLE_PEER_FAILED_VERIFICATION
 #endif
 	    ) {
 		ret = DUO_SERVER_ERROR;
