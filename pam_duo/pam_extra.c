@@ -45,6 +45,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include <security/pam_appl.h>
 #include <security/pam_modules.h>
 
 #include "pam_extra.h"
