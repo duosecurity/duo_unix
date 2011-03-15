@@ -78,6 +78,9 @@ Options to ./configure:
 	Specify a different user for privilege separation (e.g. "_duo")
 	in login_duo - by default, "sshd" (or "_sshd" on MacOS X).
 
+If neither --sysconfdir nor --prefix are specified to ./configure, the
+default path for local configuration files will be set to /etc/duo.
+
 NOTE: If you're missing ./configure you accidentally downloaded the
 git source tree tarball. Get a versioned package tarball instead:
 
@@ -90,17 +93,29 @@ Install
 
 "make install" as root should do it.
 
+login_duo will be installed setuid root by default in order to keep
+the Duo integration and secret keys in your configuration files
+secret. It may also be installed non-setuid manually for a user
+installation with individual (vs. system-wide) configuration files.
+
 The pam_duo module will be installed in the system PAM module location
 by default (/lib/security, /usr/lib/security, /usr/lib/pam, /usr/lib
 depending on platform).
 
-login_duo will be installed setuid root by default in order to keep
-your Duo credentials (ikey/skey) in /etc/duo/login_duo.conf secret. It
-may also be installed non-setuid manually, such as for a user
-installation with an individual (not system-wide) configuration file.
+Setup
+-----
 
-Add your Duo integration and secret keys to /etc/duo/login_duo.conf ;
-for PAM, you'll need to create /etc/duo/pam_duo.conf manually.
+If you don't have a Duo account, request a trial (e-mail
+<duo_unix@duosecurity.com> for now) and log into your admin account at
+https://admin-eval.duosecurity.com
+
+From your admin account, add a new Unix integration (Integrations >
+Add integration) and use the integration key (ikey) and secret key
+(skey) in your Duo configuration files (by default in /etc/duo). Your
+API host should also be api-eval.duosecurity.com
+
+You do not need to create any user accounts manually - new Duo users
+will be created as each user logs in and enrolls their own device.
 
 Test
 ----
@@ -121,14 +136,11 @@ Usage
 -----
 
 See README.pam, README.ssh, and the login_duo.8 and pam_duo.8 manpages
-for detailed setup instructions.
+for additional options.
 
 To build C applications with libduo, use "pkg-config libduo" with
 --cflags and --libs arguments to locate the development headers and
 library. See the duo.3 manpage for API documentation.
-
-Eval users (e-mail <duo_unix@duosecurity.com> to request a trial):
-be sure your Duo API host is set to "api-eval.duosecurity.com"
 
 Support
 -------
