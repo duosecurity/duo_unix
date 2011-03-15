@@ -31,7 +31,7 @@ main(int argc, char *argv[])
 		fprintf(stderr, "missing DUO_IKEY or DUO_SKEY environment\n");
 		exit(1);
 	}
-	if ((duo = duo_open(ikey, skey)) == NULL) {
+	if ((duo = duo_open(ikey, skey, "testduo")) == NULL) {
 		fprintf(stderr, "duo_open failed\n");
 		exit(1);
 	}

@@ -32,7 +32,7 @@ int	    duo_parse_config(const char *filename,
 	    	void *arg);
 
 /* Open Duo API handle */
-duo_t	   *duo_open(const char *ikey, const char *skey);
+duo_t	   *duo_open(const char *ikey, const char *skey, const char *progname);
 
 /* Override conversation prompt/status functions */
 void	    duo_set_conv_funcs(duo_t *d,

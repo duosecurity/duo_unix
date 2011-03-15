@@ -264,7 +264,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		}
 	}
 	/* Try Duo auth */
-	if ((duo = duo_open(cfg.ikey, cfg.skey)) == NULL) {
+	if ((duo = duo_open(cfg.ikey, cfg.skey, "pam_duo/" PACKAGE_VERSION)) == NULL) {
 		_err("Couldn't open Duo API handle");
 		return (PAM_SERVICE_ERR);
 	}

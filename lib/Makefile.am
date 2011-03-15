@@ -10,7 +10,8 @@ lib_LTLIBRARIES = libduo.la
 
 libduo_la_SOURCES = dummy.c
 libduo_la_LIBADD = libcommon.la
-libduo_la_LDFLAGS = -no-undefined -version-info 0:0:0
+# http://sourceware.org/autobook/autobook/autobook_91.html
+libduo_la_LDFLAGS = -no-undefined -version-info 1:0:0
 
 libduo_la_includedir = $(includedir)
 libduo_la_include_HEADERS = duo.h

@@ -119,9 +119,10 @@ __status_fn(void *arg, const char *msg)
 }
 
 struct duo_ctx *
-duo_open(const char *ikey, const char *skey)
+duo_open(const char *ikey, const char *skey, const char *progname)
 {
 	struct duo_ctx *ctx;
+	char buf[80];
 
 	curl_global_init(CURL_GLOBAL_ALL);
 
@@ -148,7 +149,9 @@ duo_open(const char *ikey, const char *skey)
 	curl_easy_setopt(ctx->curl, CURLOPT_NOPROGRESS, 1L);
 	curl_easy_setopt(ctx->curl, CURLOPT_NOSIGNAL, 1L);
 	curl_easy_setopt(ctx->curl, CURLOPT_DNS_CACHE_TIMEOUT, 0);
-	curl_easy_setopt(ctx->curl, CURLOPT_USERAGENT, DUO_LIB_VERSION);
+	snprintf(buf, sizeof(buf), "%s (%s) libduo/%s",
+	    progname, CANONICAL_HOST, PACKAGE_VERSION);
+	curl_easy_setopt(ctx->curl, CURLOPT_USERAGENT, buf);
 	curl_easy_setopt(ctx->curl, CURLOPT_ERRORBUFFER, ctx->err);
 	curl_easy_setopt(ctx->curl, CURLOPT_WRITEDATA, (void *)ctx->bio);
 	curl_easy_setopt(ctx->curl, CURLOPT_WRITEFUNCTION, __bio_write);

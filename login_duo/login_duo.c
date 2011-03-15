@@ -16,6 +16,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
+#include <limits.h>
 #include <pwd.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -204,7 +205,7 @@ do_auth(struct login_ctx *ctx)
 		return (EXIT_SUCCESS);
 	}
 	/* Try Duo auth. */
-	if ((duo = duo_open(cfg.ikey, cfg.skey)) == NULL) {
+	if ((duo = duo_open(cfg.ikey, cfg.skey, "login_duo/" PACKAGE_VERSION)) == NULL) {
 		_err("Couldn't open Duo API handle");
 		return (EXIT_FAILURE);
 	}
