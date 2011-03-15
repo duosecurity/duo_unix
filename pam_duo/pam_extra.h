@@ -6,8 +6,6 @@
 #endif
 
 #ifndef HAVE_PAM_VPROMPT
-#include <security/pam_appl.h>
-
 int	pam_vprompt(pam_handle_t *pamh, int style, char **response,
 	    const char *fmt, va_list args);
 
