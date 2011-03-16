@@ -21,11 +21,9 @@ AM_MAINTAINER_MODE
 # Init header
 AC_CONFIG_HEADER(config.h)
 
-# Default sysconfdir to /etc/duo, if no --prefix is given
-case "$prefix" in
-     NONE) test "$sysconfdir" = '${prefix}/etc' && sysconfdir=/etc/duo ;;
-esac
-AC_DEFINE_UNQUOTED([DUO_CONF_DIR], ["${sysconfdir}"], [Configuration directory])
+# Default sysconfdir to /etc/duo
+test "$sysconfdir" = '${prefix}/etc' && sysconfdir=/etc/duo
+AC_DEFINE_DIR([DUO_CONF_DIR], [sysconfdir], [Configuration directory])
 
 # Determine platform
 AC_CANONICAL_HOST
