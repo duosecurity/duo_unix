@@ -186,7 +186,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	struct passwd *pw;
 	duo_t *duo;
 	duo_code_t code;
-	duopam_const char *config, *ip, *service, *user;
+	duopam_const char *config, *ip, *p, *service, *user;
 	char buf[128];
 	int i, flags, pam_err;
 
@@ -290,7 +290,12 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		}
 		/* Terminal conditions */
 		if (code == DUO_OK) {
-			_info("Successful Duo login for %s", user);
+                        if ((p = duo_geterr(duo)) != NULL) {
+                                _warn("Skipped Duo login for %s: %s",
+                                    user, p);
+                        } else {
+                                _info("Successful Duo login for %s", user);
+                        }
 			pam_err = PAM_SUCCESS;
 		} else if (code == DUO_ABORT) {
 			_warn("Aborted Duo login for %s: %s",
