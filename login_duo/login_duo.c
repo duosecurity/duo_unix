@@ -249,6 +249,7 @@ do_auth(struct login_ctx *ctx)
 		} else if (code == DUO_CONN_ERROR && cfg.noconn) {
 			_warn("Allowed Duo login for '%s' on connection failure: %s",
 			    user, duo_geterr(duo));
+                        ret = EXIT_SUCCESS;
 		} else if (code == DUO_CLIENT_ERROR) {
 			fprintf(stderr, "%s\n", duo_geterr(duo));
 		} else {
