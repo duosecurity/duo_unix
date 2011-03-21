@@ -161,8 +161,8 @@ do_auth(struct login_ctx *ctx)
 	struct duo_config cfg;
 	duo_t *duo;
 	duo_code_t code;
-	const char *config, *user;
-	char *ip, *p, buf[32];
+	const char *config, *p, *user;
+	char *ip, buf[32];
 	int i, flags, ret, tries;
 
 	user = ctx->duouser ? ctx->duouser : ctx->pw->pw_name;
@@ -241,7 +241,12 @@ do_auth(struct login_ctx *ctx)
 		}
 		/* Terminal conditions */
 		if (code == DUO_OK) {
-			_info("Successful Duo login for %s", user);
+                        if ((p = duo_geterr(duo)) != NULL) {
+                                _warn("Skipping Duo login for %s: %s",
+                                    user, p);
+                        } else {
+                                _info("Successful Duo login for %s", user);
+                        }
 			ret = EXIT_SUCCESS;
 		} else if (code == DUO_ABORT) {
 			_warn("Aborted Duo login for %s: %s",
