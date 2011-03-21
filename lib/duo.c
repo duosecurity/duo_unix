@@ -17,7 +17,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <syslog.h>
 #include <unistd.h>
 
 #include <openssl/bio.h>
@@ -65,10 +64,6 @@ struct duo_ctx {
 	void   (*conv_status)(void *arg, const char *msg);
         void	*conv_arg;
 };
-
-#define _err(...)	syslog(LOG_ERR, __VA_ARGS__)
-#define _info(...)	syslog(LOG_INFO, __VA_ARGS__)
-#define _warn(...)	syslog(LOG_WARNING, __VA_ARGS__)
 
 static int
 __param_cmp(const char * const *a, const char * const *b)
@@ -388,6 +383,7 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *fmt, ...)
 
 	uri = qs = sign = url = userpwd = NULL;
 	ret = DUO_LIB_ERROR;
+        ctx->err[0] = '\0';
 	
 	/* Format URI & (sorted) query string */
 	va_start(ap, fmt);
@@ -456,7 +452,7 @@ call_cleanup:
 const char *
 duo_geterr(struct duo_ctx *ctx)
 {
-	return (ctx->err);
+	return (ctx->err[0] ? ctx->err : NULL);
 }
 
 duo_code_t
@@ -488,18 +484,16 @@ duo_login(struct duo_ctx *ctx, const char *username,
 	if (strcasecmp(p, "auth") != 0) {
 		_BSON_FIND(ctx, &it, &obj, "status", bson_string);
 		if (strcasecmp(p, "allow") == 0) {
-			_info("Skipping Duo login for %s: %s", username,
-			    bson_iterator_string(&it));
+                        _duo_seterr(ctx, "%s", bson_iterator_string(&it));
 			ret = DUO_OK;
 		} else if (strcasecmp(p, "deny") == 0) {
-			_info("Aborted Duo login for %s: %s", username,
-			    bson_iterator_string(&it));
+			_duo_seterr(ctx, "%s", bson_iterator_string(&it));
 			ret = DUO_ABORT;
 		} else if (strcasecmp(p, "enroll") == 0) {
 			if (ctx->conv_status != NULL)
 				ctx->conv_status(ctx->conv_arg,
 				    bson_iterator_string(&it));
-			_info("Aborted Duo login for %s: must enroll first", username);
+			_duo_seterr(ctx, "User enrollment required");
 			ret = DUO_ABORT;
 		} else {
 			_duo_seterr(ctx, "BSON invalid 'result': %s", p);
