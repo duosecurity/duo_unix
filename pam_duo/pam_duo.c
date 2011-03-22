@@ -301,7 +301,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 			_warn("Aborted Duo login for %s: %s",
 			    user, duo_geterr(duo));
 			pam_err = PAM_ABORT;
-		} else if (code == DUO_CONN_ERROR && cfg.noconn) {
+		} else if (cfg.noconn &&
+                    (code == DUO_CONN_ERROR || code == DUO_SERVER_ERROR)) {
 			_warn("Allowed Duo login for '%s' on connection failure: %s",
 			    user, duo_geterr(duo));
 			pam_err = PAM_SUCCESS;

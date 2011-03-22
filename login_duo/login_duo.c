@@ -251,7 +251,8 @@ do_auth(struct login_ctx *ctx)
 		} else if (code == DUO_ABORT) {
 			_warn("Aborted Duo login for %s: %s",
 			    user, duo_geterr(duo));
-		} else if (code == DUO_CONN_ERROR && cfg.noconn) {
+		} else if (cfg.noconn &&
+                    (code == DUO_CONN_ERROR || code == DUO_SERVER_ERROR)) {
 			_warn("Allowed Duo login for '%s' on connection failure: %s",
 			    user, duo_geterr(duo));
                         ret = EXIT_SUCCESS;
