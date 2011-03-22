@@ -11,7 +11,7 @@
 .Sh SYNOPSIS
 .Fd #include <duo.h>
 .Ft duo_t *
-.Fn duo_open "const char *ikey" "const char *skey"
+.Fn duo_open "const char *ikey" "const char *skey" "const char *progname"
 .Ft void
 .Fn duo_set_conv_funcs "duo_t *d" "char *(*conv_prompt)(void *conv_arg, const char *prompt, char *buf, size_t bufsz)" "void (*conv_status)(void *conv_arg, const char *msg)" "void *conv_arg"
 .Ft void
@@ -36,6 +36,8 @@ and
 .Fa skey
 are the required integration and secret keys, respectively, for a Duo customer
 account.
+.Fa progname
+identifies the program to the Duo service.
 .Pp
 .Fn duo_set_conv_funcs
 may be used to override the internal user conversation functions.
