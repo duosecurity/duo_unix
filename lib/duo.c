@@ -265,7 +265,7 @@ duo_set_ssl_verify(struct duo_ctx *ctx, int bool)
 {
 	ctx->verf = (bool != 0);
 	curl_easy_setopt(ctx->curl, CURLOPT_SSL_VERIFYPEER, (long)ctx->verf);
-	curl_easy_setopt(ctx->curl, CURLOPT_SSL_VERIFYHOST, (long)ctx->verf);
+	curl_easy_setopt(ctx->curl, CURLOPT_SSL_VERIFYHOST, (bool ? 2L : 0L));
 }
 
 static int
