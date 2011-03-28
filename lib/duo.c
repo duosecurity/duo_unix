@@ -55,7 +55,8 @@ struct duo_ctx {
 	char	 host[256];		 /* MAXHOSTNAMELEN */
 	char	 ikey[128];		 /* integration key */
 	char	 skey[128];		 /* secret key */
-	char	 err[256];		 /* error message */
+	char	 err[CURL_ERROR_SIZE];	 /* error message */
+        char	*useragent;		 /* user-agent */
 	
 	STACK_OF(PARAM)	*params;	 /* stack of allocated strings */
 	BIO	*bio;			 /* response body */
@@ -136,17 +137,17 @@ duo_open(const char *ikey, const char *skey, const char *progname)
 	ctx->bio = BIO_new(BIO_s_mem());
 	ctx->conv_prompt = __prompt_fn;
 	ctx->conv_status = __status_fn;
-	
-	if (ctx->params == NULL || ctx->bio == NULL) {
+
+	if (asprintf(&ctx->useragent, "%s (%s) libduo/%s",
+                progname, CANONICAL_HOST, PACKAGE_VERSION) == -1 ||
+            ctx->params == NULL || ctx->bio == NULL) {
 		duo_close(ctx);
 		return (NULL);
 	}
 	curl_easy_setopt(ctx->curl, CURLOPT_NOPROGRESS, 1L);
 	curl_easy_setopt(ctx->curl, CURLOPT_NOSIGNAL, 1L);
 	curl_easy_setopt(ctx->curl, CURLOPT_DNS_CACHE_TIMEOUT, 0);
-	snprintf(buf, sizeof(buf), "%s (%s) libduo/%s",
-	    progname, CANONICAL_HOST, PACKAGE_VERSION);
-	curl_easy_setopt(ctx->curl, CURLOPT_USERAGENT, buf);
+	curl_easy_setopt(ctx->curl, CURLOPT_USERAGENT, ctx->useragent);
 	curl_easy_setopt(ctx->curl, CURLOPT_ERRORBUFFER, ctx->err);
 	curl_easy_setopt(ctx->curl, CURLOPT_WRITEDATA, (void *)ctx->bio);
 	curl_easy_setopt(ctx->curl, CURLOPT_WRITEFUNCTION, __bio_write);
@@ -209,6 +210,7 @@ duo_close(struct duo_ctx *ctx)
 			sk_PARAM_pop_free(ctx->params, free);
 		if (ctx->bio)
 			BIO_free_all(ctx->bio);
+                free(ctx->useragent);
 		free(ctx);
 	}
 }
