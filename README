@@ -10,7 +10,7 @@ Duo provides simple two-factor authentication as a service via:
     2.  SMS-delivered one-time passcodes
     3.  Duo mobile app to generate one-time passcodes
     4.  Duo mobile app for smartphone push authentication
-    5.  Duo hardware token to generate one-time passcodes (legacy)
+    5.  Duo hardware token to generate one-time passcodes
 
 This package allows an admin (or ordinary user) to quickly add Duo
 authentication to any Unix login without setting up secondary user
