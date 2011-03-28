@@ -118,8 +118,7 @@ struct duo_ctx *
 duo_open(const char *ikey, const char *skey, const char *progname)
 {
 	struct duo_ctx *ctx;
-	char buf[80];
-
+	
 	curl_global_init(CURL_GLOBAL_ALL);
 
 	if ((ctx = calloc(1, sizeof(*ctx))) == NULL)
