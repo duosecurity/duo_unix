@@ -68,8 +68,8 @@
 #define MAX_RETRIES		3
 
 enum {
-	DUO_OPT_DENY = 0,
-	DUO_OPT_ALLOW,
+	DUO_FAIL_SAFE = 0,
+	DUO_FAIL_SECURE,
 };
 
 struct duo_config {
@@ -78,7 +78,7 @@ struct duo_config {
 	char	*host;
 	int	 minuid;
 	int	 gid;
-	int	 noconn;	/* Duo connection failure: DUO_OPT_* */
+	int	 failmode;	/* Duo failure handling: DUO_FAIL_* */
 	int	 noverify;
 };
 
@@ -111,13 +111,13 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 			_err("Invalid minimum UID: '%s'", val);
 			return (0);
 		}
-	} else if (strcmp(name, "noconn") == 0) {
-		if (strcmp(val, "deny") == 0) {
-			cfg->noconn = DUO_OPT_DENY;
-		} else if (strcmp(val, "allow") == 0) {
-			cfg->noconn = DUO_OPT_ALLOW;
+	} else if (strcmp(name, "failmode") == 0) {
+		if (strcmp(val, "secure") == 0) {
+			cfg->failmode = DUO_FAIL_SECURE;
+		} else if (strcmp(val, "safe") == 0) {
+			cfg->failmode = DUO_FAIL_SAFE;
 		} else {
-			_err("Invalid noconn value: '%s'", val);
+			_err("Invalid failmode: '%s'", val);
 			return (0);
 		}
 	} else if (strcmp(name, "noverify") == 0) {
@@ -192,8 +192,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.minuid = cfg.gid = -1;
-	cfg.noconn = DUO_OPT_ALLOW;
-
+        cfg.failmode = DUO_FAIL_SAFE;
+        
 	/* Check user */
 	if ((pam_err = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS ||
 	    (pw = getpwnam(user)) == NULL) {
@@ -301,9 +301,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 			_warn("Aborted Duo login for %s: %s",
 			    user, duo_geterr(duo));
 			pam_err = PAM_ABORT;
-		} else if (cfg.noconn &&
-                    (code == DUO_CONN_ERROR || code == DUO_SERVER_ERROR)) {
-			_warn("Allowed Duo login for '%s' on connection failure: %s",
+		} else if (cfg.failmode == DUO_FAIL_SAFE &&
+                    (code == DUO_CONN_ERROR ||
+                     code == DUO_CLIENT_ERROR || code == DUO_SERVER_ERROR)) {
+			_warn("Allowed Duo login for '%s' on failure: %s",
 			    user, duo_geterr(duo));
 			pam_err = PAM_SUCCESS;
 		} else {

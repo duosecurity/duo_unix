@@ -16,7 +16,7 @@ provides secondary authentication via the Duo authentication service,
 executing the user's login shell or command only if successful.
 .Pp
 The following options are available:
-.Bl -tag -width ".Cm noconn"
+.Bl -tag -width ".Cm failmode"
 .It Fl c
 Specify an alternate configuration file to load.
 .It Fl h
@@ -42,7 +42,7 @@ The INI-format configuration file must have a
 .Dq Li duo
 section with the following options:
 .Pp
-.Bl -tag -width ".Cm noconn"
+.Bl -tag -width ".Cm failmode"
 .It Cm ikey
 Duo integration key (required).
 .It Cm skey
@@ -51,16 +51,15 @@ Duo secret key (required).
 Skip Duo authentication for users not in a specific Unix group.
 .It Cm minuid
 Skip Duo authentication for users below a specified user ID.
-.It Cm noconn
-Either 
-.Dq Li allow
-or
-.Dq Li deny
-authentication attempts that fail to contact Duo successfully. The
-default is
-.Dq Li allow .
+.It Cm failmode
+On service or configuration errors that prevent Duo authentication, fail
+.Dq Li safe
+(allow access) or
+.Dq Li secure
+(deny access). Default is
+.Dq Li safe .
 .It Cm host
-Override Duo API host for debugging.
+Override default Duo API host.
 .El
 .Pp
 An example configuration file:
@@ -69,7 +68,6 @@ An example configuration file:
 ikey=SI9F...53RI
 skey=4MjR...Q2NmRiM2Q1Y
 minuid=500
-noconn=allow
 .Ed
 .Pp
 If installed setuid root (the default), 
@@ -126,6 +124,6 @@ and other
 .Xr ssh 1
 remote commands, 
 .Nm
-automatically uses the default configured out-of-band factor
+automatically tries the user's default out-of-band factor
 (smartphone push or voice callback) and disables real-time login
 progress reporting to provide a clean shell environment.
