@@ -178,7 +178,7 @@ duo_parse_config(const char *filename,
 		fclose(fp);
 		return (-2);
 	}
-	ret =ini_parse(fp, callback, arg);
+	ret = ini_parse(fp, callback, arg);
 	fclose(fp);
 	return (ret);
 }
