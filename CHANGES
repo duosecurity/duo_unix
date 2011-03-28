@@ -4,3 +4,8 @@ duo_unix-1.5:
 - changed 'noconn' (allow, deny) option in login_duo and pam_duo to
   the clearer 'failmode' (safe, secure), e.g.
   http://en.wikipedia.org/wiki/Fail-safe
+
+- fix curl_easy_setopt() of User-Agent for libcurl < 7.17.0
+
+- add CHANGES :-)
+
