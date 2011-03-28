@@ -110,7 +110,7 @@ If you don't have a Duo account, request a trial (e-mail
 https://admin-eval.duosecurity.com
 
 From your admin account, add a new Unix integration (Integrations >
-Add integration) and use the integration key (ikey) and secret key
+New integration) and use the integration key (ikey) and secret key
 (skey) in your Duo configuration files (by default in /etc/duo). Your
 API host should also be api-eval.duosecurity.com
 
