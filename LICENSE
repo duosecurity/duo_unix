@@ -1,6 +1,8 @@
 
 duo_unix is distributed under the terms of the GNU General Public
-License v2 with the following clarification and special exception:
+License v2 with the following clarification and special exceptions:
+
+Compiling, linking, and/or using OpenSSL is allowed.
 
 Linking this library statically or dynamically with other modules is
 making a combined work based on this library. Thus, the terms and
