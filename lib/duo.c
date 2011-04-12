@@ -389,7 +389,9 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *fmt, ...)
 	
 	/* Format URI & (sorted) query string */
 	va_start(ap, fmt);
-	vasprintf(&uri, fmt, ap);
+	if (vasprintf(&uri, fmt, ap) < 0) {
+		goto call_cleanup;
+	}
 	va_end(ap);
 	if (uri == NULL || (qs = _params_pop_to_qs(ctx)) == NULL) {
 		goto call_cleanup;
