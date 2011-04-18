@@ -79,6 +79,7 @@ struct duo_config {
 	int	 minuid;
 	int	 gid;
 	int	 failmode;	/* Duo failure handling: DUO_FAIL_* */
+        int	 nopushinfo;
 	int	 noverify;
 };
 
@@ -119,6 +120,11 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 		} else {
 			_err("Invalid failmode: '%s'", val);
 			return (0);
+		}
+	} else if (strcmp(name, "nopushinfo") == 0) {
+		if (strcmp(val, "yes") == 0 || strcmp(val, "true") == 0 ||
+		    strcmp(val, "1") == 0) {
+			cfg->nopushinfo = 1;
 		}
 	} else if (strcmp(name, "noverify") == 0) {
 		if (strcmp(val, "yes") == 0 || strcmp(val, "true") == 0 ||
@@ -186,7 +192,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	struct passwd *pw;
 	duo_t *duo;
 	duo_code_t code;
-	duopam_const char *config, *ip, *p, *service, *user;
+	duopam_const char *config, *cmd, *ip, *p, *service, *user;
 	char buf[128];
 	int i, flags, pam_err;
 
@@ -242,10 +248,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	 * an SSH_MSG_USERAUTH_BANNER post-auth, not real-time!
 	 */
 	flags = 0;
+        cmd = NULL;
 	if (pam_get_item(pamh, PAM_SERVICE, (duopam_const void **)
 		(duopam_const void *)&service) == PAM_SUCCESS) {
-		if (strcmp(service, "sshd") == 0)
+		if (strcmp(service, "sshd") == 0) {
 			flags |= DUO_FLAG_SYNC;
+                } else if (strcmp(service, "sudo") == 0) {
+                        cmd = getenv("SUDO_COMMAND");
+                }
 	}
 	ip = NULL;
 	if (pam_get_item(pamh, PAM_RHOST, (duopam_const void **)
@@ -278,13 +288,18 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	pam_err = PAM_SERVICE_ERR;
 	
 	for (i = 0; i < MAX_RETRIES; i++) {
-		code = duo_login(duo, user, ip, flags);
+		code = duo_login(duo, user, ip, flags,
+                    cfg.nopushinfo ? NULL : cmd);
 
 		if (code == DUO_FAIL) {
-			_warn("Failed Duo login for %s: %s",
-			    user, duo_geterr(duo));
-			if ((flags & DUO_FLAG_SYNC) == 0)
+                        if ((p = duo_geterr(duo)) != NULL) {
+                                _warn("Failed Duo login for %s: %s", user, p);
+                        } else {
+                                _warn("Failed Duo login for %s", user);
+                        }
+			if ((flags & DUO_FLAG_SYNC) == 0) {
 				pam_info(pamh, "%s", "");
+                        }
 			/* Keep going */
 			continue;
 		}
