@@ -13,13 +13,13 @@
 .Ft duo_t *
 .Fn duo_open "const char *ikey" "const char *skey" "const char *progname"
 .Ft void
-.Fn duo_set_conv_funcs "duo_t *d" "char *(*conv_prompt)(void *conv_arg, const char *prompt, char *buf, size_t bufsz)" "void (*conv_status)(void *conv_arg, const char *msg)" "void *conv_arg"
+.Fn duo_set_conv_funcs "duo_t *d" "char *(*conv_prompt)(void *conv_arg, const char *, char *, size_t)" "void (*conv_status)(void *conv_arg, const char *msg)" "void *conv_arg"
 .Ft void
 .Fn duo_set_host "duo_t *d" "const char *hostname"
 .Ft void
 .Fn duo_set_ssl_verify "duo_t *d" "int bool"
 .Ft duo_code_t
-.Fn duo_login "duo_t *d" "const char *username" "const char *client_ip" "int flags"
+.Fn duo_login "duo_t *d" "const char *username" "const char *client_ip" "int flags" "const char *command"
 .Ft const char *
 .Fn duo_geterr "duo_t *d"
 .Ft void
@@ -65,9 +65,9 @@ default).
 performs secondary authentication via the Duo service for the specified
 .Fa username Ns .
 .Fa client_ip
-is the source IP address of the connection to be authenticated, and may be 
+is the source IP address of the connection to be authenticated, or
 .Li NULL
-if unknown. The following bitmask values are defined for
+to specify the local host. The following bitmask values are defined for
 .Fa flags :
 .Pp
 .Bl -tag -width "DUO_SERVER_ERROR" -compact -offset indent
@@ -79,6 +79,12 @@ Do not report incremental status during authentication (e.g. voice
 callback progress) - only issue one status message per authentication
 attempt.
 .El
+.Pp
+If not
+.Li NULL ,
+the 
+.Fa command
+to be authorized will be displayed during push authentication.
 .Pp
 .Fn duo_geterr
 returns a description of the last-seen error on the specified Duo API

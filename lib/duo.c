@@ -8,7 +8,10 @@
 #include "config.h"
 
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
+
+#include <arpa/inet.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -459,9 +462,33 @@ duo_geterr(struct duo_ctx *ctx)
 	return (ctx->err[0] ? ctx->err : NULL);
 }
 
+static const char *
+_local_ip(void)
+{
+        struct sockaddr_in sin;
+        socklen_t slen;
+        int fd;
+        const char *ip = NULL;
+        
+        memset(&sin, 0, sizeof(sin));
+        sin.sin_family = AF_INET;
+        sin.sin_addr.s_addr = inet_addr("8.8.8.8");	/* XXX */
+        sin.sin_port = htons(53);
+        slen = sizeof(sin);
+        
+        if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) != -1) {
+                if (connect(fd, (struct sockaddr *)&sin, slen) != -1 &&
+                    getsockname(fd, (struct sockaddr *)&sin, &slen) != -1) {
+                        ip = inet_ntoa(sin.sin_addr);
+                }
+                close(fd);
+        }
+        return (ip);
+}
+
 duo_code_t
 duo_login(struct duo_ctx *ctx, const char *username,
-    const char *client_ip, int flags)
+    const char *client_ip, int flags, const char *command)
 {
 	bson obj;
 	bson_iterator it;
@@ -548,9 +575,19 @@ duo_login(struct duo_ctx *ctx, const char *username,
 	    duo_add_param(ctx, "async",
 		(flags & DUO_FLAG_SYNC) ? "0" : "1") != DUO_OK ||
 	    duo_add_param(ctx, "ipaddr",
-		client_ip ? client_ip : "0.0.0.0") != DUO_OK) {
+		client_ip ? client_ip : _local_ip()) != DUO_OK) {
 		return (DUO_LIB_ERROR);
 	}
+        if (command != NULL) {
+                char *p, *v;
+                if ((v = urlenc_encode(command)) == NULL || 
+                    asprintf(&p, "command=%s", v) < 0) {
+                        free(v);
+                        return (DUO_LIB_ERROR);
+                }
+                duo_add_param(ctx, "pushinfo", p);
+                free(p);
+        }
 	if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/auth.bson")) != DUO_OK ||
 	    (ret = _duo_bson_response(ctx, &obj)) != DUO_OK) {
 		return (ret);

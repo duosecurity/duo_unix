@@ -49,7 +49,7 @@ void	    duo_set_ssl_verify(duo_t *d, int bool);
 
 /* Perform Duo authentication */
 duo_code_t  duo_login(duo_t *d, const char *username,
-		const char *client_ip, int flags);
+    		const char *client_ip, int flags, const char *command);
 
 /* Return error message from last API call */
 const char *duo_geterr(duo_t *d);
