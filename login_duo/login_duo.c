@@ -46,6 +46,7 @@ struct duo_config {
 	int	 minuid;
 	int	 gid;
 	int	 failmode;	/* Duo failure handling: DUO_FAIL_* */
+        int	 nopushinfo;
 	int	 noverify;
 };
 
@@ -106,6 +107,11 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 			fprintf(stderr, "Invalid failmode: '%s'\n", val);
 			return (0);
 		}
+	} else if (strcmp(name, "nopushinfo") == 0) {
+		if (strcmp(val, "yes") == 0 || strcmp(val, "true") == 0 ||
+		    strcmp(val, "1") == 0) {
+			cfg->nopushinfo = 1;
+		}
 	} else if (strcmp(name, "noverify") == 0) {
 		if (strcmp(val, "yes") == 0 || strcmp(val, "true") == 0 ||
 		    strcmp(val, "1") == 0) {
@@ -156,7 +162,7 @@ drop_privs(uid_t uid, gid_t gid)
 }
 
 static int
-do_auth(struct login_ctx *ctx)
+do_auth(struct login_ctx *ctx, const char *cmd)
 {
 	struct duo_config cfg;
 	duo_t *duo;
@@ -225,17 +231,22 @@ do_auth(struct login_ctx *ctx)
 			flags = (DUO_FLAG_SYNC|DUO_FLAG_AUTO);
 			tries = 1;
 		}
-	}
+        }
 	ret = EXIT_FAILURE;
 	
 	for (i = 0; i < tries; i++) {
-		code = duo_login(duo, user, ip, flags);
-
+		code = duo_login(duo, user, ip, flags,
+                    cfg.nopushinfo ? NULL : cmd);
+                
 		if (code == DUO_FAIL) {
-			_warn("Failed Duo login for %s: %s",
-			    user, duo_geterr(duo));
-			if ((flags & DUO_FLAG_SYNC) == 0)
+                        if ((p = duo_geterr(duo)) != NULL) {
+                                _warn("Failed Duo login for %s: %s", user, p);
+                        } else {
+                                _warn("Failed Duo login for %s");
+                        }
+			if ((flags & DUO_FLAG_SYNC) == 0) {
 				printf("\n");
+                        }
 			/* Keep going */
 			continue;
 		}
@@ -277,7 +288,7 @@ _argv_to_string(int argc, char *argv[])
 	for (n = i = 0; i < argc; i++) {
 		n += strlen(argv[i]) + 1;
 	}
-	if (n == 0 || (s = malloc(n)) == NULL) {
+	if (n <= 0 || (s = malloc(n)) == NULL) {
 		return (NULL);
 	}
 	for (n = i = 0; i < argc; i++) {
@@ -292,18 +303,12 @@ _argv_to_string(int argc, char *argv[])
 }
 
 static void
-do_exec(struct login_ctx *ctx, int argc, char *argv[])
+do_exec(struct login_ctx *ctx, const char *cmd)
 {
 	const char *shell0;
-	char *cmd, argv0[256];
+	char argv0[256];
 	int n;
 	
-	if (argc > 0) {
-		if ((cmd = _argv_to_string(argc, argv)) == NULL)
-			die("error converting arguments to command");
-	} else {
-		cmd = getenv("SSH_ORIGINAL_COMMAND");
-	}
 	if ((shell0 = strrchr(ctx->pw->pw_shell, '/')) != NULL) {
 		shell0++;
 	} else {
@@ -319,6 +324,20 @@ do_exec(struct login_ctx *ctx, int argc, char *argv[])
 		execl(ctx->pw->pw_shell, argv0, NULL);
 	}
 	die("%s: %s", ctx->pw->pw_shell, strerror(errno));
+}
+
+static char *
+get_command(int argc, char *argv[])
+{
+        char *cmd;
+        
+        if (argc > 0) {
+                if ((cmd = _argv_to_string(argc, argv)) == NULL)
+                        die("error converting arguments to command");
+        } else {
+                cmd = getenv("SSH_ORIGINAL_COMMAND");
+        }
+        return (cmd);
 }
 
 static void
@@ -375,7 +394,7 @@ main(int argc, char *argv[])
 				die("couldn't drop privileges: %s",
 				    strerror(errno));
 			}
-			exit(do_auth(ctx));
+			exit(do_auth(ctx, get_command(argc, argv)));
 		} else {
 			/* Parent continues as user. */
 			if (drop_privs(getuid(), getgid()) != 0) {
@@ -387,13 +406,15 @@ main(int argc, char *argv[])
 				die("waitpid: %s", strerror(errno));
 			}
 			if (WEXITSTATUS(stat) == 0) {
-				do_exec(ctx, argc, argv);
+ 				do_exec(ctx, get_command(argc, argv));
 			}
 		}
 	} else {
+                char *cmd = get_command(argc, argv);
+                
 		/* Non-setuid root operation or running as root. */
-		if (do_auth(ctx) == EXIT_SUCCESS) {
-			do_exec(ctx, argc, argv);
+		if (do_auth(ctx, cmd) == EXIT_SUCCESS) {
+			do_exec(ctx, cmd);
 		}
 	}
 	exit(EXIT_FAILURE);
