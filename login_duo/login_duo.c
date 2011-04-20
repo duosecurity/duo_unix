@@ -236,8 +236,12 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 	
 	for (i = 0; i < tries; i++) {
 		code = duo_login(duo, user, ip, flags,
-                    cfg.nopushinfo ? NULL : cmd);
-                
+#ifdef PUSHINFO
+                    cfg.nopushinfo ? NULL : cmd
+#else
+                    NULL
+#endif
+                    );
 		if (code == DUO_FAIL) {
                         if ((p = duo_geterr(duo)) != NULL) {
                                 _warn("Failed Duo login for %s: %s", user, p);
