@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 
 #include <arpa/inet.h>
+#include <netinet/in.h>
 
 #include <assert.h>
 #include <ctype.h>
