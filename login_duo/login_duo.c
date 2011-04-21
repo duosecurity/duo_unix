@@ -51,10 +51,10 @@ struct duo_config {
 };
 
 struct login_ctx {
-	struct passwd	*pw;
 	const char	*config;
 	const char	*host;
 	const char	*duouser;
+        uid_t		 uid;
 };
 
 #define _err(...)	syslog(LOG_ERR, __VA_ARGS__)
@@ -165,13 +165,17 @@ static int
 do_auth(struct login_ctx *ctx, const char *cmd)
 {
 	struct duo_config cfg;
+        struct passwd *pw;
 	duo_t *duo;
 	duo_code_t code;
 	const char *config, *p, *user;
 	char *ip, buf[32];
 	int i, flags, ret, tries;
 
-	user = ctx->duouser ? ctx->duouser : ctx->pw->pw_name;
+        if ((pw = getpwuid(ctx->uid)) == NULL)
+                die("Who are you?");
+        
+	user = ctx->duouser ? ctx->duouser : pw->pw_name;
 	config = ctx->config ? ctx->config : DUO_CONF;
 	flags = 0;
 	tries = MAX_RETRIES;
@@ -183,9 +187,8 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 	/* Load our private config. */
 	i = duo_parse_config(config, __ini_handler, &cfg);
 	if (i == -2) {
-		struct passwd *pw;
-		if ((pw = getpwuid(getuid())) == NULL)
-			die("who are you?");
+                if ((pw = getpwuid(getuid())) == NULL)
+                        die("Who are you?");
 		die("%s must be readable only by user '%s'",
 		    config, pw->pw_name);
 	} else if (i == -1) {
@@ -206,7 +209,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 		}
 	}
 	/* Check UID range */
-	if (cfg.minuid != -1 && ctx->pw->pw_uid < cfg.minuid) {
+	if (cfg.minuid != -1 && ctx->uid < cfg.minuid) {
 		/* User below minimum UID for Duo auth */
 		return (EXIT_SUCCESS);
 	}
@@ -309,25 +312,29 @@ _argv_to_string(int argc, char *argv[])
 static void
 do_exec(struct login_ctx *ctx, const char *cmd)
 {
+        struct passwd *pw;
 	const char *shell0;
 	char argv0[256];
 	int n;
-	
-	if ((shell0 = strrchr(ctx->pw->pw_shell, '/')) != NULL) {
+
+        if ((pw = getpwuid(ctx->uid)) == NULL)
+                die("Who are you?");
+        
+	if ((shell0 = strrchr(pw->pw_shell, '/')) != NULL) {
 		shell0++;
 	} else {
-		shell0 = ctx->pw->pw_shell;
+		shell0 = pw->pw_shell;
 	}
 	if (cmd != NULL) {
-		execl(ctx->pw->pw_shell, shell0, "-c", cmd, NULL);
+		execl(pw->pw_shell, shell0, "-c", cmd, NULL);
 	} else {
 		n = snprintf(argv0, sizeof(argv0), "-%s", shell0);
 		if (n == -1 || n >= sizeof(argv0)) {
-			die("%s: Invalid argument", ctx->pw->pw_shell);
+			die("%s: Invalid argument", pw->pw_shell);
 		}
-		execl(ctx->pw->pw_shell, argv0, NULL);
+		execl(pw->pw_shell, argv0, NULL);
 	}
-	die("%s: %s", ctx->pw->pw_shell, strerror(errno));
+	die("%s: %s", pw->pw_shell, strerror(errno));
 }
 
 static char *
@@ -354,7 +361,7 @@ int
 main(int argc, char *argv[])
 {
 	struct login_ctx ctx[1];
-	struct passwd *duo_pw;
+	struct passwd *pw;
 	pid_t pid;
 	int c, stat;
 	
@@ -377,24 +384,21 @@ main(int argc, char *argv[])
 	}
 	argc -= optind;
 	argv += optind;
-	
-	if ((ctx->pw = getpwuid(getuid())) == NULL) {
-		die("Who are you?");
-	}
-	if (geteuid() != getuid()) {
+
+        ctx->uid = getuid();
+        
+	if (geteuid() != ctx->uid) {
 		/* Setuid-root operation protecting private config. */
 		if (ctx->config != NULL || ctx->duouser != NULL ||
 		    ctx->host != NULL) {
 			die("Only root may specify -c, -f, or -h");
 		}
-		if ((duo_pw = getpwnam(DUO_PRIVSEP_USER)) == NULL) {
+		if ((pw = getpwnam(DUO_PRIVSEP_USER)) == NULL) {
 			die("User '%s' not found", DUO_PRIVSEP_USER);
 		}
-		endpwent();
-		
 		if ((pid = fork()) == 0) {
 			/* Unprivileged auth child. */
-			if (drop_privs(duo_pw->pw_uid, duo_pw->pw_gid) != 0) {
+			if (drop_privs(pw->pw_uid, pw->pw_gid) != 0) {
 				die("couldn't drop privileges: %s",
 				    strerror(errno));
 			}
