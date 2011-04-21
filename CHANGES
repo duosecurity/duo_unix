@@ -1,4 +1,10 @@
 
+duo_unix-1.6:
+
+- fixed Duo enrollment on FreeBSD
+
+- GPL-pedantic OpenSSL license handling
+
 duo_unix-1.5:
 
 - changed 'noconn' (allow, deny) option in login_duo and pam_duo to
