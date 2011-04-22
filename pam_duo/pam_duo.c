@@ -79,7 +79,7 @@ struct duo_config {
 	int	 minuid;
 	int	 gid;
 	int	 failmode;	/* Duo failure handling: DUO_FAIL_* */
-        int	 nopushinfo;
+        int	 pushinfo;
 	int	 noverify;
 };
 
@@ -121,14 +121,14 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 			_err("Invalid failmode: '%s'", val);
 			return (0);
 		}
-	} else if (strcmp(name, "nopushinfo") == 0) {
+	} else if (strcmp(name, "pushinfo") == 0) {
 		if (strcmp(val, "yes") == 0 || strcmp(val, "true") == 0 ||
-		    strcmp(val, "1") == 0) {
-			cfg->nopushinfo = 1;
+		    strcmp(val, "on") == 0 || strcmp(val, "1") == 0) {
+			cfg->pushinfo = 1;
 		}
 	} else if (strcmp(name, "noverify") == 0) {
 		if (strcmp(val, "yes") == 0 || strcmp(val, "true") == 0 ||
-		    strcmp(val, "1") == 0) {
+		    strcmp(val, "on") == 0 || strcmp(val, "1") == 0) {
 			cfg->noverify = 1;
 		}
 	} else {
@@ -289,12 +289,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	
 	for (i = 0; i < MAX_RETRIES; i++) {
 		code = duo_login(duo, user, ip, flags,
-#ifdef PUSHINFO
-                    cfg.nopushinfo ? NULL : cmd
-#else
-                    NULL
-#endif
-                    );
+                    cfg.pushinfo ? cmd : NULL);
 		if (code == DUO_FAIL) {
                         if ((p = duo_geterr(duo)) != NULL) {
                                 _warn("Failed Duo login for %s: %s", user, p);
