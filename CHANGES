@@ -1,17 +1,19 @@
 
 duo_unix-1.6:
 
-- fixed Duo enrollment on FreeBSD
+- Added 'pushinfo' configuration option
 
-- GPL-pedantic OpenSSL license handling
+- Fixed Duo enrollment on FreeBSD
+
+- Pedantic GPL + OpenSSL license handling
 
 duo_unix-1.5:
 
-- changed 'noconn' (allow, deny) option in login_duo and pam_duo to
+- Changed 'noconn' (allow, deny) option in login_duo and pam_duo to
   the clearer 'failmode' (safe, secure), e.g.
   http://en.wikipedia.org/wiki/Fail-safe
 
-- fix curl_easy_setopt() of User-Agent for libcurl < 7.17.0
+- Fixed curl_easy_setopt() of User-Agent for libcurl < 7.17.0
 
-- add CHANGES :-)
+- Added CHANGES :-)
 
