@@ -582,7 +582,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
         if (command != NULL) {
                 char *p, *v;
                 if ((v = urlenc_encode(command)) == NULL || 
-                    asprintf(&p, "command=%s", v) < 0) {
+                    asprintf(&p, "Command=%s", v) < 0) {
                         free(v);
                         return (DUO_LIB_ERROR);
                 }
