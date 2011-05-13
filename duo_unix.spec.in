@@ -69,10 +69,10 @@ make install DESTDIR=$RPM_BUILD_ROOT
 rm -f $RPM_BUILD_ROOT/%{_lib}/security/pam_duo.*a
 
 %files
-%defattr(-,root,root,-)
+%defattr(-,root,root)
 %doc AUTHORS README CHANGES LICENSE README.ssh
 %config(noreplace) %{_sysconfdir}/duo/login_duo.conf
-%{_sbindir}/login_duo
+%attr(4755, root, root) %{_sbindir}/login_duo
 %{_mandir}/man8/login_duo.8.gz
 
 %files -n pam_duo
