@@ -2,7 +2,7 @@
 %define develname duo_unix-devel
 
 Name: duo_unix
-Version: 1.6
+Version: @VERSION@
 Release: 0
 Epoch: 0
 Summary: Duo two-factor authentication for Unix systems
