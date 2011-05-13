@@ -68,6 +68,10 @@ rm -rf $RPM_BUILD_ROOT
 make install DESTDIR=$RPM_BUILD_ROOT
 rm -f $RPM_BUILD_ROOT/%{_lib}/security/pam_duo.*a
 
+%post -n libduo -p /sbin/ldconfig
+
+%postun -n libduo -p /sbin/ldconfig
+
 %files
 %defattr(-,root,root)
 %doc AUTHORS README CHANGES LICENSE README.ssh
