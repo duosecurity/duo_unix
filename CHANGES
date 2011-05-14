@@ -1,4 +1,10 @@
 
+duo_unix-1.7:
+
+- Fix issue #5: add implicit 'safe' failmode for local config errors
+
+- Title-case "Command" in pushinfo
+
 duo_unix-1.6:
 
 - Added 'pushinfo' configuration option
