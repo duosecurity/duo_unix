@@ -259,7 +259,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
                         if ((p = duo_geterr(duo)) != NULL) {
                                 _warn("Failed Duo login for %s: %s", user, p);
                         } else {
-                                _warn("Failed Duo login for %s");
+			        _warn("Failed Duo login for %s", user);
                         }
 			if ((flags & DUO_FLAG_SYNC) == 0) {
 				printf("\n");
