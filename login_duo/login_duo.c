@@ -185,18 +185,33 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         cfg.failmode = DUO_FAIL_SAFE;
         
 	/* Load our private config. */
-	i = duo_parse_config(config, __ini_handler, &cfg);
-	if (i == -2) {
-                if ((pw = getpwuid(getuid())) == NULL)
-                        die("Who are you?");
-		die("%s must be readable only by user '%s'",
-		    config, pw->pw_name);
-	} else if (i == -1) {
-		die("Couldn't open %s: %s", config, strerror(errno));
-	} else if (i > 0) {
-		die("Parse error in %s, line %d", config, i);
-	} else if (!cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0]) {
-		die("Missing ikey or skey in %s", config);
+	if ((i = duo_parse_config(config, __ini_handler, &cfg)) != 0 ||
+            (!cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0])) {
+                switch (i) {
+                case -2:
+                        if ((pw = getpwuid(getuid())) == NULL)
+                                die("Who are you?");
+                        fprintf(stderr, "%s must be readable only by "
+                            "user '%s'\n", config, pw->pw_name);
+                        break;
+                case -1:
+                        fprintf(stderr, "Couldn't open %s: %s\n",
+                            config, strerror(errno));
+                        break;
+                case 0:
+                        fprintf(stderr, "Missing ikey or skey in %s\n",
+                            config);
+                        break;
+                default:
+                        fprintf(stderr, "Parse error in %s, line %d\n",
+                            config, i);
+                        break;
+                }
+                /* Implicit "safe" failmode for local configuration errors */
+                if (cfg.failmode == DUO_FAIL_SAFE) {
+                        return (EXIT_SUCCESS);
+                }
+                return (EXIT_FAILURE);
 	}
 	/* Check group membership. */
 	if (cfg.gid != -1) {
