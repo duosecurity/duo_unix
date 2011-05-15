@@ -61,10 +61,10 @@ Development files and documentation for duo_unix
 make %{?_smp_mflags}
 
 %clean
-rm -rf $RPM_BUILD_ROOT
+[ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
 
 %install
-rm -rf $RPM_BUILD_ROOT
+[ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
 make install DESTDIR=$RPM_BUILD_ROOT
 rm -f $RPM_BUILD_ROOT/%{_lib}/security/pam_duo.*a
 
@@ -75,13 +75,16 @@ rm -f $RPM_BUILD_ROOT/%{_lib}/security/pam_duo.*a
 %files
 %defattr(-,root,root)
 %doc AUTHORS README CHANGES LICENSE README.ssh
+%dir %{_sysconfdir}/duo
 %config(noreplace) %{_sysconfdir}/duo/login_duo.conf
 %attr(4755, root, root) %{_sbindir}/login_duo
 %{_mandir}/man8/login_duo.8.gz
 
 %files -n pam_duo
 %doc README.pam
+%dir %{_sysconfdir}/duo
 /%{_lib}/security/pam_duo.so
+%config(noreplace) %attr(640, root, root) %{_sysconfdir}/duo/pam_duo.conf
 %{_mandir}/man8/pam_duo.8.gz
 
 %files -n %{libname}
