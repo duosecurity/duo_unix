@@ -132,7 +132,7 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 			cfg->noverify = 1;
 		}
 	} else {
-		_err("Invalid login_duo option: '%s'", name);
+		_err("Invalid pam_duo option: '%s'", name);
 		return (0);
 	}
 	return (1);
