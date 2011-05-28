@@ -488,9 +488,8 @@ _local_ip(void)
 }
 
 duo_code_t
-_duo_preauth(struct duo_ctx *ctx, const char *username)
+_duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username)
 {
-	bson obj;
 	bson_iterator it;
 	duo_code_t ret;
 	const char *p;
@@ -500,14 +499,14 @@ _duo_preauth(struct duo_ctx *ctx, const char *username)
 		return (DUO_LIB_ERROR);
 	}
 	if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/preauth.bson")) != DUO_OK ||
-	    (ret = _duo_bson_response(ctx, &obj)) != DUO_OK) {
+	    (ret = _duo_bson_response(ctx, obj)) != DUO_OK) {
 		return (ret);
 	}
-	_BSON_FIND(ctx, &it, &obj, "result", bson_string);
+	_BSON_FIND(ctx, &it, obj, "result", bson_string);
 	p = bson_iterator_string(&it);
 
 	if (strcasecmp(p, "auth") != 0) {
-		_BSON_FIND(ctx, &it, &obj, "status", bson_string);
+		_BSON_FIND(ctx, &it, obj, "status", bson_string);
 		if (strcasecmp(p, "allow") == 0) {
                         _duo_seterr(ctx, "%s", bson_iterator_string(&it));
 			ret = DUO_OK;
@@ -530,18 +529,17 @@ _duo_preauth(struct duo_ctx *ctx, const char *username)
 }
 
 duo_code_t
-_duo_prompt(struct duo_ctx *ctx, int flags, char *buf, size_t sz,
-    const char **p)
+_duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
+    size_t sz, const char **p)
 {
-	bson obj;
 	bson_iterator it;
         
 	if ((flags & DUO_FLAG_AUTO) != 0) {
 		/* Find default OOB factor for automatic login */
-		_BSON_FIND(ctx, &it, &obj, "factors", bson_object);
-		bson_iterator_subobject(&it, &obj);
+		_BSON_FIND(ctx, &it, obj, "factors", bson_object);
+		bson_iterator_subobject(&it, obj);
 		
-		if (bson_find(&it, &obj, "default") != bson_string) {
+		if (bson_find(&it, obj, "default") != bson_string) {
 			_duo_seterr(ctx, "No default factor found for automatic login");
 			return (DUO_ABORT);
 		}
@@ -552,19 +550,19 @@ _duo_prompt(struct duo_ctx *ctx, int flags, char *buf, size_t sz,
 			_duo_seterr(ctx, "No prompt function set");
 			return (DUO_CLIENT_ERROR);
 		}
-		_BSON_FIND(ctx, &it, &obj, "prompt", bson_string);
+		_BSON_FIND(ctx, &it, obj, "prompt", bson_string);
 		*p = bson_iterator_string(&it);
 		
 		if (ctx->conv_prompt(ctx->conv_arg, *p, buf, sz) == NULL) {
-			_duo_seterr(ctx, "Invalid user response");
+			_duo_seterr(ctx, "Invalid user objonse");
 			return (DUO_FAIL);
 		}
 		strtok(buf, "\r\n");
 
-		_BSON_FIND(ctx, &it, &obj, "factors", bson_object);
-		bson_iterator_subobject(&it, &obj);
+		_BSON_FIND(ctx, &it, obj, "factors", bson_object);
+		bson_iterator_subobject(&it, obj);
 		
-		if (bson_find(&it, &obj, buf) == bson_string) {
+		if (bson_find(&it, obj, buf) == bson_string) {
 			*p = bson_iterator_string(&it);
 		} else {
 			*p = buf;
@@ -589,11 +587,11 @@ duo_login(struct duo_ctx *ctx, const char *username,
 		return (DUO_CLIENT_ERROR);
 	}
         /* Check preauth status */
-        if ((ret = _duo_preauth(ctx, username)) != -1) {
+        if ((ret = _duo_preauth(ctx, &obj, username)) != -1) {
                 return (ret);
         }
 	/* Handle factor selection */
-        if ((ret = _duo_prompt(ctx, flags, buf, sizeof(buf), &p)) != -1) {
+        if ((ret = _duo_prompt(ctx, &obj, flags, buf, sizeof(buf), &p)) != -1) {
                 return (ret);
         }
 	/* Try Duo authentication */
