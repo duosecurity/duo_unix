@@ -554,7 +554,7 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
 		*p = bson_iterator_string(&it);
 		
 		if (ctx->conv_prompt(ctx->conv_arg, *p, buf, sz) == NULL) {
-			_duo_seterr(ctx, "Invalid user objonse");
+			_duo_seterr(ctx, "Invalid user response");
 			return (DUO_FAIL);
 		}
 		strtok(buf, "\r\n");
