@@ -16,7 +16,7 @@ main(int argc, char *argv[])
 {
 	duo_t *duo;
 	duo_code_t code;
-	char *ikey, *skey, *username;
+	char *host, *ikey, *skey, *username;
 	int i, flags, retries;
 
 	if (argc != 2) {
@@ -27,16 +27,16 @@ main(int argc, char *argv[])
 	flags = 0;
 	retries = 3;
 	
-	if ((ikey = getenv("DUO_IKEY")) == NULL || (skey = getenv("DUO_SKEY")) == NULL) {
-		fprintf(stderr, "missing DUO_IKEY or DUO_SKEY environment\n");
+	if ((host = getenv("DUO_API_HOST")) == NULL ||
+            (ikey = getenv("DUO_IKEY")) == NULL ||
+            (skey = getenv("DUO_SKEY")) == NULL) {
+		fprintf(stderr, "missing DUO_API_HOST or DUO_IKEY or "
+                    "DUO_SKEY environment\n");
 		exit(1);
 	}
-	if ((duo = duo_open(ikey, skey, "testduo")) == NULL) {
+	if ((duo = duo_open(host, ikey, skey, "testduo")) == NULL) {
 		fprintf(stderr, "duo_open failed\n");
 		exit(1);
-	}
-	if (getenv("DUO_API_HOST")) {
-		duo_set_host(duo, getenv("DUO_API_HOST"));
 	}
 	if (getenv("DUO_NO_VERIFY")) {
 		duo_set_ssl_verify(duo, 0);

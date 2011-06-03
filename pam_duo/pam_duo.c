@@ -223,8 +223,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	} else if (i > 0) {
 		_err("Parse error in %s, line %d", config, i);
 		return (PAM_SERVICE_ERR);
-	} else if (!cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0]) {
-		_err("Missing ikey or skey in %s", config);
+	} else if (!cfg.host || !cfg.host[0] ||
+            !cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0]) {
+		_err("Missing host, ikey, or skey in %s", config);
 		return (PAM_SERVICE_ERR);
 	}
 	/* Check group membership */
@@ -274,14 +275,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		}
 	}
 	/* Try Duo auth */
-	if ((duo = duo_open(cfg.ikey, cfg.skey, "pam_duo/" PACKAGE_VERSION)) == NULL) {
+	if ((duo = duo_open(cfg.host, cfg.ikey, cfg.skey,
+                    "pam_duo/" PACKAGE_VERSION)) == NULL) {
 		_err("Couldn't open Duo API handle");
 		return (PAM_SERVICE_ERR);
 	}
 	duo_set_conv_funcs(duo, __duo_prompt, __duo_status, pamh);
 
-	if (cfg.host)
-		duo_set_host(duo, cfg.host);
 	if (cfg.noverify)
 		duo_set_ssl_verify(duo, 0);
 

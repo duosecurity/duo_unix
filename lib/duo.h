@@ -8,8 +8,6 @@
 #ifndef DUO_H
 #define DUO_H
 
-#define DUO_API_HOST		"api.duosecurity.com"
-
 typedef enum {
 	DUO_OK = 0,			/* great success! */
 	DUO_FAIL,			/* nice try */
@@ -32,7 +30,8 @@ int	    duo_parse_config(const char *filename,
 	    	void *arg);
 
 /* Open Duo API handle */
-duo_t	   *duo_open(const char *ikey, const char *skey, const char *progname);
+duo_t	   *duo_open(const char *host, const char *ikey, const char *skey,
+            	const char *progname);
 
 /* Override conversation prompt/status functions */
 void	    duo_set_conv_funcs(duo_t *d,
@@ -40,9 +39,6 @@ void	    duo_set_conv_funcs(duo_t *d,
 		    char *buf, size_t bufsz),
 	    	void (*conv_status)(void *conv_arg, const char *msg),
 	    	void *conv_arg);
-
-/* Override default host */
-void	    duo_set_host(duo_t *d, const char *hostname);
 
 /* Override SSL verification */
 void	    duo_set_ssl_verify(duo_t *d, int bool);

@@ -186,7 +186,8 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         
 	/* Load our private config. */
 	if ((i = duo_parse_config(config, __ini_handler, &cfg)) != 0 ||
-            (!cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0])) {
+            (!cfg.host || !cfg.host[0] || !cfg.skey || !cfg.skey[0] ||
+                !cfg.ikey || !cfg.ikey[0])) {
                 switch (i) {
                 case -2:
                         if ((pw = getpwuid(getuid())) == NULL)
@@ -199,7 +200,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
                             config, strerror(errno));
                         break;
                 case 0:
-                        fprintf(stderr, "Missing ikey or skey in %s\n",
+                        fprintf(stderr, "Missing host, ikey, or skey in %s\n",
                             config);
                         break;
                 default:
@@ -229,12 +230,11 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 		return (EXIT_SUCCESS);
 	}
 	/* Try Duo auth. */
-	if ((duo = duo_open(cfg.ikey, cfg.skey, "login_duo/" PACKAGE_VERSION)) == NULL) {
+	if ((duo = duo_open(cfg.host, cfg.ikey, cfg.skey,
+                    "login_duo/" PACKAGE_VERSION)) == NULL) {
 		_err("Couldn't open Duo API handle");
 		return (EXIT_FAILURE);
 	}
-	if (cfg.host)
-		duo_set_host(duo, cfg.host);
 	if (cfg.noverify)
 		duo_set_ssl_verify(duo, 0);
 	
@@ -364,7 +364,7 @@ get_command(int argc, char *argv[])
 static void
 usage(void)
 {
-	die("Usage: login_duo [-c config] [-h host] [-f duouser] [prog [args...]]");
+	die("Usage: login_duo [-c config] [-f duouser] [prog [args...]]");
 }
 
 int
@@ -377,13 +377,10 @@ main(int argc, char *argv[])
 	
 	memset(ctx, 0, sizeof(ctx));
 	
-	while ((c = getopt(argc, argv, "sc:h:f:")) != -1) {
+	while ((c = getopt(argc, argv, "sc:f:")) != -1) {
 		switch (c) {
 		case 'c':
 			ctx->config = optarg;
-			break;
-		case 'h':
-			ctx->host = optarg;
 			break;
 		case 'f':
 			ctx->duouser = optarg;
@@ -399,9 +396,8 @@ main(int argc, char *argv[])
         
 	if (geteuid() != ctx->uid) {
 		/* Setuid-root operation protecting private config. */
-		if (ctx->config != NULL || ctx->duouser != NULL ||
-		    ctx->host != NULL) {
-			die("Only root may specify -c, -f, or -h");
+		if (ctx->config != NULL || ctx->duouser != NULL) {
+			die("Only root may specify -c or -f");
 		}
 		if ((pw = getpwnam(DUO_PRIVSEP_USER)) == NULL) {
 			die("User '%s' not found", DUO_PRIVSEP_USER);

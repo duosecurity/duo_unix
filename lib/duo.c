@@ -119,9 +119,11 @@ __status_fn(void *arg, const char *msg)
 }
 
 struct duo_ctx *
-duo_open(const char *ikey, const char *skey, const char *progname)
+duo_open(const char *host, const char *ikey, const char *skey,
+    const char *progname)
 {
 	struct duo_ctx *ctx;
+        char *p;
 	
 	curl_global_init(CURL_GLOBAL_ALL);
 
@@ -133,7 +135,10 @@ duo_open(const char *ikey, const char *skey, const char *progname)
 		return (NULL);
 	}
 	ctx->verf = 1;
-	strlcpy(ctx->host, DUO_API_HOST, sizeof(ctx->host));
+	strlcpy(ctx->host, host, sizeof(ctx->host));
+        for (p = ctx->host; *p != '\0'; p++) {
+                *p = tolower(*p);
+	}
 	strlcpy(ctx->ikey, ikey, sizeof(ctx->ikey));
 	strlcpy(ctx->skey, skey, sizeof(ctx->skey));
 	ctx->params = sk_PARAM_new(__param_cmp);
@@ -227,18 +232,6 @@ duo_set_conv_funcs(struct duo_ctx *ctx,
 	ctx->conv_prompt = prompt_fn;
 	ctx->conv_status = status_fn;
 	ctx->conv_arg = arg;
-}
-
-void
-duo_set_host(struct duo_ctx *ctx, const char *hostname)
-{
-	char *p;
-
-	strlcpy(ctx->host, hostname, sizeof(ctx->host));
-	
-	for (p = ctx->host; *p != '\0'; p++) {
-		*p = tolower(*p);
-	}
 }
 
 static duo_code_t

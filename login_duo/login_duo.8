@@ -43,6 +43,8 @@ The INI-format configuration file must have a
 section with the following options:
 .Pp
 .Bl -tag -width ".Cm failmode"
+.It Cm host
+Duo API host (required).
 .It Cm ikey
 Duo integration key (required).
 .It Cm skey
@@ -58,8 +60,6 @@ On service or configuration errors that prevent Duo authentication, fail
 .Dq Li secure
 (deny access). Default is
 .Dq Li safe .
-.It Cm host
-Override default Duo API host.
 .It Cm pushinfo
 Send command to be approved via Duo Push authentication. Default is
 .Dq Li no .
@@ -68,6 +68,7 @@ Send command to be approved via Duo Push authentication. Default is
 An example configuration file:
 .Bd -literal -offset 8n
 [duo]
+host=api-deadbeef.duosecurity.com
 ikey=SI9F...53RI
 skey=4MjR...Q2NmRiM2Q1Y
 minuid=500
