@@ -109,9 +109,9 @@ If you don't have a Duo account, sign up at http://www.duosecurity.com
 and log into your admin account at https://admin-eval.duosecurity.com
 
 From your admin account, add a new Unix integration (Integrations >
-New integration) and use the integration key (ikey) and secret key
-(skey) in your Duo configuration files (by default in /etc/duo). Your
-API host should also be api-eval.duosecurity.com
+New integration) and use the integration key (ikey), secret key 
+(skey), and API hostname in your Duo configuration files (by default
+in /etc/duo).
 
 You do not need to create any user accounts manually - new Duo users
 will be created as each user logs in and enrolls their own device.
@@ -144,6 +144,10 @@ library. See the duo.3 manpage for API documentation.
 Support
 -------
 
+Additional duo_unix documentation is available here:
+
+	http://www.duosecurity.com/docs/duounix
+
 Join our mailing list for technical discussion of duo_unix:
 
 	http://groups.google.com/group/duo_unix
@@ -155,4 +159,4 @@ Report any bugs, feature requests, etc. to us directly:
 Have fun!
 
 ---
-http://duosecurity.com
+http://www.duosecurity.com
