@@ -19,6 +19,7 @@ install-exec-hook:
 	else \
 	  echo "Found existing ${DESTDIR}$(sysconfdir)/login_duo.conf - updating permissions"; \
 	fi
+	-chown $(DUO_PRIVSEP_USER) $(DESTDIR)$(sysconfdir)
 	-chown $(DUO_PRIVSEP_USER) $(DESTDIR)$(sysconfdir)/login_duo.conf
 	-chmod 600 $(DESTDIR)$(sysconfdir)/login_duo.conf
 
