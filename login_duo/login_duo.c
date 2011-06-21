@@ -32,6 +32,7 @@
 # define DUO_PRIVSEP_USER	"duo"
 #endif
 #define DUO_CONF		DUO_CONF_DIR "/login_duo.conf"
+#define DUO_IP_DIR		DUO_CONF_DIR "/ip"
 #define MAX_RETRIES		3
 
 enum {
@@ -48,6 +49,7 @@ struct duo_config {
 	int	 failmode;	/* Duo failure handling: DUO_FAIL_* */
         int	 pushinfo;
 	int	 noverify;
+	int	 onlynewip;
 };
 
 struct login_ctx {
@@ -117,6 +119,11 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 		    strcmp(val, "on") == 0 || strcmp(val, "1") == 0) {
 			cfg->noverify = 1;
 		}
+	} else if (strcmp(name, "onlynewip") == 0) {
+		if (strcmp(val, "yes") == 0 || strcmp(val, "true") == 0 ||
+		    strcmp(val, "on") == 0 || strcmp(val, "1") == 0) {
+			cfg->onlynewip = 1;
+		}
 	} else {
 		fprintf(stderr, "Invalid login_duo option: '%s'\n", name);
 		return (0);
@@ -169,7 +176,9 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 	duo_t *duo;
 	duo_code_t code;
 	const char *config, *p, *user;
-	char *ip, buf[32];
+	char *ip, ipfpname[MAXPATHLEN], buf[32], lastip[32];
+	FILE *ipfp;
+	struct stat st;
 	int i, flags, ret, tries;
 
         if ((pw = getpwuid(ctx->uid)) == NULL)
@@ -251,6 +260,33 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 		}
         }
 	ret = EXIT_FAILURE;
+
+	/* If onlynewip is enabled, skip auth if this user is coming from the
+	 * same IP */
+	if (cfg.onlynewip && ip != NULL) {
+		do {
+			if (snprintf(ipfpname, sizeof(ipfpname), "%s/%s",
+			    DUO_IP_DIR, user) > sizeof(ipfpname)) {
+				_warn("Couldn't build IP file path");
+				ipfpname[0] = '\0';
+				break;
+			}
+
+			if ((ipfp = fopen(ipfpname, "r")) == NULL)
+				break;
+
+			fgets(lastip, sizeof(lastip), ipfp);
+
+			if (lastip != NULL && strcmp(lastip, ip) == 0) {
+				/* User is at the same IP */
+                                _info("Skipping Duo login for %s from same IP %s",
+				    user, ip);
+				duo_close(duo);
+				return (DUO_OK);
+			}
+			fclose(ipfp);
+		} while (0);
+	}
 	
 	for (i = 0; i < tries; i++) {
 		code = duo_login(duo, user, ip, flags,
@@ -289,6 +325,30 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 			_err("Error in Duo login for %s: (%d) %s",
 			    user, code, duo_geterr(duo));
 		}
+
+		/* Store the user's IP */
+		if (cfg.onlynewip && ip != NULL && code == DUO_OK) {
+			if (!strlen(ipfpname)) {
+				_warn("No IP filename?");
+				break;
+			}
+
+			if (!(stat(DUO_IP_DIR, &st) == 0 && S_ISDIR(st.st_mode)))
+				if (mkdir(DUO_IP_DIR, 0700)) {
+					_warn("Could not create dir %s: %m",
+					    DUO_IP_DIR);
+					break;
+				}
+
+			if ((ipfp = fopen(ipfpname, "w")) < 0) {
+				_warn("Could not create %s: %m", ipfpname);
+				break;
+			}
+
+			fputs(ip, ipfp);
+			fclose(ipfp);
+		}
+
 		break;
 	}
 	duo_close(duo);
