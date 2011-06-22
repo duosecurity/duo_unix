@@ -176,7 +176,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 	duo_t *duo;
 	duo_code_t code;
 	const char *config, *p, *user;
-	char *ip, ipfpname[MAXPATHLEN], buf[32], lastip[32];
+	char *ip, ipfpname[MAXPATHLEN], buf[39], lastip[39];
 	FILE *ipfp;
 	struct stat st;
 	int i, flags, ret, tries;
