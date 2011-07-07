@@ -20,7 +20,10 @@ The following options are available:
 .It Fl c
 Specify an alternate configuration file to load.
 .It Fl h
-Specify the IP address from which the user is authenticating.
+Specify the remote IP address for this login (normally 
+taken from the
+.Ev SSH_CONNECTION
+environment variable, if set).
 .It Fl f
 Specify an alternate Duo user to authenticate as.
 .El

@@ -42,7 +42,8 @@ enum {
 struct duo_config {
 	char	*ikey;
 	char	*skey;
-	char	*host;
+	char	*apihost;
+	char	*cafile;
 	int	 minuid;
 	int	 gid;
 	int	 failmode;	/* Duo failure handling: DUO_FAIL_* */
@@ -52,14 +53,10 @@ struct duo_config {
 
 struct login_ctx {
 	const char	*config;
-	const char	*host;
 	const char	*duouser;
+	const char	*host;
         uid_t		 uid;
 };
-
-#define _err(...)	syslog(LOG_ERR, __VA_ARGS__)
-#define _info(...)	syslog(LOG_INFO, __VA_ARGS__)
-#define _warn(...)	syslog(LOG_WARNING, __VA_ARGS__)
 
 static void
 die(const char *fmt, ...)
@@ -83,7 +80,9 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 	} else if (strcmp(name, "skey") == 0) {
 		cfg->skey = strdup(val);
 	} else if (strcmp(name, "host") == 0) {
-		cfg->host = strdup(val);
+		cfg->apihost = strdup(val);
+	} else if (strcmp(name, "cafile") == 0) {
+		cfg->cafile = strdup(val);
 	} else if (strcmp(name, "group") == 0) {
 		struct group *gr;
 		if ((gr = getgrnam(val)) == NULL) {
@@ -161,6 +160,28 @@ drop_privs(uid_t uid, gid_t gid)
 	return (0);
 }
 
+static void
+_log(int t, const char *msg, const char *user, const char *ip, const char *err)
+{
+	char buf[BUFSIZ];
+	int i, n;
+	
+	n = snprintf(buf, sizeof(buf), "%s", msg);
+	if (user != NULL) {
+		if ((i = snprintf(buf + n, sizeof(buf) - n,
+			    " for '%s'", user)) > 0)
+			n += i;
+	}
+	if (ip != NULL) {
+		snprintf(buf + n, sizeof(buf) - n, " from %s", ip);
+	}
+	if (err != NULL) {
+		syslog(t, "%s: %s", buf, err);
+	} else {
+		syslog(t, "%s", buf);
+	}
+}
+
 static int
 do_auth(struct login_ctx *ctx, const char *cmd)
 {
@@ -186,7 +207,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         
 	/* Load our private config. */
 	if ((i = duo_parse_config(config, __ini_handler, &cfg)) != 0 ||
-            (!cfg.host || !cfg.host[0] || !cfg.skey || !cfg.skey[0] ||
+            (!cfg.apihost || !cfg.apihost[0] || !cfg.skey || !cfg.skey[0] ||
                 !cfg.ikey || !cfg.ikey[0])) {
                 switch (i) {
                 case -2:
@@ -217,7 +238,8 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 	/* Check group membership. */
 	if (cfg.gid != -1) {
 		if ((i = _check_group(user, cfg.gid)) < 0) {
-			_err("Couldn't get groups for '%s': %m", user);
+			_log(LOG_ERR, "Couldn't get groups",
+			    user, NULL, strerror(errno));
 			return (EXIT_FAILURE);
 		} else if (i == 0) {
 			/* User not in configured group for Duo auth */
@@ -229,26 +251,29 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 		/* User below minimum UID for Duo auth */
 		return (EXIT_SUCCESS);
 	}
+	/* Check for remote login host */
+	if ((ip = getenv("SSH_CONNECTION")) != NULL ||
+	    (ip = (char *)ctx->host) != NULL) {
+		strlcpy(buf, ip, sizeof(buf));
+		ip = strtok(buf, " ");
+	}
 	/* Try Duo auth. */
-	if ((duo = duo_open(cfg.host, cfg.ikey, cfg.skey,
-                    "login_duo/" PACKAGE_VERSION)) == NULL) {
-		_err("Couldn't open Duo API handle");
+	if ((duo = duo_open(cfg.apihost, cfg.ikey, cfg.skey,
+                    "login_duo/" PACKAGE_VERSION, cfg.cafile)) == NULL) {
+		_log(LOG_ERR, "Couldn't open Duo API handle",
+		    user, ip, NULL);
 		return (EXIT_FAILURE);
 	}
 	if (cfg.noverify)
 		duo_set_ssl_verify(duo, 0);
 	
-	/* Special SSH handling */
-	if ((ip = getenv("SSH_CONNECTION")) != NULL) {
-		strlcpy(buf, ip, sizeof(buf));
-		ip = strtok(buf, " ");
-
-		if ((p = getenv("SSH_ORIGINAL_COMMAND")) != NULL) {
-			/* Try to support automatic one-shot login */
-			duo_set_conv_funcs(duo, NULL, NULL, NULL);
-			flags = (DUO_FLAG_SYNC|DUO_FLAG_AUTO);
-			tries = 1;
-		}
+	/* Special handling for non-interactive sessions */
+	if ((p = getenv("SSH_ORIGINAL_COMMAND")) != NULL ||
+	    !isatty(STDIN_FILENO)) {
+		/* Try to support automatic one-shot login */
+		duo_set_conv_funcs(duo, NULL, NULL, NULL);
+		flags = (DUO_FLAG_SYNC|DUO_FLAG_AUTO);
+		tries = 1;
         }
 	ret = EXIT_FAILURE;
 	
@@ -256,38 +281,36 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 		code = duo_login(duo, user, ip, flags,
                     cfg.pushinfo ? cmd : NULL);
 		if (code == DUO_FAIL) {
-                        if ((p = duo_geterr(duo)) != NULL) {
-                                _warn("Failed Duo login for %s: %s", user, p);
-                        } else {
-			        _warn("Failed Duo login for %s", user);
-                        }
+			_log(LOG_WARNING, "Failed Duo login",
+			    user, ip, duo_geterr(duo));
 			if ((flags & DUO_FLAG_SYNC) == 0) {
 				printf("\n");
-                        }
+			}
 			/* Keep going */
 			continue;
 		}
 		/* Terminal conditions */
 		if (code == DUO_OK) {
                         if ((p = duo_geterr(duo)) != NULL) {
-                                _warn("Skipping Duo login for %s: %s",
-                                    user, p);
+				_log(LOG_WARNING, "Skipped Duo login",
+				    user, ip, p);
                         } else {
-                                _info("Successful Duo login for %s", user);
+				_log(LOG_INFO, "Successful Duo login",
+				    user, ip, NULL);
                         }
 			ret = EXIT_SUCCESS;
 		} else if (code == DUO_ABORT) {
-			_warn("Aborted Duo login for %s: %s",
-			    user, duo_geterr(duo));
+			_log(LOG_WARNING, "Aborted Duo login",
+			    user, ip, duo_geterr(duo));
 		} else if (cfg.failmode == DUO_FAIL_SAFE &&
                     (code == DUO_CONN_ERROR ||
                      code == DUO_CLIENT_ERROR || code == DUO_SERVER_ERROR)) {
-			_warn("Allowed Duo login for '%s' on failure: %s",
-			    user, duo_geterr(duo));
+			_log(LOG_WARNING, "Failsafe Duo login",
+			    user, ip, duo_geterr(duo));
                         ret = EXIT_SUCCESS;
 		} else {
-			_err("Error in Duo login for %s: (%d) %s",
-			    user, code, duo_geterr(duo));
+			_log(LOG_ERR, "Error in Duo login",
+			    user, ip, duo_geterr(duo));
 		}
 		break;
 	}
@@ -364,7 +387,7 @@ get_command(int argc, char *argv[])
 static void
 usage(void)
 {
-	die("Usage: login_duo [-c config] [-f duouser] [prog [args...]]");
+	die("Usage: login_duo [-c config] [-f duouser] [-h host] [prog [args...]]");
 }
 
 int
@@ -377,13 +400,16 @@ main(int argc, char *argv[])
 	
 	memset(ctx, 0, sizeof(ctx));
 	
-	while ((c = getopt(argc, argv, "sc:f:")) != -1) {
+	while ((c = getopt(argc, argv, "c:f:h:?")) != -1) {
 		switch (c) {
 		case 'c':
 			ctx->config = optarg;
 			break;
 		case 'f':
 			ctx->duouser = optarg;
+			break;
+		case 'h':
+			ctx->host = optarg;
 			break;
 		default:
 			usage();
