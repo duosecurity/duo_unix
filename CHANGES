@@ -1,5 +1,12 @@
 
+
 duo_unix-1.7:
+
+- Load missing CA cert for non-OpenSSL libcurl from $(sysconfdir)/duo.crt
+
+- Added 'cafile' configuration option to override CA cert
+
+- Added login_duo -h option to specify remote host manually
 
 - Added duo_unix.spec from S. Zachariah Sprackett <zac@sprackett.com>
 
