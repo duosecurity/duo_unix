@@ -76,6 +76,7 @@ struct duo_config {
 	char	*ikey;
 	char	*skey;
 	char	*host;
+	char	*cafile;
 	int	 minuid;
 	int	 gid;
 	int	 failmode;	/* Duo failure handling: DUO_FAIL_* */
@@ -98,6 +99,8 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 		cfg->skey = strdup(val);
 	} else if (strcmp(name, "host") == 0) {
 		cfg->host = strdup(val);
+	} else if (strcmp(name, "cafile") == 0) {
+		cfg->cafile = strdup(val);
 	} else if (strcmp(name, "group") == 0) {
 		struct group *gr;
 		if ((gr = getgrnam(val)) == NULL) {
@@ -276,7 +279,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	}
 	/* Try Duo auth */
 	if ((duo = duo_open(cfg.host, cfg.ikey, cfg.skey,
-                    "pam_duo/" PACKAGE_VERSION)) == NULL) {
+                    "pam_duo/" PACKAGE_VERSION, cfg.cafile)) == NULL) {
 		_err("Couldn't open Duo API handle");
 		return (PAM_SERVICE_ERR);
 	}
