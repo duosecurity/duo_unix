@@ -11,7 +11,7 @@ lib_LTLIBRARIES = libduo.la
 libduo_la_SOURCES = dummy.c
 libduo_la_LIBADD = libcommon.la
 # http://sourceware.org/autobook/autobook/autobook_91.html
-libduo_la_LDFLAGS = -no-undefined -version-info 1:0:0
+libduo_la_LDFLAGS = -no-undefined -version-info 2:0:0
 
 libduo_la_includedir = $(includedir)
 libduo_la_include_HEADERS = duo.h
@@ -25,3 +25,13 @@ noinst_PROGRAMS = testduo
 
 testduo_LDADD = libduo.la
 
+install-exec-hook:
+	-@if [ ! -f $(DESTDIR)$(sysconfdir)/duo.crt ]; then \
+	  mkdir -p -m 755 $(DESTDIR)$(sysconfdir); \
+	  cp duo.crt $(DESTDIR)$(sysconfdir)/duo.crt; \
+	  echo "Created ${DESTDIR}$(sysconfdir)/duo.crt"; \
+	else \
+	  echo "Found existing ${DESTDIR}$(sysconfdir)/login_duo.conf - skipping"; \
+	fi
+
+EXTRA_DIST = duo.crt

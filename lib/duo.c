@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,6 +42,7 @@
 
 #define DUO_LIB_VERSION		"libduo/" PACKAGE_VERSION
 #define DUO_API_VERSION		"/rest/v1"
+#define DUO_CACERT		DUO_CONF_DIR "/duo.crt"
 
 typedef char *PARAM;
 
@@ -120,7 +122,7 @@ __status_fn(void *arg, const char *msg)
 
 struct duo_ctx *
 duo_open(const char *host, const char *ikey, const char *skey,
-    const char *progname)
+    const char *progname, const char *cafile)
 {
 	struct duo_ctx *ctx;
         char *p;
@@ -162,8 +164,17 @@ duo_open(const char *host, const char *ikey, const char *skey,
 	curl_easy_setopt(ctx->curl, CURLOPT_SSLCERTTYPE, "PEM");
 	curl_easy_setopt(ctx->curl, CURLOPT_SSL_VERIFYPEER, 1L);
 	curl_easy_setopt(ctx->curl, CURLOPT_SSL_VERIFYHOST, 2L);
-	curl_easy_setopt(ctx->curl, CURLOPT_SSL_CTX_FUNCTION,
-	    __sslctx_add_cert);
+	curl_easy_setopt(ctx->curl, CURLOPT_CAPATH, NULL);
+	curl_easy_setopt(ctx->curl, CURLOPT_CAINFO, cafile);
+	
+	if (cafile == NULL) {
+		/* Try loading default CA cert for OpenSSL from memory */
+		if (curl_easy_setopt(ctx->curl, CURLOPT_SSL_CTX_FUNCTION,
+			__sslctx_add_cert) != CURLE_OK) {
+			/* Load default CA cert for non-OpenSSL from file */
+			curl_easy_setopt(ctx->curl, CURLOPT_CAINFO, DUO_CACERT);
+		}
+	}
 	return (ctx);
 }
 
@@ -457,26 +468,31 @@ duo_geterr(struct duo_ctx *ctx)
 }
 
 static const char *
-_local_ip(void)
+_local_ip(const char *dst)
 {
-        struct sockaddr_in sin;
-        socklen_t slen;
+        const char *ip = "0.0.0.0";
+	struct addrinfo hints, *info;
+	struct sockaddr sa;
+	socklen_t sa_len;
+	static char buf[128];
         int fd;
-        const char *ip = NULL;
-        
-        memset(&sin, 0, sizeof(sin));
-        sin.sin_family = AF_INET;
-        sin.sin_addr.s_addr = inet_addr("8.8.8.8");	/* XXX */
-        sin.sin_port = htons(53);
-        slen = sizeof(sin);
-        
-        if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) != -1) {
-                if (connect(fd, (struct sockaddr *)&sin, slen) != -1 &&
-                    getsockname(fd, (struct sockaddr *)&sin, &slen) != -1) {
-                        ip = inet_ntoa(sin.sin_addr);
-                }
-                close(fd);
-        }
+	
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	if (getaddrinfo(dst, "53", &hints, &info) != 0) {
+		return (ip);
+	}
+	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) == 0) {
+		if (connect(fd, info->ai_addr, info->ai_addrlen) != -1 &&
+		    getsockname(fd, (struct sockaddr *)&sa, &sa_len) == 0 &&
+		    getnameinfo(&sa, sa_len, buf, sizeof(buf), NULL, 0,
+			NI_NUMERICHOST) == 0) {
+			ip = buf;
+		}
+		close(fd);
+	}
+	freeaddrinfo(info);
+	
         return (ip);
 }
 
@@ -594,7 +610,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
 	    duo_add_param(ctx, "async",
 		(flags & DUO_FLAG_SYNC) ? "0" : "1") != DUO_OK ||
 	    duo_add_param(ctx, "ipaddr",
-		client_ip ? client_ip : _local_ip()) != DUO_OK) {
+		client_ip ? client_ip : _local_ip(ctx->host)) != DUO_OK) {
 		return (DUO_LIB_ERROR);
 	}
         if (command != NULL) {
