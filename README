@@ -131,16 +131,6 @@ For a non-setuid install:
 If your Duo integration and secret keys are valid, you will be able to
 enroll and authenticate successfully, and congratulate yourself. :-)
 
-Usage
------
-
-See README.pam, README.ssh, and the login_duo.8 and pam_duo.8 manpages
-for additional options.
-
-To build C applications with libduo, use "pkg-config libduo" with
---cflags and --libs arguments to locate the development headers and
-library. See the duo.3 manpage for API documentation.
-
 Support
 -------
 
