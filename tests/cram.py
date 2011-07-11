@@ -314,7 +314,7 @@ def run(paths, tmpdir, quiet=False, verbose=False, patchcmd=None, answer=None,
                         errfile.write(line)
                     errfile.close()
                 except:
-                    # XXX - dugsong hack for VPATH builds
+                    # XXX - hack for VPATH builds
                     pass
                 if not quiet:
                     if patchcmd:
@@ -412,7 +412,9 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
     os.mkdir(proctmp)
     for s in ('TMPDIR', 'TEMP', 'TMP'):
         os.environ[s] = proctmp
-
+    # XXX - hack for VPATH builds
+    if 'BUILDDIR' not in os.environ:
+        os.environ['BUILDDIR'] = os.path.dirname(os.path.realpath('.'))
     if opts.sterilize:
         for s in ('LANG', 'LC_ALL', 'LANGUAGE'):
             os.environ[s] = 'C'
