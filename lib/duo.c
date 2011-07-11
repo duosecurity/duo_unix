@@ -359,7 +359,7 @@ _duo_bson_response(struct duo_ctx *ctx, bson *resp)
 	
 	ret = DUO_SERVER_ERROR;
 	
-	if (bson_size(&obj) > bp->length) {
+	if (bp->length <= 0 || bson_size(&obj) > bp->length) {
 		_duo_seterr(ctx, "invalid BSON response");
 		return (ret);
 	}
