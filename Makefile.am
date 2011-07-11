@@ -7,5 +7,7 @@ if PAM
 SUBDIRS += pam_duo
 endif
 
+SUBDIRS += tests
+
 EXTRA_DIST = AUTHORS CHANGES LICENSE README.pam README.ssh
 
