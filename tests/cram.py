@@ -308,12 +308,14 @@ def run(paths, tmpdir, quiet=False, verbose=False, patchcmd=None, answer=None,
                 log('!', 'failed\n', verbose)
                 if not quiet:
                     log('\n', None, verbose)
-                errfile = open(errpath, 'w')
                 try:
+                    errfile = open(errpath, 'w')
                     for line in postout:
                         errfile.write(line)
-                finally:
                     errfile.close()
+                except:
+                    # XXX - dugsong hack for VPATH builds
+                    pass
                 if not quiet:
                     if patchcmd:
                         diff = list(diff)
