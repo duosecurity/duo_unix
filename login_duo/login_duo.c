@@ -198,7 +198,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 	duo_t *duo;
 	duo_code_t code;
 	const char *config, *p, *user;
-	char *ip, buf[32];
+	char *ip, buf[64];
 	int i, flags, ret, tries;
 
         if ((pw = getpwuid(ctx->uid)) == NULL)
