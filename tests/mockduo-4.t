@@ -36,9 +36,9 @@ Preauth states
 
 Test manually-set hosts
 
-  $ for host in 1.2.3.4 4FDE:0000:0000:0002:0022:F376:FF3B:AB3F nowhere "%s" "!@#$%^&*()_+<>{}|;'"; do ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f preauth-allow -h $host true; done
+  $ for host in 1.2.3.4 XXXX:XXXX:XXXX:XXXX:XXXX:XXXX:AAA.BBB.CCC.DDD nowhere "%s" "!@#$%^&*()_+<>{}|;'"; do ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f preauth-allow -h $host true; done
   [4] Skipped Duo login for 'preauth-allow' from 1.2.3.4: you rock
-  [4] Skipped Duo login for 'preauth-allow' from 4FDE:0000:0000:0002:0022:F376:F: you rock
+  [4] Skipped Duo login for 'preauth-allow' from XXXX:XXXX:XXXX:XXXX:XXXX:XXXX:AAA.BBB.CCC.DDD: you rock
   [4] Skipped Duo login for 'preauth-allow' from nowhere: you rock
   [4] Skipped Duo login for 'preauth-allow' from %s: you rock
   [4] Skipped Duo login for 'preauth-allow' from !@#$%^&*()_+<>{}|;': you rock
