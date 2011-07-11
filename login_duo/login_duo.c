@@ -58,6 +58,8 @@ struct login_ctx {
         uid_t		 uid;
 };
 
+int debug = 0;
+
 static void
 die(const char *fmt, ...)
 {
@@ -161,24 +163,30 @@ drop_privs(uid_t uid, gid_t gid)
 }
 
 static void
-_log(int t, const char *msg, const char *user, const char *ip, const char *err)
+_log(int priority, const char *msg,
+    const char *user, const char *ip, const char *err)
 {
-	char buf[BUFSIZ];
+	char buf[512];
 	int i, n;
 	
 	n = snprintf(buf, sizeof(buf), "%s", msg);
-	if (user != NULL) {
-		if ((i = snprintf(buf + n, sizeof(buf) - n,
-			    " for '%s'", user)) > 0)
-			n += i;
+	
+	if (user != NULL &&
+	    (i = snprintf(buf + n, sizeof(buf) - n, " for '%s'", user)) > 0) {
+		n += i;
 	}
-	if (ip != NULL) {
-		snprintf(buf + n, sizeof(buf) - n, " from %s", ip);
+	if (ip != NULL &&
+	    (i = snprintf(buf + n, sizeof(buf) - n, " from %s", ip)) > 0) {
+		n += i;
 	}
-	if (err != NULL) {
-		syslog(t, "%s: %s", buf, err);
+	if (err != NULL &&
+	    (i = snprintf(buf + n, sizeof(buf) - n, ": %s", err)) > 0) {
+		n += i;
+	}
+	if (debug) {
+		fprintf(stderr, "[%d] %s\n", priority, buf);
 	} else {
-		syslog(t, "%s", buf);
+		syslog(priority, "%s", buf);
 	}
 }
 
@@ -387,7 +395,7 @@ get_command(int argc, char *argv[])
 static void
 usage(void)
 {
-	die("Usage: login_duo [-c config] [-f duouser] [-h host] [prog [args...]]");
+	die("Usage: login_duo [-c config] [-d] [-f duouser] [-h host] [prog [args...]]");
 }
 
 int
@@ -400,10 +408,13 @@ main(int argc, char *argv[])
 	
 	memset(ctx, 0, sizeof(ctx));
 	
-	while ((c = getopt(argc, argv, "c:f:h:?")) != -1) {
+	while ((c = getopt(argc, argv, "c:df:h:?")) != -1) {
 		switch (c) {
 		case 'c':
 			ctx->config = optarg;
+			break;
+		case 'd':
+			debug = 1;
 			break;
 		case 'f':
 			ctx->duouser = optarg;
