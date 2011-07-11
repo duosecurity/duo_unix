@@ -7,7 +7,7 @@ mockduo with valid cert
 
 HTTP server errors
 
-  $ for http_code in 400 401 402 403 404 500 501 502 503 504; do ../login_duo/login_duo -d -c confs/mockduo.conf -f $http_code true; done
+  $ for http_code in 400 401 402 403 404 500 501 502 503 504; do ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f $http_code true; done
   [4] Failsafe Duo login for '400': HTTP 400
   [4] Failsafe Duo login for '401': HTTP 401
   [4] Failsafe Duo login for '402': HTTP 402
@@ -20,12 +20,12 @@ HTTP server errors
   [4] Failsafe Duo login for '504': HTTP 504
 
 With bad keys
-  $ ../login_duo/login_duo -d -c confs/mockduo_badkeys.conf -f whatever true
+  $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo_badkeys.conf -f whatever true
   [4] Failsafe Duo login for 'whatever': HTTP 401
 
 Preauth states
 
-  $ for user in preauth-ok-missing_response preauth-fail-missing_response preauth-bad-stat preauth-fail preauth-deny preauth-allow preauth-allow-bad_response; do ../login_duo/login_duo -d -c confs/mockduo.conf -f $user true; done
+  $ for user in preauth-ok-missing_response preauth-fail-missing_response preauth-bad-stat preauth-fail preauth-deny preauth-allow preauth-allow-bad_response; do ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f $user true; done
   [4] Failsafe Duo login for 'preauth-ok-missing_response': BSON missing valid 'response'
   [4] Failsafe Duo login for 'preauth-fail-missing_response': BSON missing valid 'code'
   [4] Failsafe Duo login for 'preauth-bad-stat'
@@ -36,7 +36,7 @@ Preauth states
 
 Test manually-set hosts
 
-  $ for host in 1.2.3.4 4FDE:0000:0000:0002:0022:F376:FF3B:AB3F nowhere "%s" "!@#$%^&*()_+<>{}|;'"; do ../login_duo/login_duo -d -c confs/mockduo.conf -f preauth-allow -h $host true; done
+  $ for host in 1.2.3.4 4FDE:0000:0000:0002:0022:F376:FF3B:AB3F nowhere "%s" "!@#$%^&*()_+<>{}|;'"; do ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f preauth-allow -h $host true; done
   [4] Skipped Duo login for 'preauth-allow' from 1.2.3.4: you rock
   [4] Skipped Duo login for 'preauth-allow' from 4FDE:0000:0000:0002:0022:F376:F: you rock
   [4] Skipped Duo login for 'preauth-allow' from nowhere: you rock
@@ -45,5 +45,5 @@ Test manually-set hosts
 
 Test SSH-set host
 
-  $ env SSH_CONNECTION="1.2.3.4 64903 127.0.0.1 22" ../login_duo/login_duo -d -c confs/mockduo.conf -f preauth-allow true
+  $ env SSH_CONNECTION="1.2.3.4 64903 127.0.0.1 22" ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f preauth-allow true
   [4] Skipped Duo login for 'preauth-allow' from 1.2.3.4: you rock

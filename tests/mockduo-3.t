@@ -6,9 +6,9 @@ mockduo with wrong CN
   $ sleep 1
 
 Wrong hostname
-  $ ../login_duo/login_duo -d -c confs/mockduo.conf -f whatever true
+  $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f whatever true
   [4] Failsafe Duo login for 'whatever': SSL: certificate subject name 'tests.mockduo' does not match target host name 'localhost'
 
 With noverify
-  $ ../login_duo/login_duo -d -c confs/mockduo_noverify.conf -f preauth-allow true
+  $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo_noverify.conf -f preauth-allow true
   [4] Skipped Duo login for 'preauth-allow': you rock
