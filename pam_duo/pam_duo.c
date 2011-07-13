@@ -88,6 +88,21 @@ struct duo_config {
 	int	 noverify;
 };
 
+static void
+_syslog(int priority, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	if (debug) {
+		vfprintf(stderr, fmt, ap);
+		fputs("\n", stderr);
+	} else {
+		vsyslog(priority, fmt, ap);
+	}
+	va_end(ap);
+}
+
 static int
 __ini_handler(void *u, const char *section, const char *name, const char *val)
 {
@@ -104,12 +119,12 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 		cfg->cafile = strdup(val);
 	} else if (strcmp(name, "groups") == 0 || strcmp(name, "group") == 0) {
 		if ((buf = strdup(val)) == NULL) {
-			syslog(LOG_ERR, "Out of memory parsing groups");
+			_syslog(LOG_ERR, "Out of memory parsing groups");
 			return (0);
 		}
 		for (p = strtok(buf, " "); p != NULL; p = strtok(NULL, " ")) {
 			if (cfg->groups_cnt >= MAX_GROUPS) {
-			        syslog(LOG_ERR, "Exceeded max %d groups",
+			        _syslog(LOG_ERR, "Exceeded max %d groups",
 				    MAX_GROUPS);
 				cfg->groups_cnt = 0;
 				free(buf);
@@ -123,7 +138,7 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 		} else if (strcmp(val, "safe") == 0) {
 			cfg->failmode = DUO_FAIL_SAFE;
 		} else {
-			syslog(LOG_ERR, "Invalid failmode: '%s'", val);
+			_syslog(LOG_ERR, "Invalid failmode: '%s'", val);
 			return (0);
 		}
 	} else if (strcmp(name, "pushinfo") == 0) {
@@ -137,7 +152,7 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 			cfg->noverify = 1;
 		}
 	} else {
-		syslog(LOG_ERR, "Invalid pam_duo option: '%s'", name);
+		_syslog(LOG_ERR, "Invalid pam_duo option: '%s'", name);
 		return (0);
 	}
 	return (1);
@@ -184,11 +199,7 @@ _log(int priority, const char *msg,
 	    (i = snprintf(buf + n, sizeof(buf) - n, ": %s", err)) > 0) {
 		n += i;
 	}
-	if (debug) {
-		fprintf(stderr, "%s\n", buf);
-	} else {
-		syslog(priority, "%s", buf);
-	}
+	_syslog(priority, "%s", buf);
 }
 
 PAM_EXTERN int
@@ -219,25 +230,25 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		} else if (strcmp("debug", argv[i]) == 0) {
 			debug = 1;
 		} else {
-			syslog(LOG_ERR, "Invalid pam_duo option: '%s'",
+			_syslog(LOG_ERR, "Invalid pam_duo option: '%s'",
 			    argv[i]);
 			return (PAM_SERVICE_ERR);
 		}
 	}
 	i = duo_parse_config(config, __ini_handler, &cfg);
 	if (i == -2) {
-		syslog(LOG_ERR, "%s must be readable only by owner", config);
+		_syslog(LOG_ERR, "%s must be readable only by owner", config);
 		return (PAM_SERVICE_ERR);
 	} else if (i == -1) {
-		syslog(LOG_ERR, "Couldn't open %s: %s",
+		_syslog(LOG_ERR, "Couldn't open %s: %s",
 		    config, strerror(errno));
 		return (PAM_SERVICE_ERR);
 	} else if (i > 0) {
-		syslog(LOG_ERR, "Parse error in %s, line %d", config, i);
+		_syslog(LOG_ERR, "Parse error in %s, line %d", config, i);
 		return (PAM_SERVICE_ERR);
 	} else if (!cfg.host || !cfg.host[0] ||
             !cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0]) {
-		syslog(LOG_ERR, "Missing host, ikey, or skey in %s", config);
+		_syslog(LOG_ERR, "Missing host, ikey, or skey in %s", config);
 		return (PAM_SERVICE_ERR);
 	}
 	/* Check group membership */
