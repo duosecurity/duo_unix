@@ -26,13 +26,14 @@
 #include <unistd.h>
 
 #include "duo.h"
-#include "ini.h"
+#include "groupaccess.h"
 
 #ifndef DUO_PRIVSEP_USER
 # define DUO_PRIVSEP_USER	"duo"
 #endif
 #define DUO_CONF		DUO_CONF_DIR "/login_duo.conf"
 #define MAX_RETRIES		3
+#define MAX_GROUPS		256
 
 enum {
 	DUO_FAIL_SAFE = 0,
@@ -44,8 +45,8 @@ struct duo_config {
 	char	*skey;
 	char	*apihost;
 	char	*cafile;
-	int	 minuid;
-	int	 gid;
+	char	*groups[MAX_GROUPS];
+	int	 groups_cnt;
 	int	 failmode;	/* Duo failure handling: DUO_FAIL_* */
         int	 pushinfo;
 	int	 noverify;
@@ -76,7 +77,8 @@ static int
 __ini_handler(void *u, const char *section, const char *name, const char *val)
 {
 	struct duo_config *cfg = (struct duo_config *)u;
-
+	char *buf, *p;
+	
 	if (strcmp(name, "ikey") == 0) {
 		cfg->ikey = strdup(val);
 	} else if (strcmp(name, "skey") == 0) {
@@ -85,19 +87,21 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 		cfg->apihost = strdup(val);
 	} else if (strcmp(name, "cafile") == 0) {
 		cfg->cafile = strdup(val);
-	} else if (strcmp(name, "group") == 0) {
-		struct group *gr;
-		if ((gr = getgrnam(val)) == NULL) {
-			fprintf(stderr, "No such group: '%s'\n", val);
+	} else if (strcmp(name, "groups") == 0 || strcmp(name, "group") == 0) {
+		if ((buf = strdup(val)) == NULL) {
+			fprintf(stderr, "Out of memory parsing groups\n");
 			return (0);
 		}
-		cfg->gid = gr->gr_gid;
-	} else if (strcmp(name, "minuid") == 0) {
-		char *p;
-		cfg->minuid = strtol(val, &p, 10);
-		if (p == val) {
-			fprintf(stderr, "Invalid minimum UID: '%s'\n", val);
-			return (0);
+		for (p = strtok(buf, " "); p != NULL; p = strtok(NULL, " ")) {
+			printf("tok: [%s]\n", p);
+			if (cfg->groups_cnt >= MAX_GROUPS) {
+				fprintf(stderr, "Exceeded max %d groups\n",
+				    MAX_GROUPS);
+				cfg->groups_cnt = 0;
+				free(buf);
+				return (0);
+			}
+			cfg->groups[cfg->groups_cnt++] = p;
 		}
 	} else if (strcmp(name, "failmode") == 0) {
 		if (strcmp(val, "secure") == 0) {
@@ -123,31 +127,6 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 		return (0);
 	}
 	return (1);
-}
-
-static int
-_check_group(const char *user, int gid)
-{
-#ifdef __APPLE__
-	int *groups;
-#else
-	gid_t *groups;
-#endif
-	int i, ret = 0, count = NGROUPS_MAX;
-
-	if ((groups = malloc(count * sizeof(*groups))) != NULL) {
-		if (getgrouplist(user, 0, groups, &count) >= 0) {
-			for (i = 0; i < count; i++) {
-				if (groups[i] == gid) {
-					ret = 1;
-					break;
-				}
-			}
-		} else ret = -1;
-		
-		free(groups);
-	}
-	return (ret);
 }
 
 static int
@@ -197,20 +176,19 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         struct passwd *pw;
 	duo_t *duo;
 	duo_code_t code;
-	const char *config, *p, *user;
+	const char *config, *p, *duouser;
 	char *ip, buf[64];
 	int i, flags, ret, tries;
 
         if ((pw = getpwuid(ctx->uid)) == NULL)
                 die("Who are you?");
         
-	user = ctx->duouser ? ctx->duouser : pw->pw_name;
+	duouser = ctx->duouser ? ctx->duouser : pw->pw_name;
 	config = ctx->config ? ctx->config : DUO_CONF;
 	flags = 0;
 	tries = MAX_RETRIES;
 	
 	memset(&cfg, 0, sizeof(cfg));
-	cfg.minuid = cfg.gid = -1;
         cfg.failmode = DUO_FAIL_SAFE;
         
 	/* Load our private config. */
@@ -219,8 +197,6 @@ do_auth(struct login_ctx *ctx, const char *cmd)
                 !cfg.ikey || !cfg.ikey[0])) {
                 switch (i) {
                 case -2:
-                        if ((pw = getpwuid(getuid())) == NULL)
-                                die("Who are you?");
                         fprintf(stderr, "%s must be readable only by "
                             "user '%s'\n", config, pw->pw_name);
                         break;
@@ -244,20 +220,25 @@ do_auth(struct login_ctx *ctx, const char *cmd)
                 return (EXIT_FAILURE);
 	}
 	/* Check group membership. */
-	if (cfg.gid != -1) {
-		if ((i = _check_group(user, cfg.gid)) < 0) {
+	if (cfg.groups_cnt > 0) {
+		int matched = 0;
+		
+		if (ga_init(pw->pw_name, pw->pw_gid) <= 0) {
 			_log(LOG_ERR, "Couldn't get groups",
-			    user, NULL, strerror(errno));
+			    pw->pw_name, NULL, strerror(errno));
 			return (EXIT_FAILURE);
-		} else if (i == 0) {
-			/* User not in configured group for Duo auth */
-			return (EXIT_SUCCESS);
 		}
-	}
-	/* Check UID range */
-	if (cfg.minuid != -1 && ctx->uid < cfg.minuid) {
-		/* User below minimum UID for Duo auth */
-		return (EXIT_SUCCESS);
+		for (i = 0; i < cfg.groups_cnt; i++) {
+			if (ga_match_pattern_list(cfg.groups[i])) {
+				matched = 1;
+				break;
+			}
+		}
+		ga_free();
+		
+		/* User in configured groups for Duo auth? */
+		if (!matched)
+			return (EXIT_SUCCESS);
 	}
 	/* Check for remote login host */
 	if ((ip = getenv("SSH_CONNECTION")) != NULL ||
@@ -269,7 +250,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 	if ((duo = duo_open(cfg.apihost, cfg.ikey, cfg.skey,
                     "login_duo/" PACKAGE_VERSION, cfg.cafile)) == NULL) {
 		_log(LOG_ERR, "Couldn't open Duo API handle",
-		    user, ip, NULL);
+		    pw->pw_name, ip, NULL);
 		return (EXIT_FAILURE);
 	}
 	if (cfg.noverify)
@@ -286,11 +267,11 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 	ret = EXIT_FAILURE;
 	
 	for (i = 0; i < tries; i++) {
-		code = duo_login(duo, user, ip, flags,
+		code = duo_login(duo, duouser, ip, flags,
                     cfg.pushinfo ? cmd : NULL);
 		if (code == DUO_FAIL) {
 			_log(LOG_WARNING, "Failed Duo login",
-			    user, ip, duo_geterr(duo));
+			    duouser, ip, duo_geterr(duo));
 			if ((flags & DUO_FLAG_SYNC) == 0) {
 				printf("\n");
 			}
@@ -301,24 +282,24 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 		if (code == DUO_OK) {
                         if ((p = duo_geterr(duo)) != NULL) {
 				_log(LOG_WARNING, "Skipped Duo login",
-				    user, ip, p);
+				    duouser, ip, p);
                         } else {
 				_log(LOG_INFO, "Successful Duo login",
-				    user, ip, NULL);
+				    duouser, ip, NULL);
                         }
 			ret = EXIT_SUCCESS;
 		} else if (code == DUO_ABORT) {
 			_log(LOG_WARNING, "Aborted Duo login",
-			    user, ip, duo_geterr(duo));
+			    duouser, ip, duo_geterr(duo));
 		} else if (cfg.failmode == DUO_FAIL_SAFE &&
                     (code == DUO_CONN_ERROR ||
                      code == DUO_CLIENT_ERROR || code == DUO_SERVER_ERROR)) {
 			_log(LOG_WARNING, "Failsafe Duo login",
-			    user, ip, duo_geterr(duo));
+			    duouser, ip, duo_geterr(duo));
                         ret = EXIT_SUCCESS;
 		} else {
 			_log(LOG_ERR, "Error in Duo login",
-			    user, ip, duo_geterr(duo));
+			    duouser, ip, duo_geterr(duo));
 		}
 		break;
 	}
