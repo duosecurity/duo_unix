@@ -95,6 +95,7 @@ _syslog(int priority, const char *fmt, ...)
 
 	va_start(ap, fmt);
 	if (debug) {
+		fprintf(stderr, "[%d] ", priority);
 		vfprintf(stderr, fmt, ap);
 		fputs("\n", stderr);
 	} else {
@@ -237,7 +238,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	}
 	i = duo_parse_config(config, __ini_handler, &cfg);
 	if (i == -2) {
-		_syslog(LOG_ERR, "%s must be readable only by owner", config);
+		_syslog(LOG_ERR, "%s must be readable only by user 'root'",
+		    config);
 		return (PAM_SERVICE_ERR);
 	} else if (i == -1) {
 		_syslog(LOG_ERR, "Couldn't open %s: %s",
@@ -289,21 +291,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
                 }
 	}
 	ip = NULL;
-	if (pam_get_item(pamh, PAM_RHOST, (duopam_const void **)
-		(duopam_const void *)&ip) == PAM_SUCCESS) {
-		struct addrinfo hints, *info;
-		
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = AF_UNSPEC;
-		if (getaddrinfo(ip, NULL, &hints, &info) == 0) {
-			getnameinfo(info->ai_addr, info->ai_addrlen,
-			    buf, sizeof(buf), NULL, 0, NI_NUMERICHOST);
-			freeaddrinfo(info);
-			ip = buf;
-		} else {
-			ip = NULL;
-		}
-	}
+	pam_get_item(pamh, PAM_RHOST,
+	    (duopam_const void **)(duopam_const void *)&ip);
+	
 	/* Try Duo auth */
 	if ((duo = duo_open(cfg.host, cfg.ikey, cfg.skey,
                     "pam_duo/" PACKAGE_VERSION, cfg.cafile)) == NULL) {
