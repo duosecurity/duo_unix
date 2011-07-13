@@ -93,7 +93,6 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 			return (0);
 		}
 		for (p = strtok(buf, " "); p != NULL; p = strtok(NULL, " ")) {
-			printf("tok: [%s]\n", p);
 			if (cfg->groups_cnt >= MAX_GROUPS) {
 				fprintf(stderr, "Exceeded max %d groups\n",
 				    MAX_GROUPS);
