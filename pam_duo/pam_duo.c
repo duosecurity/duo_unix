@@ -74,6 +74,8 @@ enum {
 	DUO_FAIL_SECURE,
 };
 
+int debug = 0;
+
 struct duo_config {
 	char	*ikey;
 	char	*skey;
@@ -182,7 +184,11 @@ _log(int priority, const char *msg,
 	    (i = snprintf(buf + n, sizeof(buf) - n, ": %s", err)) > 0) {
 		n += i;
 	}
-	syslog(priority, "%s", buf);
+	if (debug) {
+		fprintf(stderr, "%s\n", buf);
+	} else {
+		syslog(priority, "%s", buf);
+	}
 }
 
 PAM_EXTERN int
@@ -207,11 +213,16 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	}
 	/* Parse configuration */
 	config = DUO_CONF;
-	if (argc == 1 && strncmp("conf=", argv[0], 5) == 0) {
-		config = argv[0] + 5;
-	} else if (argc > 0) {
-		syslog(LOG_ERR, "Invalid pam_duo configuration");
-		return (PAM_SERVICE_ERR);
+	for (i = 0; i < argc; i++) {
+		if (strncmp("conf=", argv[i], 5) == 0) {
+			config = argv[i] + 5;
+		} else if (strcmp("debug", argv[i]) == 0) {
+			debug = 1;
+		} else {
+			syslog(LOG_ERR, "Invalid pam_duo option: '%s'",
+			    argv[i]);
+			return (PAM_SERVICE_ERR);
+		}
 	}
 	i = duo_parse_config(config, __ini_handler, &cfg);
 	if (i == -2) {
