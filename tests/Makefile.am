@@ -8,6 +8,9 @@ testpam_LDADD = -lpam
 
 TESTS_ENVIRONMENT = env BUILDDIR=$(abs_top_builddir) $(PYTHON) $(top_srcdir)/tests/cram.py 
 
-TESTS = login_duo.t mockduo-1.t mockduo-2.t mockduo-3.t mockduo-4.t
+TESTS = login_duo-0.t login_duo-1.t login_duo-2.t login_duo-3.t login_duo-4.t 
+TESTS += pam_duo-0.t pam_duo-1.t pam_duo-2.t pam_duo-3.t pam_duo-4.t 
 
-EXTRA_DIST = bson/codec.py bson/__init__.py certs confs cram.py mockduo.py $(TESTS)
+EXTRA_DIST = bson/codec.py bson/__init__.py certs confs cram.py mockduo.py testpam.py $(TESTS)
+
+CLEANFILES = testpam.pamd

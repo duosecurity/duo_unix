@@ -1,9 +1,20 @@
+/*
+ * testpam_preload.c
+ *
+ * Fake up a little test environment to run PAM tests unprivileged.
+ *
+ * If you can't freak it, fake the funk.
+ */
+#include <sys/types.h>
 
 #include <dlfcn.h>
 #include <err.h>
+#include <pwd.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #ifdef __APPLE__
 # define _PATH_LIBC       "libc.dylib"
@@ -64,3 +75,17 @@ fopen(const char *filename, const char *mode)
 {
 	return ((*_sys_fopen)(_replace(filename), mode));
 }
+
+struct passwd *
+getpwnam(const char *name)
+{
+	return (getpwuid(getuid()));
+}
+
+int
+getpwnam_r(const char *name, struct passwd *pw,
+    char *buf, size_t buflen, struct passwd **result)
+{
+	return (getpwuid_r(getuid(), pw, buf, buflen, result));
+}
+

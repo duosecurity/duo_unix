@@ -85,25 +85,28 @@ int
 main(int argc, char *argv[])
 {
 	pam_handle_t *pamh = NULL;
-	char *user;
+	char *user, *host;
 	int ret;
 	
-	if (argc != 2) {
-		fprintf(stderr, "Usage: testpam <user>\n");
+	if (argc < 2) {
+		fprintf(stderr, "Usage: testpam <user> [host]\n");
 		exit(EXIT_FAILURE);
 	}
 	user = argv[1];
+	if (argc > 2)
+		host = argv[2];
 	
-	if ((ret = pam_start("testpam", user, &conv, &pamh)) != PAM_SUCCESS) {
-		fprintf(stderr, "pam_start() returned %d\n", ret);
+	if (pam_start("testpam", user, &conv, &pamh) != PAM_SUCCESS) {
 		exit(EXIT_FAILURE);
 	}
-	if ((ret = pam_authenticate(pamh, 0)) != PAM_SUCCESS) {
-		fprintf(stderr, "pam_authenticate() returned %d\n", ret);
+	if (host != NULL) {
+		if (pam_set_item(pamh, PAM_RHOST, host) != PAM_SUCCESS)
+			exit(EXIT_FAILURE);
+	}
+	if (pam_authenticate(pamh, 0) != PAM_SUCCESS) {
 		exit(EXIT_FAILURE);
 	}
-	if ((ret = pam_end(pamh, ret)) != PAM_SUCCESS) {
-		fprintf(stderr, "pam_end() returned %d\n", ret);
+	if (pam_end(pamh, ret) != PAM_SUCCESS) {
 		exit(EXIT_FAILURE);
 	}
 	exit(EXIT_SUCCESS);
