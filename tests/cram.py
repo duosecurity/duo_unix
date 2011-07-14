@@ -414,7 +414,8 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
         os.environ[s] = proctmp
     # XXX - VPATH hackery
     if 'BUILDDIR' not in os.environ:
-        os.environ['BUILDDIR'] = os.path.dirname(os.path.dirname(__file__))
+        parent = os.path.dirname(os.path.realpath(os.path.dirname(__file__)))
+        os.environ['BUILDDIR'] = parent
     if opts.sterilize:
         for s in ('LANG', 'LC_ALL', 'LANGUAGE'):
             os.environ[s] = 'C'
