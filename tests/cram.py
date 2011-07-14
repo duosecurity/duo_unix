@@ -412,9 +412,9 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
     os.mkdir(proctmp)
     for s in ('TMPDIR', 'TEMP', 'TMP'):
         os.environ[s] = proctmp
-    # XXX - hack for VPATH builds
+    # XXX - VPATH hackery
     if 'BUILDDIR' not in os.environ:
-        os.environ['BUILDDIR'] = os.path.dirname(os.path.realpath('.'))
+        os.environ['BUILDDIR'] = os.path.dirname(os.path.dirname(__file__))
     if opts.sterilize:
         for s in ('LANG', 'LC_ALL', 'LANGUAGE'):
             os.environ[s] = 'C'
