@@ -5,6 +5,7 @@ import cgi
 import bson
 import hashlib
 import hmac
+import os
 import ssl
 import sys
 import urllib
@@ -130,7 +131,14 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 def main():
     port = 4443
     host = 'localhost'
-    cafile = sys.argv[1]
+    if len(sys.argv) == 1:
+        cafile = os.path.realpath('%s/certs/mockduo.pem' %
+                                  os.path.dirname(__file__))
+    elif len(sys.argv) == 2:
+        cafile = sys.argv[1]
+    else:
+        print >>sys.stderr, 'Usage: %s [certfile]\n' % sys.argv[0]
+        sys.exit(1)
     
     httpd = BaseHTTPServer.HTTPServer((host, port), MockDuoHandler)
 
@@ -139,7 +147,7 @@ def main():
         certfile=cafile,
         server_side=True
         )
-    
+
     httpd.serve_forever()
     
 if __name__ == '__main__':
