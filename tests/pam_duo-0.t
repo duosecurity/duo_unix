@@ -2,8 +2,7 @@
 Basic help output
 
   $ ${TESTDIR}/testpam.py -h
-  Usage: */tests/testpam.py [-d] [-c config] [-f username] [-h host] (glob)
-  
+  Usage: */tests/testpam.py [-d] [-c config] [-f user] [-h host] (glob)
   [1]
 
 Missing conf file

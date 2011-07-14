@@ -3,7 +3,7 @@ mockduo with self-signed cert
   $ cd ${TESTDIR}
   $ python mockduo.py certs/selfsigned.pem >/dev/null 2>&1 &
   $ trap 'kill %1' EXIT
-  $ sleep 1
+  $ sleep 0.5
 
 Wrong hostname
   $ ${BUILDDIR}/login_duo/login_duo -d -c confs/selfsigned.conf -f whatever true

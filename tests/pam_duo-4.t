@@ -3,11 +3,11 @@ mockduo with valid cert
   $ cd ${TESTDIR}
   $ python mockduo.py certs/mockduo.pem >/dev/null 2>&1 &
   $ trap 'kill %1' EXIT
-  $ sleep 1
+  $ sleep 0.5
 
 HTTP server errors
 
-  $ for http_code in 400 401 402 403 404 500 501 502 503 504; do ${TESTDIR}/testpam.py -d -c confs/mockduo.conf -f $http_code true; done
+  $ for http_code in 400 401 402 403 404 500 501 502 503 504; do ./testpam.py -d -c confs/mockduo.conf -f $http_code true; done
   [4] Failsafe Duo login for '400': HTTP 400
   [4] Failsafe Duo login for '401': HTTP 401
   [4] Failsafe Duo login for '402': HTTP 402
@@ -20,12 +20,12 @@ HTTP server errors
   [4] Failsafe Duo login for '504': HTTP 504
 
 With bad keys
-  $ ${TESTDIR}/testpam.py -d -c confs/mockduo_badkeys.conf -f whatever true
+  $ ./testpam.py -d -c confs/mockduo_badkeys.conf -f whatever true
   [4] Failsafe Duo login for 'whatever': HTTP 401
 
 Preauth states
 
-  $ for user in preauth-ok-missing_response preauth-fail-missing_response preauth-bad-stat preauth-fail preauth-deny preauth-allow preauth-allow-bad_response; do ${TESTDIR}/testpam.py -d -c confs/mockduo.conf -f $user true; done
+  $ for user in preauth-ok-missing_response preauth-fail-missing_response preauth-bad-stat preauth-fail preauth-deny preauth-allow preauth-allow-bad_response; do ./testpam.py -d -c confs/mockduo.conf -f $user true; done
   [4] Failsafe Duo login for 'preauth-ok-missing_response': BSON missing valid 'response'
   [4] Failsafe Duo login for 'preauth-fail-missing_response': BSON missing valid 'code'
   [4] Failsafe Duo login for 'preauth-bad-stat'
@@ -36,7 +36,7 @@ Preauth states
 
 Test manually-set hosts
 
-  $ for host in 1.2.3.4 XXXX:XXXX:XXXX:XXXX:XXXX:XXXX:AAA.BBB.CCC.DDD nowhere "%s" "!@#$%^&*()_+<>{}|;'"; do ${TESTDIR}/testpam.py -d -c confs/mockduo.conf -f preauth-allow -h $host true; done
+  $ for host in 1.2.3.4 XXXX:XXXX:XXXX:XXXX:XXXX:XXXX:AAA.BBB.CCC.DDD nowhere "%s" "!@#$%^&*()_+<>{}|;'"; do ./testpam.py -d -c confs/mockduo.conf -f preauth-allow -h $host true; done
   [4] Skipped Duo login for 'preauth-allow' from 1.2.3.4: you rock
   [4] Skipped Duo login for 'preauth-allow' from XXXX:XXXX:XXXX:XXXX:XXXX:XXXX:AAA.BBB.CCC.DDD: you rock
   [4] Skipped Duo login for 'preauth-allow' from nowhere: you rock
