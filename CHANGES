@@ -2,9 +2,11 @@
 
 duo_unix-1.7:
 
-- Load missing CA cert for non-OpenSSL libcurl from $(sysconfdir)/duo.crt
+- Replaced 'minuid' config option with more flexible 'groups' matching
 
-- Added 'cafile' configuration option to override CA cert
+- Added automated tests using cram.py for "make {dist}check"
+
+- Added 'cafile' configuration option to override CA cert for testing
 
 - Added login_duo -h option to specify remote host manually
 
