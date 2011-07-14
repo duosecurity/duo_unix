@@ -69,6 +69,10 @@ fi
 if test "x$libcurl_protocol_HTTPS" != "xyes"; then
    AC_MSG_ERROR(["We need libcurl with support for HTTPS!"])
 fi
+case "$LIBCURL" in
+    *-lssl*-lcrypto*) ;;
+    *) AC_MSG_ERROR(["We need libcurl built against OpenSSL!"])
+esac
 
 # Default PAM install dir
 case "$host" in
