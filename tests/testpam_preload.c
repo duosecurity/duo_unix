@@ -1,9 +1,7 @@
 /*
  * testpam_preload.c
  *
- * Fake up a little test environment to run PAM tests unprivileged.
- *
- * If you can't freak it, fake the funk.
+ * Fake test environment to run PAM tests unprivileged.
  */
 #include <sys/types.h>
 
@@ -57,9 +55,7 @@ const char *
 _replace(const char *filename)
 {
 	if (strcmp(filename, "/etc/pam.d/testpam") == 0) {
-		return ("testpam.pamd");
-	} else if (strcmp(filename, "/etc/duo/pam_duo.conf") == 0) {
-		return ("confs/mockduo.conf");
+		return (getenv("PAM_CONF"));
 	}
 	return (filename);
 }
