@@ -78,7 +78,6 @@ case "$host" in
      *linux*)          PAM_DIR="/lib/security" ;;
      *)                PAM_DIR="/usr/lib/security" ;; # NetBSD, Solaris, AIX, HP-UX
 esac
-AC_SUBST(PAMDIR, "$PAM_DIR")
 
 # Check PAM
 AC_ARG_WITH(pam,
@@ -96,7 +95,7 @@ if test "x$with_pam" != "xno" ; then
   AC_CHECK_LIB([pam], [main], [AC_SUBST([LIBPAM], ["-lpam"])], AC_MSG_FAILURE([libpam not found]))
   AS_IF([ test "x$with_pam" != "xno" ], [
     case "${withval}" in
-    /*) PAMDIR="${withval}";;
+    /*|\$*) PAMDIR="${withval}";;
     ./*|../*) AC_MSG_ERROR(Bad value for --with-pam);;
     *)  PAMDIR="${PAM_DIR}";;
     esac
@@ -104,6 +103,7 @@ if test "x$with_pam" != "xno" ; then
   ])
   AC_SEARCH_LIBS(pam_vprompt, pam, [AC_DEFINE([HAVE_PAM_VPROMPT], [1], [Define if pam_vprompt exists])])
 fi
+AC_SUBST(PAMDIR, "$PAMDIR")
 
 # Check for Duo privsep user
 case "$host" in
