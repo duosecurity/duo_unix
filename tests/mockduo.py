@@ -61,10 +61,13 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             ret = { 'stat': 'OK',
                     'response': 'hello world' }
         
+        buf = bson.dumps(ret)
+
         self.send_response(200)
         self.send_header("Content-type", "application/bson")
+        self.send_header("Content-length", len(buf))
         self.end_headers()
-        self.wfile.write(bson.dumps(ret))
+        self.wfile.write(buf)
         
     def do_POST(self):
         args = self._get_args();
@@ -121,11 +124,15 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
             return
-        
+
+        buf = bson.dumps(ret)
+
         self.send_response(200)
         self.send_header("Content-type", "application/bson")
+        self.send_header("Content-length", len(buf))
         self.end_headers()
-        self.wfile.write(bson.dumps(ret))
+        self.wfile.write(buf)
+        self.wfile.close()
 
 
 def main():
