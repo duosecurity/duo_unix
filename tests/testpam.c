@@ -85,7 +85,7 @@ int
 main(int argc, char *argv[])
 {
 	pam_handle_t *pamh = NULL;
-	char *user, *host;
+	char *user, *host = NULL;
 	int ret;
 	
 	if (argc < 2) {
