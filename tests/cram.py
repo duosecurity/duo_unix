@@ -423,6 +423,8 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
         os.environ['CDPATH'] = ''
         os.environ['COLUMNS'] = '80'
         os.environ['GREP_OPTIONS'] = ''
+        # XXX whack SSH_CONNECTION
+        os.environ['SSH_CONNECTION'] = ''
 
     if opts.yes:
         answer = 'y'
