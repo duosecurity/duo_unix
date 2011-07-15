@@ -2,7 +2,8 @@ mockduo with wrong CN
 
   $ cd ${TESTDIR}
   $ python mockduo.py certs/mockduo-wronghost.pem >/dev/null 2>&1 &
-  $ trap 'kill %1' EXIT
+  $ MOCKPID=$!
+  $ trap 'exec kill $MOCKPID >/dev/null 2>&1' EXIT
   $ sleep 0.5
 
 Wrong hostname
