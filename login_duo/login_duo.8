@@ -6,6 +6,7 @@
 .Nd second-factor authentication via Duo login service
 .Sh SYNOPSIS
 login_duo
+.Op Fl d
 .Op Fl c Ar file
 .Op Fl h Ar host
 .Op Fl f Ar user
@@ -18,7 +19,10 @@ executing the user's login shell or command only if successful.
 The following options are available:
 .Bl -tag -width ".Cm failmode"
 .It Fl c
-Specify an alternate configuration file to load.
+Specify an alternate configuration file to load. Default is
+.Pa /etc/duo/login_duo.conf
+.It Fl d
+Debug mode; send logs to stderr instead of syslog.
 .It Fl h
 Specify the remote IP address for this login (normally 
 taken from the
