@@ -54,6 +54,7 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         if not self._verify_sig(SKEY, args):
             self.send_response(401)
+            self.send_header("Content-length", "0")
             self.end_headers()
             return
 
@@ -74,11 +75,13 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         if not self._verify_sig(SKEY, args):
             self.send_response(401)
+            self.send_header("Content-length", "0")
             self.end_headers()
             return
 
         try:
             self.send_response(int(args['user']))
+            self.send_header("Content-length", "0")
             self.end_headers()
             return
         except:
@@ -122,6 +125,7 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                     'response': { 'result': 'tx666' } }
         else:
             self.send_response(404)
+            self.send_header("Content-length", "0")
             self.end_headers()
             return
 
