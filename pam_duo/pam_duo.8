@@ -12,11 +12,14 @@ pam_duo.so
 provides secondary authentication (typically after successful
 password-based authentication) through the Duo authentication service.
 .Sh OPTIONS
-Only one PAM module configuration option is supported:
+PAM module configuration options supported:
 .Pp
 .Bl -tag -width ".Cm failmode"
 .It conf
-Specify an alternate configuration file to load.
+Specify an alternate configuration file to load. Default is 
+.Pa /etc/duo/pam_duo.conf
+.It debug
+Debug mode; send log messages to stderr instead of syslog.
 .El
 .Sh CONFIGURATION
 The INI-format configuration file must have a
@@ -30,10 +33,14 @@ Duo API host (required).
 Duo integration key (required).
 .It Cm skey
 Duo secret key (required).
-.It Cm group
-Skip Duo authentication for users not in a specific Unix group.
-.It Cm minuid
-Skip Duo authentication for users below a specified user ID.
+.It Cm groups
+If specified, Duo authentication is required only for users whose
+primary group or supplementary group list matches one of the
+space-separated 
+.Em pattern-lists
+(see
+.Sx PATTERNS
+below).
 .It Cm failmode
 On service or configuration errors that prevent Duo authentication, fail
 .Dq Li safe
@@ -49,17 +56,35 @@ Send command to be approved via Duo Push authentication. Default is
 An example configuration file:
 .Bd -literal -offset 8n
 [duo]
-host=api-deadbeef.duosecurity.com
-ikey=SI9F...53RI
-skey=4MjR...Q2NmRiM2Q1Y
-minuid=500
-pushinfo=yes
+host = api-deadbeef.duosecurity.com
+ikey = SI9F...53RI
+skey = 4MjR...Q2NmRiM2Q1Y
+pushinfo = yes
 .Ed
 .Pp
 Other authentication restrictions may be implemented using 
 .Xr pam_listfile 8 ,
 .Xr pam_access 8 ,
 etc.
+.Sh PATTERNS
+A
+.Em pattern
+consists of zero or more non-whitespace characters,
+.Sq *
+(a wildcard that matches zero or more characters),
+or
+.Sq ?\&
+(a wildcard that matches exactly one character).
+.Pp
+A 
+.Em pattern-list
+is a comma-separated list of patterns. Patterns within pattern-lists
+may be negated by preceding them with an exclamation mark
+.Pq Sq !\& .
+For example, to specify Duo authentication for all users (except those
+that are also admins), and for guests:
+.Pp
+.Dl groups = users,!wheel,!*admin guests
 .Sh FILES
 .Bl -tag -width ".Cm failmode"
 .It Pa /etc/duo/pam_duo.conf
