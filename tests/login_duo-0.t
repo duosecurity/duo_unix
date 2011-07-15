@@ -2,7 +2,7 @@
 Basic help output
 
   $ ${BUILDDIR}/login_duo/login_duo -h
-  */login_duo: option requires an argument -- 'h' (glob)
+  *login_duo: option requires an argument* (glob)
   Usage: login_duo [-c config] [-d] [-f duouser] [-h host] [prog [args...]]
   [1]
 
