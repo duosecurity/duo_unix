@@ -212,7 +212,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	duo_t *duo;
 	duo_code_t code;
 	duopam_const char *config, *cmd, *ip, *p, *service, *user;
-	char buf[128];
 	int i, flags, pam_err;
 
 	memset(&cfg, 0, sizeof(cfg));
