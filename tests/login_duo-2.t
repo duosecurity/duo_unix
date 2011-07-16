@@ -8,7 +8,7 @@ mockduo with self-signed cert
 
 Wrong hostname
   $ ${BUILDDIR}/login_duo/login_duo -d -c confs/selfsigned.conf -f whatever true
-  [4] Failsafe Duo login for 'whatever': SSL: certificate subject name 'mockduo' does not match target host name 'localhost'
+  [4] Failsafe Duo login for 'whatever': SSL: certificate subject name ?mockduo? does not match target host name 'localhost' (glob)
 
 With noverify
   $ ${BUILDDIR}/login_duo/login_duo -d -c confs/selfsigned_noverify.conf -f preauth-allow true

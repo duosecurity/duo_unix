@@ -8,7 +8,7 @@ mockduo with wrong CN
 
 Wrong hostname
   $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f whatever true
-  [4] Failsafe Duo login for 'whatever': SSL: certificate subject name 'tests.mockduo' does not match target host name 'localhost'
+  [4] Failsafe Duo login for 'whatever': SSL: certificate subject name ?tests.mockduo? does not match target host name 'localhost' (glob)
 
 With noverify
   $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo_noverify.conf -f preauth-allow true
