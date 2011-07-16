@@ -84,28 +84,6 @@ __bio_write(void *ptr, size_t size, size_t nmemb, void *userp)
 	return (BIO_write((BIO *)userp, ptr, size * nmemb));
 }
 
-static CURLcode
-__sslctx_add_cert(CURL *curl, void *sslctx, void *arg)
-{
-	X509_STORE *store;
-	X509 *cert;
-	BIO *bio;
-	CURLcode ret = CURLE_OK;
-	
-	if ((bio = BIO_new_mem_buf(CACERT_PEM, -1)) == NULL) {
-		return (CURLE_OUT_OF_MEMORY);
-	}
-	store = SSL_CTX_get_cert_store((SSL_CTX *)sslctx);
-
-	while ((cert = PEM_read_bio_X509(bio, NULL, 0, NULL)) != NULL) {
-		X509_STORE_add_cert(store, cert);
-		X509_free(cert);
-	}
-	BIO_free_all(bio);
-	
-	return (ret);
-}
-
 static char *
 __prompt_fn(void *arg, const char *prompt, char *buf, size_t bufsz)
 {
@@ -165,16 +143,8 @@ duo_open(const char *host, const char *ikey, const char *skey,
 	curl_easy_setopt(ctx->curl, CURLOPT_SSL_VERIFYPEER, 1L);
 	curl_easy_setopt(ctx->curl, CURLOPT_SSL_VERIFYHOST, 2L);
 	curl_easy_setopt(ctx->curl, CURLOPT_CAPATH, NULL);
-	curl_easy_setopt(ctx->curl, CURLOPT_CAINFO, cafile);
-	
-	if (cafile == NULL) {
-		/* Try loading default CA cert for OpenSSL from memory */
-		if (curl_easy_setopt(ctx->curl, CURLOPT_SSL_CTX_FUNCTION,
-			__sslctx_add_cert) != CURLE_OK) {
-			/* Load default CA cert for non-OpenSSL from file */
-			curl_easy_setopt(ctx->curl, CURLOPT_CAINFO, DUO_CACERT);
-		}
-	}
+	curl_easy_setopt(ctx->curl, CURLOPT_CAINFO, cafile ? cafile : DUO_CACERT);
+
 	return (ctx);
 }
 
