@@ -35,7 +35,6 @@
 #include <curl/curl.h>
 
 #include "bson.h"
-#include "cacert.h"
 #include "duo.h"
 #include "ini.h"
 #include "urlenc.h"
