@@ -22,3 +22,13 @@ noinst_PROGRAMS = testduo
 
 testduo_LDADD = libduo.la
 
+install-exec-hook:
+	-@if [ ! -f $(DESTDIR)$(sysconfdir)/duo.crt ]; then \
+	  mkdir -p -m 755 $(DESTDIR)$(sysconfdir); \
+	  cp duo.crt $(DESTDIR)$(sysconfdir)/duo.crt; \
+	  echo "Created ${DESTDIR}$(sysconfdir)/duo.crt"; \
+	else \
+	  echo "Found existing ${DESTDIR}$(sysconfdir)/login_duo.conf - skipping"; \
+	fi
+
+EXTRA_DIST = duo.crt
