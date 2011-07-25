@@ -32,10 +32,9 @@
 #include <openssl/ssl.h>
 #include <openssl/safestack.h>
 
-#include <curl/curl.h>
-
 #include "bson.h"
 #include "duo.h"
+#include "https.h"
 #include "ini.h"
 #include "urlenc.h"
 
@@ -43,45 +42,21 @@
 #define DUO_API_VERSION		"/rest/v1"
 #define DUO_CACERT		DUO_CONF_DIR "/duo.crt"
 
-typedef char *PARAM;
-
-DECLARE_STACK_OF(PARAM)
-
-#define sk_PARAM_new(cmp) SKM_sk_new(PARAM, (cmp))
-#define sk_PARAM_pop_free(st, free_func) SKM_sk_pop_free(PARAM, (st), (free_func))
-#define sk_PARAM_push(st, val) SKM_sk_push(PARAM, (st), (val))
-#define sk_PARAM_sort(st) SKM_sk_sort(PARAM, (st))
-#define sk_PARAM_shift(st) SKM_sk_shift(PARAM, (st))
-
 struct duo_ctx {
-	CURL	*curl;			 /* curl handle */
-	int	 verf;			 /* verify SSL peer? */
-	
-	char	 host[256];		 /* MAXHOSTNAMELEN */
-	char	 ikey[128];		 /* integration key */
-	char	 skey[128];		 /* secret key */
-	char	 err[CURL_ERROR_SIZE];	 /* error message */
-        char	*useragent;		 /* user-agent */
-	
-	STACK_OF(PARAM)	*params;	 /* stack of allocated strings */
-	BIO	*bio;			 /* response body */
+	https_t    *https;		 /* HTTPS handle */
+	char	    host[256];		 /* MAXHOSTNAMELEN */
+	char        err[512];		 /* error message */
+        
+        char       *argv[16];		 /* request arguments */
+        int	    argc;
 
-	char  *(*conv_prompt)(void *arg, const char *prompt, char *buf, size_t bufsize);
-	void   (*conv_status)(void *arg, const char *msg);
-        void	*conv_arg;
+        const char *body;		 /* response body */
+        int	    body_len;
+        
+	char *(*conv_prompt)(void *arg, const char *pr, char *buf, size_t sz);
+	void  (*conv_status)(void *arg, const char *msg);
+        void   *conv_arg;
 };
-
-static int
-__param_cmp(const char * const *a, const char * const *b)
-{
-	return (strcmp(*(char **)a, *(char **)b));
-}
-
-static size_t
-__bio_write(void *ptr, size_t size, size_t nmemb, void *userp)
-{
-	return (BIO_write((BIO *)userp, ptr, size * nmemb));
-}
 
 static char *
 __prompt_fn(void *arg, const char *prompt, char *buf, size_t bufsz)
@@ -102,47 +77,23 @@ duo_open(const char *host, const char *ikey, const char *skey,
     const char *progname, const char *cafile)
 {
 	struct duo_ctx *ctx;
-        char *p;
+        char *useragent;
 	
-	curl_global_init(CURL_GLOBAL_ALL);
-
 	if ((ctx = calloc(1, sizeof(*ctx))) == NULL)
 		return (NULL);
 	
-	if ((ctx->curl = curl_easy_init()) == NULL) {
-		duo_close(ctx);
-		return (NULL);
-	}
-	ctx->verf = 1;
 	strlcpy(ctx->host, host, sizeof(ctx->host));
-        for (p = ctx->host; *p != '\0'; p++) {
-                *p = tolower(*p);
-	}
-	strlcpy(ctx->ikey, ikey, sizeof(ctx->ikey));
-	strlcpy(ctx->skey, skey, sizeof(ctx->skey));
-	ctx->params = sk_PARAM_new(__param_cmp);
-	ctx->bio = BIO_new(BIO_s_mem());
 	ctx->conv_prompt = __prompt_fn;
 	ctx->conv_status = __status_fn;
 
-	if (asprintf(&ctx->useragent, "%s (%s) libduo/%s",
-                progname, CANONICAL_HOST, PACKAGE_VERSION) == -1 ||
-            ctx->params == NULL || ctx->bio == NULL) {
-		duo_close(ctx);
-		return (NULL);
+	if (asprintf(&useragent, "%s (%s) libduo/%s",
+                progname, CANONICAL_HOST, PACKAGE_VERSION) == -1) {
+		return (duo_close(ctx));
 	}
-	curl_easy_setopt(ctx->curl, CURLOPT_NOPROGRESS, 1L);
-	curl_easy_setopt(ctx->curl, CURLOPT_NOSIGNAL, 1L);
-	curl_easy_setopt(ctx->curl, CURLOPT_DNS_CACHE_TIMEOUT, 0);
-	curl_easy_setopt(ctx->curl, CURLOPT_USERAGENT, ctx->useragent);
-	curl_easy_setopt(ctx->curl, CURLOPT_ERRORBUFFER, ctx->err);
-	curl_easy_setopt(ctx->curl, CURLOPT_WRITEDATA, (void *)ctx->bio);
-	curl_easy_setopt(ctx->curl, CURLOPT_WRITEFUNCTION, __bio_write);
-	curl_easy_setopt(ctx->curl, CURLOPT_SSLCERTTYPE, "PEM");
-	curl_easy_setopt(ctx->curl, CURLOPT_SSL_VERIFYPEER, 1L);
-	curl_easy_setopt(ctx->curl, CURLOPT_SSL_VERIFYHOST, 2L);
-	curl_easy_setopt(ctx->curl, CURLOPT_CAPATH, NULL);
-	curl_easy_setopt(ctx->curl, CURLOPT_CAINFO, cafile ? cafile : DUO_CACERT);
+	if (https_init(ikey, skey, useragent, cafile) != HTTPS_OK) {
+                ctx = duo_close(ctx);
+        }
+        free(useragent);
 
 	return (ctx);
 }
@@ -175,32 +126,28 @@ duo_parse_config(const char *filename,
 static duo_code_t
 duo_reset(struct duo_ctx *ctx)
 {
-	curl_easy_setopt(ctx->curl, CURLOPT_CUSTOMREQUEST, NULL);
-	
-	*ctx->err = '\0';
-	
-	sk_PARAM_pop_free(ctx->params, free);
-	if ((ctx->params = sk_PARAM_new(__param_cmp)) == NULL) {
-		return (DUO_LIB_ERROR);
-	}
-	(void)BIO_reset(ctx->bio);
+        int i;
 
+        for (i = 0; i < ctx->argc; i++) {
+                free(ctx->argv[i]);
+                ctx->argv[i] = NULL;
+        }
+        ctx->argc = 0;
+	*ctx->err = '\0';
+        
 	return (DUO_OK);
 }
 
-void
+struct duo_ctx *
 duo_close(struct duo_ctx *ctx)
 {
 	if (ctx != NULL) {
-		if (ctx->curl)
-			curl_easy_cleanup(ctx->curl);
-		if (ctx->params)
-			sk_PARAM_pop_free(ctx->params, free);
-		if (ctx->bio)
-			BIO_free_all(ctx->bio);
-                free(ctx->useragent);
+                duo_reset(ctx);
+                if (ctx->https != NULL)
+                        https_close(&ctx->https);
 		free(ctx);
 	}
+        return (NULL);
 }
 
 void
@@ -227,72 +174,15 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
 
 	k = urlenc_encode(name);
 	v = urlenc_encode(value);
-	
-	if (k && v && asprintf(&p, "%s=%s", k, v) > 2) {
-		sk_PARAM_push(ctx->params, p);
+
+	if (k && v && asprintf(&p, "%s=%s", k, v) > 2 &&
+            ctx->argc + 1 < sizeof(ctx->argv) / sizeof(ctx->argv[0])) {
+                ctx->argv[ctx->argc++] = p;
 		ret = DUO_OK;
 	}
 	free(k);
 	free(v);
 
-	return (ret);
-}
-
-void
-duo_set_ssl_verify(struct duo_ctx *ctx, int bool)
-{
-	ctx->verf = (bool != 0);
-	curl_easy_setopt(ctx->curl, CURLOPT_SSL_VERIFYPEER, (long)ctx->verf);
-	curl_easy_setopt(ctx->curl, CURLOPT_SSL_VERIFYHOST, (bool ? 2L : 0L));
-}
-
-static int
-_hmac_sha1(const char *key, const char *inbuf, int inlen, char *outbuf, int outlen)
-{
-	HMAC_CTX hmac;
-	unsigned char MD[SHA_DIGEST_LENGTH];
-	int i;
-	
-	if (outlen < sizeof(MD) * 2 + 1) {
-		return (-1);
-	}
-	HMAC_CTX_init(&hmac);
-	HMAC_Init(&hmac, key, strlen(key), EVP_sha1());
-	HMAC_Update(&hmac, (unsigned char *)inbuf, inlen);
-	HMAC_Final(&hmac, MD, NULL);
-	HMAC_CTX_cleanup(&hmac);
-
-	for (i = 0; i < sizeof(MD); i++) {
-		sprintf(outbuf + (i * 2), "%02x", MD[i]);
-	}
-	return (0);
-}
-
-static char *
-_params_pop_to_qs(struct duo_ctx *ctx)
-{
-	BIO *bio;
-	BUF_MEM *bp;
-	char *p, *ret;
-
-	if ((bio = BIO_new(BIO_s_mem())) == NULL) {
-		return (NULL);
-	}
-	sk_PARAM_sort(ctx->params);
-	
-	while ((p = (char *)sk_PARAM_shift(ctx->params)) != NULL) {
-		BIO_printf(bio, "&%s", p);
-		free(p);
-	}
-	BIO_get_mem_ptr(bio, &bp);
-	if (bp->length && (ret = malloc(bp->length)) != NULL) {
-		memcpy(ret, bp->data + 1, bp->length - 1);
-		ret[bp->length - 1] = '\0';
-	} else {
-		ret = calloc(1, sizeof(*ret));
-	}
-	BIO_free_all(bio);
-	
 	return (ret);
 }
 
@@ -316,19 +206,17 @@ _duo_seterr(struct duo_ctx *ctx, const char *fmt, ...)
 static duo_code_t
 _duo_bson_response(struct duo_ctx *ctx, bson *resp)
 {
-	BUF_MEM *bp;
 	bson obj;
 	bson_iterator it;
 	duo_code_t ret;
 	const char *p;
 	int code;
 	
-	BIO_get_mem_ptr(ctx->bio, &bp);
-	bson_init(&obj, bp->data, 0);
+	bson_init(&obj, (char *)ctx->body, 0);
 	
 	ret = DUO_SERVER_ERROR;
 	
-	if (bp->length <= 0 || bson_size(&obj) > bp->length) {
+	if (ctx->body_len <= 0 || bson_size(&obj) > ctx->body_len) {
 		_duo_seterr(ctx, "invalid BSON response");
 		return (ret);
 	}
@@ -351,82 +239,44 @@ _duo_bson_response(struct duo_ctx *ctx, bson *resp)
 }
 
 static duo_code_t
-duo_call(struct duo_ctx *ctx, const char *method, const char *fmt, ...)
+duo_call(struct duo_ctx *ctx, const char *method, const char *uri)
 {
-	va_list ap;
-	CURLcode ccode;
-	long rcode;
-	int n, ret;
-	char *uri, *qs, *sign, *url, *userpwd;
-	char sig[SHA_DIGEST_LENGTH * 2 + 1];
+        int i, code, err, ret;
 
-	uri = qs = sign = url = userpwd = NULL;
-	ret = DUO_LIB_ERROR;
-        ctx->err[0] = '\0';
-	
-	/* Format URI & (sorted) query string */
-	va_start(ap, fmt);
-	if (vasprintf(&uri, fmt, ap) < 0) {
-		goto call_cleanup;
-	}
-	va_end(ap);
-	if (uri == NULL || (qs = _params_pop_to_qs(ctx)) == NULL) {
-		goto call_cleanup;
-	}
-	/* Prepare request */
-	if (duo_reset(ctx) != DUO_OK) {
-		goto call_cleanup;
-	}
-	if (strcmp(method, "GET") == 0) {
-		curl_easy_setopt(ctx->curl, CURLOPT_HTTPGET, 1);
-		if (asprintf(&url, "https://%s%s%s%s", ctx->host, uri, *qs ? "?" : "", qs) < 0)
-			goto call_cleanup;
-	} else {
-		curl_easy_setopt(ctx->curl, CURLOPT_POST, 1);
-		if (asprintf(&url, "https://%s%s", ctx->host, uri) < 0)
-			goto call_cleanup;
-		curl_easy_setopt(ctx->curl, CURLOPT_POSTFIELDS, qs);
-		curl_easy_setopt(ctx->curl, CURLOPT_CUSTOMREQUEST, method);
-	}
-	curl_easy_setopt(ctx->curl, CURLOPT_URL, url);
-	
-	/* Sign request */
-	if ((n = asprintf(&sign, "%s\n%s\n%s\n%s", method, ctx->host, uri, qs)) < 0 ||
-	    _hmac_sha1(ctx->skey, sign, n, sig, sizeof(sig)) < 0) {
-		goto call_cleanup;
-	}
-	curl_easy_setopt(ctx->curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-	if (asprintf(&userpwd, "%s:%s", ctx->ikey, sig) < 0)
-		goto call_cleanup;
-	curl_easy_setopt(ctx->curl, CURLOPT_USERPWD, userpwd);
-	
-	/* Execute request */
-	ret = DUO_CONN_ERROR;
-	if ((ccode = curl_easy_perform(ctx->curl)) == CURLE_OK) {
-		if (curl_easy_getinfo(ctx->curl, CURLINFO_RESPONSE_CODE, &rcode) == 0) {
-			if (rcode / 100 == 2) {
-				ret = DUO_OK;
-			} else {
-				ret = (rcode < 500) ? DUO_CLIENT_ERROR : DUO_SERVER_ERROR;
-				if (_duo_bson_response(ctx, NULL) != DUO_FAIL)
-					_duo_seterr(ctx, "HTTP %ld", rcode);
-			}
-		}
-	} else if (ccode == CURLE_SSL_CONNECT_ERROR) {
-		ret = DUO_CLIENT_ERROR;
-	} else if (ccode == CURLE_SSL_CACERT
-#if LIBCURL_VERSION_NUM < 0x071101
-	    || ccode == CURLE_SSL_PEER_CERTIFICATE
-#else
-	    || ccode == CURLE_PEER_FAILED_VERIFICATION
-#endif
-	    ) {
-		ret = DUO_SERVER_ERROR;
-	}
-call_cleanup:
-	/* Cleanup */
-	free(uri); free(url); free(sign); free(qs); free(userpwd);
-	
+        code = 0;
+        ctx->body = NULL;
+        ctx->body_len = 0;
+        
+        for (i = 0; i < 3; i++) {
+                if (ctx->https == NULL &&
+                    (err = https_open(&ctx->https, ctx->host)) != HTTPS_OK) {
+                        if (err == HTTPS_ERR_SERVER) {
+                                sleep(1 << i);
+                                continue;
+                        }
+                        break;
+                }
+                if ((err = https_send(ctx->https, method, uri,
+                            ctx->argc, ctx->argv)) == HTTPS_OK &&
+                    (err = https_recv(ctx->https, &code,
+                        &ctx->body, &ctx->body_len)) == HTTPS_OK) {
+                        break;
+                }
+                https_close(&ctx->https);
+        }
+        duo_reset(ctx);
+
+        if (code == 0) {
+                ret = DUO_CONN_ERROR;
+                _duo_seterr(ctx, "Couldn't connect to %s: %s\n",
+                    ctx->host, https_geterr());
+        } else if (code / 100 == 2) {
+                ret = DUO_OK;
+        } else {
+                ret = (code < 500) ? DUO_CLIENT_ERROR : DUO_SERVER_ERROR;
+                if (_duo_bson_response(ctx, NULL) != DUO_FAIL)
+                        _duo_seterr(ctx, "HTTP %d", code);
+        }
 	return (ret);
 }
 
