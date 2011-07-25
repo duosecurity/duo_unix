@@ -8,7 +8,7 @@ mockduo with self-signed cert
 
 Invalid cert
   $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f whatever true 2>&1 | head -n 1
-  [4] Failsafe Duo login for 'whatever': * certificate * (glob)
+  [4] Failsafe Duo login for 'whatever': Couldn't connect to localhost:4443: error:14090086:SSL routines:SSL3_GET_SERVER_CERTIFICATE:certificate verify failed
 
 With noverify
   $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo_noverify.conf -f preauth-allow true
