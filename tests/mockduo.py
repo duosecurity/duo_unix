@@ -28,7 +28,8 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         if ikey != IKEY:
             return False
         
-        canon = [ 'POST', self.headers['Host'], self.path ]
+        canon = [ 'POST', self.headers['Host'].split(':')[0].lower(),
+                  self.path ]
         l = []
         for k in sorted(args.keys()):
             l.append('%s=%s' % (urllib.quote(k, '~'),
