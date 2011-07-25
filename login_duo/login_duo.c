@@ -247,14 +247,12 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 	}
 	/* Try Duo auth. */
 	if ((duo = duo_open(cfg.apihost, cfg.ikey, cfg.skey,
-                    "login_duo/" PACKAGE_VERSION, cfg.cafile)) == NULL) {
+                    "login_duo/" PACKAGE_VERSION,
+                    cfg.noverify ? "" : cfg.cafile)) == NULL) {
 		_log(LOG_ERR, "Couldn't open Duo API handle",
 		    pw->pw_name, ip, NULL);
 		return (EXIT_FAILURE);
 	}
-	if (cfg.noverify)
-		duo_set_ssl_verify(duo, 0);
-	
 	/* Special handling for non-interactive sessions */
 	if ((p = getenv("SSH_ORIGINAL_COMMAND")) != NULL ||
 	    !isatty(STDIN_FILENO)) {

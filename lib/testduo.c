@@ -38,9 +38,6 @@ main(int argc, char *argv[])
 		fprintf(stderr, "duo_open failed\n");
 		exit(1);
 	}
-	if (getenv("DUO_NO_VERIFY")) {
-		duo_set_ssl_verify(duo, 0);
-	}
 	if (getenv("DUO_SYNC")) {
 		flags |= DUO_FLAG_SYNC;
 	}

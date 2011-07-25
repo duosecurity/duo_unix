@@ -295,14 +295,12 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	
 	/* Try Duo auth */
 	if ((duo = duo_open(cfg.host, cfg.ikey, cfg.skey,
-                    "pam_duo/" PACKAGE_VERSION, cfg.cafile)) == NULL) {
+                    "pam_duo/" PACKAGE_VERSION,
+                    cfg.noverify ? "" : cfg.cafile)) == NULL) {
 		_log(LOG_ERR, "Couldn't open Duo API handle", user, ip, NULL);
 		return (PAM_SERVICE_ERR);
 	}
 	duo_set_conv_funcs(duo, __duo_prompt, __duo_status, pamh);
-
-	if (cfg.noverify)
-		duo_set_ssl_verify(duo, 0);
 
 	pam_err = PAM_SERVICE_ERR;
 	
