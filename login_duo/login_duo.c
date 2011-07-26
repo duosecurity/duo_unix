@@ -345,13 +345,13 @@ do_exec(struct login_ctx *ctx, const char *cmd)
 		shell0 = pw->pw_shell;
 	}
 	if (cmd != NULL) {
-		execl(pw->pw_shell, shell0, "-c", cmd, NULL);
+		execl(pw->pw_shell, shell0, "-c", cmd, (char *)NULL);
 	} else {
 		n = snprintf(argv0, sizeof(argv0), "-%s", shell0);
 		if (n == -1 || n >= sizeof(argv0)) {
 			die("%s: Invalid argument", pw->pw_shell);
 		}
-		execl(pw->pw_shell, argv0, NULL);
+		execl(pw->pw_shell, argv0, (char *)NULL);
 	}
 	die("%s: %s", pw->pw_shell, strerror(errno));
 }
