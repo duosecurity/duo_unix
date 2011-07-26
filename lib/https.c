@@ -5,6 +5,8 @@
  * All rights reserved, all wrongs reversed.
  */
 
+#include "config.h"
+
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>

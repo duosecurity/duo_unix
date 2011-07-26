@@ -25,12 +25,10 @@
 #include <unistd.h>
 
 #include <openssl/bio.h>
-#include <openssl/buffer.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
 #include <openssl/ssl.h>
-#include <openssl/safestack.h>
 
 #include "bson.h"
 #include "duo.h"
@@ -44,7 +42,7 @@
 
 struct duo_ctx {
 	https_t    *https;		 /* HTTPS handle */
-	char	    host[256];		 /* MAXHOSTNAMELEN */
+	char	   *host;		 /* host[:port] */
 	char        err[512];		 /* error message */
         
         char       *argv[16];		 /* request arguments */
@@ -79,13 +77,10 @@ duo_open(const char *host, const char *ikey, const char *skey,
 	struct duo_ctx *ctx;
         char *useragent;
 	
-	if ((ctx = calloc(1, sizeof(*ctx))) == NULL)
-		return (NULL);
-	
-	strlcpy(ctx->host, host, sizeof(ctx->host));
-	ctx->conv_prompt = __prompt_fn;
-	ctx->conv_status = __status_fn;
-
+	if ((ctx = calloc(1, sizeof(*ctx))) == NULL ||
+            (ctx->host = strdup(host)) == NULL) {
+		return (duo_close(ctx));
+	}
 	if (asprintf(&useragent, "%s (%s) libduo/%s",
                 progname, CANONICAL_HOST, PACKAGE_VERSION) == -1) {
 		return (duo_close(ctx));
@@ -94,6 +89,9 @@ duo_open(const char *host, const char *ikey, const char *skey,
                 ctx = duo_close(ctx);
         }
         free(useragent);
+
+        ctx->conv_prompt = __prompt_fn;
+	ctx->conv_status = __status_fn;
 
 	return (ctx);
 }
@@ -142,9 +140,10 @@ struct duo_ctx *
 duo_close(struct duo_ctx *ctx)
 {
 	if (ctx != NULL) {
-                duo_reset(ctx);
                 if (ctx->https != NULL)
                         https_close(&ctx->https);
+                duo_reset(ctx);
+                free(ctx->host);
 		free(ctx);
 	}
         return (NULL);
@@ -176,7 +175,7 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
 	v = urlenc_encode(value);
 
 	if (k && v && asprintf(&p, "%s=%s", k, v) > 2 &&
-            ctx->argc + 1 < sizeof(ctx->argv) / sizeof(ctx->argv[0])) {
+            ctx->argc + 1 < (sizeof(ctx->argv) / sizeof(ctx->argv[0]))) {
                 ctx->argv[ctx->argc++] = p;
 		ret = DUO_OK;
 	}
@@ -468,9 +467,8 @@ duo_login(struct duo_ctx *ctx, const char *username,
 	}
 	/* Async status - long-poll on txid */
 	_BSON_FIND(ctx, &it, &obj, "txid", bson_string);
-	
-	if (strlcpy(buf, bson_iterator_string(&it), sizeof(buf)) >=
-	    sizeof(buf) || duo_reset(ctx) != DUO_OK) {
+	p = bson_iterator_string(&it);
+	if (strlcpy(buf, p, sizeof(buf)) >= sizeof(buf)) {
 		return (DUO_LIB_ERROR);
 	}
 	/* XXX newline between prompt and async status lines */
