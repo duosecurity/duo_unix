@@ -41,7 +41,7 @@ typedef unsigned __int64 uint64_t;
 typedef unsigned int size_t;
 typedef int ssize_t;
 #else
-#include <stdint.h>
+#include <inttypes.h>
 #endif
 
 /* Compile with -DHTTP_PARSER_STRICT=0 to make less checks, but run
