@@ -8,6 +8,7 @@
 #include "config.h"
 
 #include <sys/types.h>
+#define BSD_COMP	// XXX - for Solaris sys/filio.h
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/time.h>

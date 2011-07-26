@@ -59,10 +59,10 @@ AC_C_BIGENDIAN
 AC_TYPE_INT64_T
 
 # Check headers
-AC_CHECK_HEADERS([inttypes.h stdint.h unistd.h])
+AC_CHECK_HEADERS([inttypes.h limits.h stdint.h unistd.h])
 
 # Check OpenSSL
-AX_CHECK_OPENSSL
+AX_CHECK_OPENSSL([], AC_MSG_FAILURE([OpenSSL not found]))
 
 # Default PAM install dir
 case "$host" in
@@ -121,6 +121,7 @@ AC_SUBST(DUO_PRIVSEP_USER)
 
 # Check for functions
 AC_CONFIG_LIBOBJ_DIR([compat])
+AC_CHECK_FUNCS([sysconf])
 AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy])
 AC_CHECK_DECLS([asprintf getgrouplist strlcpy])
 AC_SEARCH_LIBS(inet_ntoa, nsl)

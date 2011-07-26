@@ -23,10 +23,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 
 #include <grp.h>
+#ifdef HAVE_LIMITS_H
+# include <limits.h>
+#endif
 #include <unistd.h>
 #include <stdarg.h>
 #include <stdlib.h>

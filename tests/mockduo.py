@@ -3,7 +3,10 @@
 import BaseHTTPServer
 import cgi
 import bson
-import hashlib
+try:
+    from hashlib import sha1
+except ImportError:
+    from sha import sha as sha1
 import hmac
 import os
 import ssl
@@ -35,7 +38,7 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             l.append('%s=%s' % (urllib.quote(k, '~'),
                                 urllib.quote(args[k], '~')))
         canon.append('&'.join(l))
-        h = hmac.new(SKEY, '\n'.join(canon), hashlib.sha1)
+        h = hmac.new(SKEY, '\n'.join(canon), sha1)
         
         return sig == h.hexdigest()
 
