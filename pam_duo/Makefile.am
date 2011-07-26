@@ -1,12 +1,12 @@
 
-AM_CPPFLAGS = -I$(top_srcdir)/compat -I$(top_srcdir)/lib @LIBCURL_CPPFLAGS@
+AM_CPPFLAGS = -I$(top_srcdir)/compat -I$(top_srcdir)/lib @OPENSSL_INCLUDES@
 
 pam_libdir = @PAMDIR@
 pam_lib_LTLIBRARIES = pam_duo.la
 
 pam_duo_la_DEFS = -DDEBUG_PAM -DPAM_DEBUG @DEFS@
 pam_duo_la_SOURCES = pam_duo.c pam_extra.h pam_extra.c
-pam_duo_la_LIBADD = $(top_builddir)/lib/libduo.la @LIBCURL@ -lssl -lcrypto -lpam
+pam_duo_la_LIBADD = $(top_builddir)/lib/libduo.la @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@ -lpam
 pam_duo_la_LDFLAGS = -module -no-undefined -avoid-version
 
 notrans_dist_man8_MANS = pam_duo.8

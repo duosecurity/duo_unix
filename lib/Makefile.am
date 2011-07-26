@@ -1,12 +1,12 @@
 
-AM_CPPFLAGS = -I$(top_srcdir)/compat @LIBCURL_CPPFLAGS@
+AM_CPPFLAGS = -I$(top_srcdir)/compat @OPENSSL_INCLUDES@
 
 lib_LTLIBRARIES = libduo.la
 
-libduo_la_SOURCES = bson.h bson.c duo.c groupaccess.h groupaccess.c \
+libduo_la_SOURCES = bson.h bson.c cacert.h duo.c groupaccess.h groupaccess.c \
 		    http_parser.h http_parser.c https.h https.c ini.h ini.c \
 		    match.h match.c urlenc.h urlenc.c
-libduo_la_LIBADD = $(top_builddir)/compat/libcompat.la @LIBCURL@ -lssl -lcrypto
+libduo_la_LIBADD = $(top_builddir)/compat/libcompat.la @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
 # http://sourceware.org/autobook/autobook/autobook_91.html
 libduo_la_LDFLAGS = -no-undefined -version-info 2:0:0
 

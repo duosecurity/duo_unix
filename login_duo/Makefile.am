@@ -1,10 +1,10 @@
 
-AM_CPPFLAGS = -I$(top_srcdir)/compat -I$(top_srcdir)/lib @LIBCURL_CPPFLAGS@
+AM_CPPFLAGS = -I$(top_srcdir)/compat -I$(top_srcdir)/lib @OPENSSL_INCLUDES@
 
 sbin_PROGRAMS = login_duo
 
 login_duo_SOURCES = login_duo.c
-login_duo_LDADD = $(top_builddir)/lib/libduo.la @LIBCURL@ -lssl -lcrypto
+login_duo_LDADD = $(top_builddir)/lib/libduo.la @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
 
 notrans_dist_man8_MANS = login_duo.8
 
