@@ -19,6 +19,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifndef HAVE_GETADDRINFO
+# include "getaddrinfo.h"
+#endif
 
 #include <openssl/bio.h>
 #include <openssl/err.h>

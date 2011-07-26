@@ -56,10 +56,12 @@ fi
 
 # Check for platform features
 AC_C_BIGENDIAN
+AC_C_CONST
 AC_TYPE_INT64_T
 
 # Check headers
-AC_CHECK_HEADERS([inttypes.h limits.h stdint.h unistd.h])
+AC_HEADER_STDC
+AC_CHECK_HEADERS([inttypes.h limits.h memory.h stdint.h stdlib.h string.h unistd.h])
 
 # Check OpenSSL
 AX_CHECK_OPENSSL([], AC_MSG_FAILURE([OpenSSL not found]))
@@ -121,8 +123,8 @@ AC_SUBST(DUO_PRIVSEP_USER)
 
 # Check for functions
 AC_CONFIG_LIBOBJ_DIR([compat])
-AC_CHECK_FUNCS([sysconf])
-AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy vsyslog])
+AC_CHECK_FUNCS([memcpy memset sysconf])
+AC_REPLACE_FUNCS([asprintf getaddrinfo getgrouplist strlcpy vsyslog])
 AC_SEARCH_LIBS(inet_ntoa, nsl)
 AC_SEARCH_LIBS(gethostbyname, resolv nsl)
 
