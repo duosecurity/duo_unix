@@ -122,8 +122,7 @@ AC_SUBST(DUO_PRIVSEP_USER)
 # Check for functions
 AC_CONFIG_LIBOBJ_DIR([compat])
 AC_CHECK_FUNCS([sysconf])
-AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy])
-AC_CHECK_DECLS([asprintf getgrouplist strlcpy])
+AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy vsyslog])
 AC_SEARCH_LIBS(inet_ntoa, nsl)
 AC_SEARCH_LIBS(gethostbyname, resolv nsl)
 
