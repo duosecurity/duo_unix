@@ -61,14 +61,8 @@ AC_TYPE_INT64_T
 # Check headers
 AC_CHECK_HEADERS([inttypes.h stdint.h unistd.h])
 
-# Check libcurl
-LIBCURL_CHECK_CONFIG(["yes"], [7.15.1])
-if test "x$libcurl_cv_lib_curl_usable" != "xyes"; then
-   AC_MSG_ERROR(["no usable libcurl found"])
-fi
-if test "x$libcurl_protocol_HTTPS" != "xyes"; then
-   AC_MSG_ERROR(["We need libcurl with support for HTTPS!"])
-fi
+# Check OpenSSL
+AX_CHECK_OPENSSL
 
 # Default PAM install dir
 case "$host" in
@@ -128,6 +122,7 @@ AC_SUBST(DUO_PRIVSEP_USER)
 # Check for functions
 AC_CONFIG_LIBOBJ_DIR([compat])
 AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy])
+AC_CHECK_DECLS([asprintf getgrouplist strlcpy])
 AC_SEARCH_LIBS(inet_ntoa, nsl)
 AC_SEARCH_LIBS(gethostbyname, resolv nsl)
 
