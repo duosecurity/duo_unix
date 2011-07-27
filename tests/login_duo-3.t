@@ -8,7 +8,7 @@ mockduo with wrong CN
 
 Wrong hostname
   $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f whatever true
-  [4] Failsafe Duo login for 'whatever': Couldn't connect to localhost:4443: Invalid server certificate
+  [4] Failsafe Duo login for 'whatever': Couldn't connect to localhost:4443: Certificate name validation failed
   
 
 With noverify
