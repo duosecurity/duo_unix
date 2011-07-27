@@ -23,9 +23,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#ifndef HAVE_GETADDRINFO
-# include "getaddrinfo.h"
-#endif
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>
@@ -289,31 +286,26 @@ duo_geterr(struct duo_ctx *ctx)
 }
 
 static const char *
-_local_ip(const char *dst)
+_local_ip(void)
 {
-        const char *ip = "0.0.0.0";
-	struct addrinfo hints, *info;
-	struct sockaddr sa;
-	socklen_t sa_len;
-	static char buf[128];
+        struct sockaddr_in sin;
+        socklen_t slen;
         int fd;
-	
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
-	if (getaddrinfo(dst, "53", &hints, &info) != 0) {
-		return (ip);
-	}
-	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) == 0) {
-		if (connect(fd, info->ai_addr, info->ai_addrlen) != -1 &&
-		    getsockname(fd, (struct sockaddr *)&sa, &sa_len) == 0 &&
-		    getnameinfo(&sa, sa_len, buf, sizeof(buf), NULL, 0,
-			NI_NUMERICHOST) == 0) {
-			ip = buf;
-		}
-		close(fd);
-	}
-	freeaddrinfo(info);
-	
+        const char *ip = NULL;
+
+        memset(&sin, 0, sizeof(sin));
+        sin.sin_family = AF_INET;
+        sin.sin_addr.s_addr = inet_addr("8.8.8.8");	/* XXX */
+        sin.sin_port = htons(53);
+        slen = sizeof(sin);
+
+        if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) != -1) {
+                if (connect(fd, (struct sockaddr *)&sin, slen) != -1 &&
+                    getsockname(fd, (struct sockaddr *)&sin, &slen) != -1) {
+                        ip = inet_ntoa(sin.sin_addr);
+                }
+                close(fd);
+        }
         return (ip);
 }
 
@@ -431,7 +423,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
 	    duo_add_param(ctx, "async",
 		(flags & DUO_FLAG_SYNC) ? "0" : "1") != DUO_OK ||
 	    duo_add_param(ctx, "ipaddr",
-		client_ip ? client_ip : _local_ip(ctx->host)) != DUO_OK) {
+		client_ip ? client_ip : _local_ip()) != DUO_OK) {
 		return (DUO_LIB_ERROR);
 	}
         if (command != NULL) {
