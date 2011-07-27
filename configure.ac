@@ -28,6 +28,7 @@ AC_DEFINE_DIR([DUO_CONF_DIR], [sysconfdir], [Configuration directory])
 # Determine platform
 AC_CANONICAL_HOST
 AC_DEFINE_UNQUOTED([CANONICAL_HOST], ["${host}"], [Canonical host])
+AC_AIX
 
 # Check for programs
 AC_PROG_CC
@@ -124,7 +125,7 @@ AC_SUBST(DUO_PRIVSEP_USER)
 # Check for functions
 AC_CONFIG_LIBOBJ_DIR([compat])
 AC_CHECK_FUNCS([memcpy memset sysconf])
-AC_REPLACE_FUNCS([asprintf getaddrinfo getgrouplist strlcpy vsyslog])
+AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy vsyslog])
 AC_SEARCH_LIBS(inet_ntoa, nsl)
 AC_SEARCH_LIBS(gethostbyname, resolv nsl)
 
