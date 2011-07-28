@@ -4,7 +4,7 @@ mockduo with valid cert
   $ python mockduo.py certs/mockduo.pem >/dev/null 2>&1 &
   $ MOCKPID=$!
   $ trap 'exec kill $MOCKPID >/dev/null 2>&1' EXIT
-  $ sleep 0.5
+  $ sleep 1
 
 HTTP server errors
 

@@ -4,7 +4,7 @@ mockduo with self-signed cert
   $ python mockduo.py certs/selfsigned.pem >/dev/null 2>&1 &
   $ MOCKPID=$!
   $ trap 'exec kill $MOCKPID >/dev/null 2>&1' EXIT
-  $ sleep 0.5
+  $ sleep 1
 
 Invalid cert
   $ ./testpam.py -d -c confs/mockduo.conf -f whatever true 2>&1 | head -n 1
