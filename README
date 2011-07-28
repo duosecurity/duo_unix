@@ -34,7 +34,7 @@ pam_duo
 Build
 -----
 
-Build dependencies for libduo (install these first!):
+Build dependencies (install these first!):
 
 OpenSSL
 	OpenSSL (http://openssl.org) development headers and libraries
@@ -44,19 +44,9 @@ OpenSSL
 	Redhat/Fedora/CentOS:	yum install openssl-devel
 	Debian/Ubuntu: 		apt-get install libssl-dev
 
-libcurl
-	The curl (http://curl.haxx.se) development headers and library
-	are installed by default on MacOS X, and require OpenSSL.
-
-	FreeBSD/NetBSD:		www/curl port or package
-	Solaris, HP-UX, AIX	3rd party packages or source build
-	Redhat/Fedora/CentOS:	yum install curl-devel
-	Debian/Ubuntu:		apt-get install libcurl-dev 
-				(use the openssl version)
-
-Build dependencies for pam_duo:
-
 libpam
+	Only required if building with PAM support (--with-pam below).
+
 	System PAM development headers and libraries are installed by
 	default on FreeBSD, NetBSD, MacOS X, Solaris, HP-UX, and AIX.
 
@@ -65,18 +55,16 @@ libpam
 
 Options to ./configure:
 
---with-libcurl=DIR
-	Specify location of libcurl build or install directory
-	(e.g. "/usr/local", "/opt/csw"), if not installed in a system
-	location (e.g. /usr/lib).
+--with-openssl=DIR
+        Specify the OpenSSL directory if not found automatically.
 
 --with-pam[=DIR]
 	Build PAM module, and optionally override the default install
 	directory (determined automatically by platform) if necessary.
 
 --with-privsep-user=USER
-	Specify a different user for privilege separation (e.g. "_duo")
-	in login_duo - by default, "sshd" (or "_sshd" on MacOS X).
+	Specify a different user for login_duo privilege separation -
+        by default, "sshd" (or "_sshd" on MacOS X).
 
 The default path for local configuration files will be set to /etc/duo
 (which can be changed by specifying --sysconfdir=DIR).
@@ -122,11 +110,11 @@ Test
 To test your Duo configuration, run login_duo from the command line as
 your target user - for the default setuid-root install:
 
-	$ login_duo echo YOU ROCK
+	$ login_duo -d echo YOU ROCK
 
 For a non-setuid install:
 
-	$ ./login_duo -c login_duo.conf echo YOU ROCK
+	$ ./login_duo -d -c login_duo.conf echo YOU ROCK
 
 If your Duo integration and secret keys are valid, you will be able to
 enroll and authenticate successfully, and congratulate yourself. :-)

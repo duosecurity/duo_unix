@@ -2,6 +2,9 @@
 
 duo_unix-1.7:
 
+- Replaced libcurl (and its problematic axTLS, GnuTLS, NSS, polarssl,
+  Cyassl, etc. dependencies) with a minimal OpenSSL-based libhttps
+
 - Replaced 'minuid' config option with more flexible 'groups' matching
 
 - Added automated tests using cram.py for "make {dist}check"
