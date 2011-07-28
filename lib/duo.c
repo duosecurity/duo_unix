@@ -86,12 +86,12 @@ duo_open(const char *host, const char *ikey, const char *skey,
 	}
 	if (https_init(ikey, skey, useragent, cafile) != HTTPS_OK) {
                 ctx = duo_close(ctx);
+        } else {
+                ctx->conv_prompt = __prompt_fn;
+                ctx->conv_status = __status_fn;
         }
         free(useragent);
-
-        ctx->conv_prompt = __prompt_fn;
-	ctx->conv_status = __status_fn;
-
+        
 	return (ctx);
 }
 
