@@ -65,14 +65,18 @@ __on_body(http_parser *p, const char *buf, size_t len)
 static int
 __on_message_complete(http_parser *p)
 {
-        ((struct https_request *)p->data)->done = 1;
+        struct https_request *req = (struct https_request *)p->data;
+        
+        req->done = 1;
         return (0);
 }
 
 static const char *
 _SSL_strerror(void)
 {
-        return (ERR_reason_error_string(ERR_get_error()));
+        const char *p = ERR_reason_error_string(ERR_get_error());
+
+        return (p ? p : strerror(errno));
 }
 
 /* Server certificate name check, logic adapted from libcurl */
