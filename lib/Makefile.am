@@ -31,4 +31,3 @@ install-exec-hook:
 	  echo "Found existing ${DESTDIR}$(sysconfdir)/login_duo.conf - skipping"; \
 	fi
 
-EXTRA_DIST = duo.crt
