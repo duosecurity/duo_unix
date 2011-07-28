@@ -54,7 +54,8 @@ _preload_init(void)
 const char *
 _replace(const char *filename)
 {
-	if (strcmp(filename, "/etc/pam.d/testpam") == 0) {
+	if (strcmp(filename, "/etc/pam.d/testpam") == 0 ||
+            strcmp(filename, "/etc/pam.conf") == 0) {
 		return (getenv("PAM_CONF"));
 	}
 	return (filename);
@@ -78,10 +79,12 @@ getpwnam(const char *name)
 	return (getpwuid(getuid()));
 }
 
+#ifndef __sun__
 int
 getpwnam_r(const char *name, struct passwd *pw,
     char *buf, size_t buflen, struct passwd **result)
 {
 	return (getpwuid_r(getuid(), pw, buf, buflen, result));
 }
+#endif
 
