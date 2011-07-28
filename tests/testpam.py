@@ -41,14 +41,26 @@ def main():
     if opt_host:
         args.append(opt_host)
     
+    topbuilddir = os.path.realpath(build + '/..')
+
     f = tempfile.NamedTemporaryFile()
+    #f = open('/tmp/pam.conf', 'w')
+    if sys.platform == 'sunos5':
+        f.write('testpam ')
     f.write('auth  required  %s/pam_duo.so conf=%s debug' %
-            (os.path.realpath(build + '/../pam_duo/.libs'), opt_conf))
+            (topbuilddir + '/pam_duo/.libs', opt_conf))
     f.flush()
     
     env = os.environ.copy()
-    env['LD_PRELOAD'] = os.path.realpath(build + '/.libs/libtestpam_preload.so')
     env['PAM_CONF'] = f.name
+
+    if sys.platform == 'darwin':
+        env['DYLD_LIBRARY_PATH'] = topbuilddir + '/lib/.libs'
+        env['DYLD_INSERT_LIBRARIES'] = topbuilddir + '/tests/.libs/libtestpam_preload.dylib'
+        env['DYLD_FORCE_FLAT_NAMESPACE'] = '1'
+    else:
+        env['LD_PRELOAD'] = topbuilddir + '/tests/.libs/libtestpam_preload.so'
+        
     p = subprocess.Popen(args, env=env)
     p.wait()
     f.close()

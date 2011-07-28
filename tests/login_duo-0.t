@@ -13,7 +13,7 @@ Missing conf file
 
 Bad permissions on conf file
 
-  $ install -c -m 644 ${TESTDIR}/confs/duo.conf ${TMPDIR}
+  $ ${TESTDIR}/../autotools/install-sh -c -m 644 ${TESTDIR}/confs/duo.conf ${TMPDIR}
   $ ${BUILDDIR}/login_duo/login_duo -d -c ${TMPDIR}/duo.conf true
   */duo.conf must be readable only by user '*' (glob)
 
