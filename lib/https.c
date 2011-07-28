@@ -136,7 +136,7 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
 int
 _BIO_wait(BIO *cbio, int secs)
 {
-        struct timeval tv;
+        struct timeval tv, *tvp;
         fd_set confds;
         int fd;
 
@@ -147,15 +147,19 @@ _BIO_wait(BIO *cbio, int secs)
         FD_ZERO(&confds);
         FD_SET(fd, &confds);
 
-        tv.tv_sec = secs;
-        tv.tv_usec = 0;
-
+        if (secs >= 0) {
+                tv.tv_sec = secs;
+                tv.tv_usec = 0;
+                tvp = &tv;
+        } else {
+                tvp = NULL;
+        }
         if (BIO_should_io_special(cbio)) {
-                return (select(fd + 1, NULL, &confds, NULL, &tv));
+                return (select(fd + 1, NULL, &confds, NULL, tvp));
         } else if (BIO_should_read(cbio)) {
-                return (select(fd + 1, &confds, NULL, NULL, &tv));
+                return (select(fd + 1, &confds, NULL, NULL, tvp));
         } else if (BIO_should_write(cbio)) {
-               return (select(fd + 1, &confds, &confds, NULL, &tv));
+               return (select(fd + 1, &confds, &confds, NULL, tvp));
         }
         return (-1);
 }
@@ -416,7 +420,7 @@ https_recv(struct https_request *req, int *code, const char **body, int *len)
         while (!req->done) {
                 while ((n = BIO_read(req->cbio, ctx->parse_buf,
                             sizeof(ctx->parse_buf))) <= 0) {
-                        if ((n = _BIO_wait(req->cbio, 5)) != 1) {
+                        if ((n = _BIO_wait(req->cbio, -1)) != 1) {
                                 ctx->errstr = n ? _SSL_strerror() :
                                     "Connection closed";
                                 return (HTTPS_ERR_SERVER);
