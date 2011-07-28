@@ -14,8 +14,8 @@ URL: http://www.duosecurity.com/
 Source0: https://github.com/downloads/duosecurity/%{name}/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
-Requires: pam curl openssl %{libname} = %{version}
-BuildRequires: pam-devel curl-devel openssl-devel pkgconfig
+Requires: pam openssl %{libname} = %{version}
+BuildRequires: pam-devel openssl-devel pkgconfig
 
 %description
 Duo provides simple two-factor authentication as a service via:
