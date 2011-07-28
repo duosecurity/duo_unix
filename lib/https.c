@@ -132,7 +132,7 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
         return (match > 0);
 }
 
-// Return -1 on hard error (abort), 0 on timeout, 1 on successful wakeup
+// Return -1 on hard error (abort), 0 on timeout, >= 1 on successful wakeup
 int
 _BIO_wait(BIO *cbio, int secs)
 {
@@ -399,7 +399,7 @@ https_send(struct https_request *req, const char *method, const char *uri,
         }
         /* Send request */
         while (BIO_flush(req->cbio) != 1) {
-                if ((n = _BIO_wait(req->cbio, 5)) != 1) {
+                if ((n = _BIO_wait(req->cbio, -1)) != 1) {
                         ctx->errstr = n ? _SSL_strerror() : "Write timed out";
                         return (HTTPS_ERR_SERVER);
                 }
