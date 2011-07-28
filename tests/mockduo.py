@@ -6,7 +6,7 @@ import bson
 try:
     from hashlib import sha1
 except ImportError:
-    from sha import sha as sha1
+    import sha as sha1
 import hmac
 import os
 import ssl
