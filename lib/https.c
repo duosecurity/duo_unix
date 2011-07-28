@@ -186,8 +186,13 @@ https_init(const char *ikey, const char *skey,
         OpenSSL_add_ssl_algorithms();
 
         /* XXX - mirror openssl s_client -rand for ancient systems */
-        if ((p = getenv("RANDFILE")) != NULL) {
-                RAND_load_file(p, 8192);
+        if (!RAND_status()) {
+                if ((p = getenv("RANDFILE")) != NULL) {
+                        RAND_load_file(p, 8192);
+                } else {
+                        ctx->errstr = "No /dev/random, EGD, or $RANDFILE";
+                        return (HTTPS_ERR_LIB);
+                }
         }
         // XXX - do TLS only?
         if ((ctx->ssl_ctx = SSL_CTX_new(SSLv23_client_method())) == NULL) {
