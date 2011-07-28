@@ -38,7 +38,6 @@
 
 #define DUO_LIB_VERSION		"libduo/" PACKAGE_VERSION
 #define DUO_API_VERSION		"/rest/v1"
-#define DUO_CACERT		DUO_CONF_DIR "/duo.crt"
 
 struct duo_ctx {
 	https_t    *https;		 /* HTTPS handle */
