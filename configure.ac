@@ -17,6 +17,7 @@ AC_CONFIG_MACRO_DIR([autotools])
 # Init automake
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 AM_MAINTAINER_MODE
+AB_INIT
 
 # Init header
 AC_CONFIG_HEADER(config.h)
@@ -108,7 +109,7 @@ case "$host" in
      *)			DUO_PRIVSEP_USER="sshd" ;;
 esac
 AC_ARG_WITH(privsep-user,
-  AS_HELP_STRING([--with-privsep-user=USER],[Specify user for privilege separation (default "sshd")]),
+  AS_HELP_STRING([--with-privsep-user=USER],[Specify user for privilege separation]),
   [
 	if test -n "$withval" && test "x$withval" != "xno" && \
 	    test "x${withval}" != "xyes" && test "x${withval}" != "xroot" ; then
@@ -118,6 +119,12 @@ AC_ARG_WITH(privsep-user,
 	fi
   ]
 )
+if id "$DUO_PRIVSEP_USER" >/dev/null 2>&1; then
+   AC_MSG_NOTICE([Found privilege separation user "$DUO_PRIVSEP_USER"])
+else
+   DUO_PRIVSEP_USER="nobody"
+   AC_MSG_NOTICE([Using privilege separation user "nobody"])
+fi
 AC_DEFINE_UNQUOTED(DUO_PRIVSEP_USER, "$DUO_PRIVSEP_USER",
 	[Dedicated user for privilege separation])
 AC_SUBST(DUO_PRIVSEP_USER)
