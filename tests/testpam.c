@@ -81,6 +81,13 @@ fail:
 
 static struct pam_conv conv = { my_conv, NULL };
 
+static void
+die(pam_handle_t *pamh, int errnum)
+{
+        //fprintf(stderr, "%s\n", pam_strerror(pamh, errnum));
+        exit(EXIT_FAILURE);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -96,18 +103,18 @@ main(int argc, char *argv[])
 	if (argc > 2)
 		host = argv[2];
 	
-	if (pam_start("testpam", user, &conv, &pamh) != PAM_SUCCESS) {
-		exit(EXIT_FAILURE);
+	if ((ret = pam_start("testpam", user, &conv, &pamh)) != PAM_SUCCESS) {
+                die(pamh, ret);
 	}
 	if (host != NULL) {
-		if (pam_set_item(pamh, PAM_RHOST, host) != PAM_SUCCESS)
-			exit(EXIT_FAILURE);
+		if ((ret = pam_set_item(pamh, PAM_RHOST, host)) != PAM_SUCCESS)
+                        die(pamh, ret);
 	}
-	if (pam_authenticate(pamh, 0) != PAM_SUCCESS) {
-		exit(EXIT_FAILURE);
+        if ((ret = pam_authenticate(pamh, 0)) != PAM_SUCCESS) {
+                die(pamh, ret);
 	}
-	if (pam_end(pamh, ret) != PAM_SUCCESS) {
-		exit(EXIT_FAILURE);
+	if ((ret = pam_end(pamh, ret)) != PAM_SUCCESS) {
+                die(pamh, ret);
 	}
 	exit(EXIT_SUCCESS);
 }
