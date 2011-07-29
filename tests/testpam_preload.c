@@ -6,7 +6,6 @@
 #include <sys/types.h>
 
 #include <dlfcn.h>
-#include <err.h>
 #include <pwd.h>
 #include <stdarg.h>
 #include <stdio.h>
