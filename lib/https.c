@@ -194,16 +194,10 @@ https_init(const char *ikey, const char *skey,
                         return (HTTPS_ERR_LIB);
                 }
         }
-        // XXX - do TLS only?
-        if ((ctx->ssl_ctx = SSL_CTX_new(SSLv23_client_method())) == NULL) {
+        if ((ctx->ssl_ctx = SSL_CTX_new(TLSv1_client_method())) == NULL) {
                 ctx->errstr = _SSL_strerror();
                 return (HTTPS_ERR_LIB);
         }
-        SSL_CTX_set_options(ctx->ssl_ctx, SSL_OP_ALL);
-#ifdef SSL_MODE_AUTO_RETRY
-        SSL_CTX_set_mode(ctx->ssl_ctx, SSL_MODE_AUTO_RETRY);
-#endif
-        
         if (cafile == NULL) {
                 /* Load default CA cert from memory */
                 if ((bio = BIO_new_mem_buf((void *)CACERT_PEM, -1)) == NULL ||
