@@ -92,7 +92,11 @@ getgrent(void)
 }
 
 int
+#ifdef __APPLE__
+getgrouplist(const char *user, int group, int *groups, int *ngroups)
+#else
 getgrouplist(const char *user, gid_t group, gid_t *groups, int *ngroups)
+#endif
 {
         struct group *gr;
         char **pp;
