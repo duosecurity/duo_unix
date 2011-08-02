@@ -81,12 +81,3 @@ getpwnam(const char *name)
 	return (getpwuid(getuid()));
 }
 
-#ifndef __sun__
-int
-getpwnam_r(const char *name, struct passwd *pw,
-    char *buf, size_t buflen, struct passwd **result)
-{
-	return (getpwuid_r(getuid(), pw, buf, buflen, result));
-}
-#endif
-
