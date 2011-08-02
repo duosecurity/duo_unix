@@ -60,6 +60,16 @@ fi
 AC_C_BIGENDIAN
 AC_C_CONST
 AC_TYPE_INT64_T
+AH_BOTTOM([/* XXX - common HP-UX b0rkage */
+#ifdef hpux
+# include <sys/types.h>
+# ifndef _BSIZE_T
+# define _BSIZE_T
+typedef long  sbsize_t;
+typedef unsigned long bsize_t;
+# endif
+#endif
+])
 
 # Check headers
 AC_HEADER_STDC
