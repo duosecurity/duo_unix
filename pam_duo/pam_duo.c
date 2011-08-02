@@ -257,7 +257,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	if (cfg.groups_cnt > 0) {
 		int matched = 0;
 
-		if (ga_init(pw->pw_name, pw->pw_gid) <= 0) {
+		if (ga_init(pw->pw_name, pw->pw_gid) < 0) {
 			_log(LOG_ERR, "Couldn't get groups",
 			    pw->pw_name, NULL, strerror(errno));
 			return (PAM_SERVICE_ERR);
