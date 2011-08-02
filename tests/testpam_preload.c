@@ -3,6 +3,9 @@
  *
  * Fake test environment to run PAM tests unprivileged.
  */
+
+#include "config.h"
+
 #include <sys/types.h>
 
 #include <dlfcn.h>
@@ -27,7 +30,7 @@ int (*_sys_open)(const char *pathname, int flags, ...);
 FILE *(*_sys_fopen)(const char *filename, const char *mode);
 
 static void
-fatal(const char *msg)
+_fatal(const char *msg)
 {
 	perror(msg);
 	exit(1);
@@ -42,11 +45,11 @@ _preload_init(void)
 # define DL_LAZY RTLD_LAZY
 #endif
 	if (!(libc = dlopen(_PATH_LIBC, DL_LAZY))) {
-		fatal("couldn't dlopen " _PATH_LIBC);
+		_fatal("couldn't dlopen " _PATH_LIBC);
 	} else if (!(_sys_open = dlsym(libc, "open"))) {
-		fatal("couldn't dlsym 'open'");
+		_fatal("couldn't dlsym 'open'");
 	} else if (!(_sys_fopen = dlsym(libc, "fopen"))) {
-		fatal("couldn't dlsym 'fopen'");
+		_fatal("couldn't dlsym 'fopen'");
 	}
 }
 
