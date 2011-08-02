@@ -15,18 +15,11 @@ users only: match users
   [4] Skipped Duo login for 'preauth-allow': you rock
   $ env UID=1002 ./groups.py -d -c confs/mockduo_users.conf -f preauth-allow true
   [4] Skipped Duo login for 'preauth-allow': you rock
-==> ignore Duo user (group membership based on target Unix user only)
-  $ env UID=1002 ./groups.py -d -c confs/mockduo_users.conf -f admin2 true
-  [4] Failed Duo login for 'admin2'
-  [1]
 
 users only: skip users
   $ env UID=1003 ./groups.py -d -c confs/mockduo_users.conf -f preauth-allow echo SKIP
   SKIP
   $ env UID=1004 ./groups.py -d -c confs/mockduo_users.conf -f preauth-allow echo SKIP
-  SKIP
-==> ignore Duo user
-  $ env UID=1003 ./groups.py -d -c confs/mockduo_users.conf -f user1 echo SKIP
   SKIP
 
 users or admins: match users
