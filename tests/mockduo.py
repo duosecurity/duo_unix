@@ -11,10 +11,23 @@ import hmac
 import os
 import ssl
 import sys
+import time
 import urllib
 
 IKEY = 'DIXYZV6YM8IFYVWBINCA'
 SKEY = 'yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo'
+
+tx_msgs = {
+    'txPUSH1': [ '0:Pushed a login request to your phone.',
+                 '1:Success. Logging you in...' ],
+    'txVOICE1': [ '0:Dialing XXX-XXX-1234...',
+                  "2:Answered. Press '#' on your phone to log in.",
+                  '2:Success. Logging you in...' ],
+    'txSMSREFRESH1': [ '0:New SMS passcodes sent' ],
+    'txVOICE2': [ '0:Dialing XXX-XXX-5678...',
+                  "2:Answered. Press '#' on your phone to log in.",
+                  '4:Authentication timed out.' ],
+    }
 
 class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     server_version = 'MockDuo/1.0'
@@ -25,7 +38,8 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         if ikey != IKEY:
             return False
         
-        canon = [ self.method, self.headers['Host'].split(':')[0].lower(),
+        canon = [ self.method,
+                  self.headers['Host'].split(':')[0].lower(),
                   self.path ]
         l = []
         for k in sorted(self.args.keys()):
@@ -47,54 +61,62 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 args[k] = fs[k].value
         else:
             args = dict(cgi.parse_qsl(self.qs))
-        self.args = args
-    
+        print 'got %s %s args: %s' % (self.method, self.path, args)
+        return args
+
+    def _get_tx_response(self, txid, async):
+        if async:
+            secs, msg = tx_msgs[self.args['txid']].pop(0).split(':', 1)
+        else:
+            secs, msg = tx_msgs[self.args['txid']][-1].split(':', 1)
+        
+        if msg.startswith('Success'):
+            rsp = { 'result': 'allow', 'status': msg }
+        elif async and tx_msgs[self.args['txid']]:
+            rsp = { 'status': msg }
+        else:
+            rsp = { 'result': 'deny', 'status': msg }
+        time.sleep(int(secs))
+        return rsp
+
+    def _send(self, code, buf=''):
+        self.send_response(code)
+        self.send_header("Content-length", str(len(buf)))
+        if buf:
+            self.send_header("Content-type", "application/bson")
+            self.end_headers()
+            self.wfile.write(buf)
+        else:
+            self.end_headers()
+        
     def do_GET(self):
         self.method = 'GET'
         self.path, self.qs = self.path.split('?', 1)
-        self._get_args()
+        self.args = self._get_args()
         
         if not self._verify_sig():
-            self.send_response(401)
-            self.send_header("Content-length", "0")
-            self.end_headers()
-            return
-
+            return self._send(401)
+        
         ret = { 'stat': 'OK' }
         
         if self.path == '/rest/v1/status.bson':
-            ret['response'] = { 'result': 'allow', 'status': 'good job!' }
-        else:
-            ret['response'] = { 'result': 'deny', 'status': 'WTF' }
-            
-        buf = bson.dumps(ret)
+            ret['response'] = self._get_tx_response(self.args['txid'], 1)
+            buf = bson.dumps(ret)
+            return self._send(200, buf)
 
-        self.send_response(200)
-        self.send_header("Content-type", "application/bson")
-        self.send_header("Content-length", len(buf))
-        self.end_headers()
-        self.wfile.write(buf)
+        self._send(404)
         
     def do_POST(self):
         self.method = 'POST'
-        self._get_args()
-        print self.args
-
-        if not self._verify_sig():
-            self.send_response(401)
-            self.send_header("Content-length", "0")
-            self.end_headers()
-            return
-
-        try:
-            self.send_response(int(self.args['user']))
-            self.send_header("Content-length", "0")
-            self.end_headers()
-            return
-        except:
-            pass
+        self.args = self._get_args()
         
-        ret = { 'stat': 'OK' }
+        if not self._verify_sig():
+            return self._send(401)
+        
+        try:
+            return self._send(int(self.args['user']))
+        except:
+            ret = { 'stat': 'OK' }
         
         if self.path == '/rest/v1/preauth.bson':
             if self.args['user'] == 'preauth-ok-missing_response':
@@ -115,8 +137,10 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 ret['response'] = {
                     'result': 'auth',
                     'prompt': 'Duo login for %s\n\n' % self.args['user'] + \
-                              '  1. Push\n  2. Phone\n  3. SMS\n  4. F\n\n' + \
-                              'Yo momma? ',
+                              'Choose or lose:\n\n' + \
+                              '  1. Push 1\n  2. Phone 1\n' + \
+                              '  3. SMS 1 (deny)\n  4. Phone 2 (deny)\n\n' + \
+                              'Passcode or option (1-4): ',
                     'factors': {
                         'default': 'push1',
                         '1': 'push1',
@@ -126,45 +150,21 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                         }
                     }
         elif self.path == '/rest/v1/auth.bson':
-            print 'got self.args', self.args
             if self.args['factor'] == 'auto':
-                if self.args['auto'] == 'push1':
-                    if self.args['async'] == '1':
-                        ret['response'] = { 'txid': 'txPUSH1' }
-                    else:
-                        ret['response'] = { 'result': 'deny',
-                                            'status': 'Push timed out' }
-                elif self.args['auto'] == 'voice1':
-                    if self.args['async'] == '1':
-                        ret['response'] = { 'txid': 'txVOICE1' }
-                    else:
-                        ret['response'] = { 'result': 'deny',
-                                            'status': 'Call timed out' }
+                txid = 'tx' + self.args['auto'].upper()
+                if self.args['async'] == '1':
+                    ret['response'] = { 'txid': txid }
                 else:
-                    ret['response'] = { 'result': 'deny',
-                                        'status': 'Invalid auto label' }
+                    ret['response'] = self._get_tx_response(txid, 0)
             else:
                 ret['response'] = { 'result': 'deny',
-                                    'status': '%s denied' %
-                                    self.args['factor'] }
-        elif self.path == '/rest/v1/status':
-            ret = { 'stat': 'OK',
-                    'response': { 'result': 'tx666' } }
+                                    'status': 'no %s' % self.args['factor'] }
         else:
-            self.send_response(404)
-            self.send_header("Content-length", "0")
-            self.end_headers()
-            return
+            return self._send(404)
 
         buf = bson.dumps(ret)
-
-        self.send_response(200)
-        self.send_header("Content-type", "application/bson")
-        self.send_header("Content-length", len(buf))
-        self.end_headers()
-        self.wfile.write(buf)
-        self.wfile.close()
-
+        
+        return self._send(200, buf)
 
 def main():
     port = 4443
