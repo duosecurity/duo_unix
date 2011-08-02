@@ -1,0 +1,112 @@
+
+#include "config.h"
+
+#include <sys/types.h>
+
+#include <errno.h>
+#include <grp.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+static struct passwd _passwd[5] = {
+        { "user1", NULL, 1000, 1000, .pw_shell = "/bin/sh" },
+        { "user2", NULL, 1001, 100, .pw_shell = "/bin/sh" },
+        { "admin1", NULL, 1002, 10, .pw_shell = "/bin/sh" },
+        { "admin2", NULL, 1003, 1003, .pw_shell = "/bin/sh" },
+        { "weirdo", NULL, 1004, 1004, .pw_shell = "/bin/sh" },
+};
+
+/* Supplemental groups */
+static char *_gr_users[] = { "user1", "admin1", NULL };
+static char *_gr_admin[] = { "admin2", NULL };
+
+static struct group _groups[2] = { 
+        { "users", NULL, 100, _gr_users },
+        { "admin", NULL, 10, _gr_admin },
+};       
+
+static int _group_ptr = 0;
+
+uid_t
+getuid(void)
+{
+        char *p = getenv("UID");
+
+        return (p ? atoi(p) : 1004);
+}
+
+uid_t
+geteuid(void)
+{
+        return (getuid());
+}
+
+struct passwd *
+getpwuid(uid_t uid)
+{
+        int i;
+
+        for (i = 0; i < sizeof(_passwd) / sizeof(_passwd[0]); i++) {
+                if (_passwd[i].pw_uid == uid)
+                        return (&_passwd[i]);
+        }
+        errno = ENOENT;
+        return (NULL);
+}
+
+struct group *
+getgrgid(gid_t gid)
+{
+        int i;
+        
+        for (i = 0; i < sizeof(_groups) / sizeof(_groups)[0]; i++) {
+                if (_groups[i].gr_gid == gid)
+                        return (&_groups[i]);
+        }
+        errno = ENOENT;
+        return (NULL);
+}
+
+void
+setgrent(void)
+{
+        _group_ptr = 0;
+}
+
+void
+endgrent(void)
+{
+        _group_ptr = 0;
+}
+
+struct group *
+getgrent(void)
+{
+        if (_group_ptr >= sizeof(_groups) / sizeof(_groups)[0]) {
+                return (NULL);
+        }
+        return (&_groups[_group_ptr++]);
+}
+
+int
+getgrouplist(const char *user, gid_t group, gid_t *groups, int *ngroups)
+{
+        struct group *gr;
+        char **pp;
+        int i, n;
+        
+        *groups = group;
+        n = 1;
+        
+        for (i = 0; i < sizeof(_groups) / sizeof(_groups)[0]; i++) {
+                gr = &_groups[i];
+                for (pp = gr->gr_mem; *pp != NULL; pp++) {
+                        if (strcmp(*pp, user) == 0 && n < *ngroups)
+                                groups[n++] = gr->gr_gid;
+                }
+        }
+        return ((*ngroups = n));
+}
