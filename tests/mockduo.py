@@ -16,56 +16,57 @@ import urllib
 IKEY = 'DIXYZV6YM8IFYVWBINCA'
 SKEY = 'yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo'
 
-def test1(req, path):
-    if path == 'preauth':
-        return { 'stat': 'OK',
-                 'response': { 'result': 'deny', 'status': 'you suck' } }
-
-                 
 class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     server_version = 'MockDuo/1.0'
 
-    def _verify_sig(self, skey, args):
+    def _verify_sig(self):
         authz = self.headers['Authorization'].split()[1].decode('base64')
         ikey, sig = authz.split(':')
         if ikey != IKEY:
             return False
         
-        canon = [ 'POST', self.headers['Host'].split(':')[0].lower(),
+        canon = [ self.method, self.headers['Host'].split(':')[0].lower(),
                   self.path ]
         l = []
-        for k in sorted(args.keys()):
+        for k in sorted(self.args.keys()):
             l.append('%s=%s' % (urllib.quote(k, '~'),
-                                urllib.quote(args[k], '~')))
+                                urllib.quote(self.args[k], '~')))
         canon.append('&'.join(l))
         h = hmac.new(SKEY, '\n'.join(canon), sha1)
         
         return sig == h.hexdigest()
 
     def _get_args(self):
-        env = { 'REQUEST_METHOD': 'POST',
-                'CONTENT_TYPE': self.headers['Content-Type'] }
-        fs = cgi.FieldStorage(fp=self.rfile, headers=self.headers, environ=env)
-        args = {}
-        for k in fs.keys():
-            args[k] = fs[k].value
-        print 'args:', args
-        return args
-
+        if self.method == 'POST':
+            env = { 'REQUEST_METHOD': 'POST',
+                    'CONTENT_TYPE': self.headers['Content-Type'] }
+            fs = cgi.FieldStorage(fp=self.rfile, headers=self.headers,
+                                  environ=env)
+            args = {}
+            for k in fs.keys():
+                args[k] = fs[k].value
+        else:
+            args = dict(cgi.parse_qsl(self.qs))
+        self.args = args
+    
     def do_GET(self):
-        args = self._get_args();
-        print args
-
-        if not self._verify_sig(SKEY, args):
+        self.method = 'GET'
+        self.path, self.qs = self.path.split('?', 1)
+        self._get_args()
+        
+        if not self._verify_sig():
             self.send_response(401)
             self.send_header("Content-length", "0")
             self.end_headers()
             return
 
-        if self.path == '/rest/v1/status.bson':
-            ret = { 'stat': 'OK',
-                    'response': 'hello world' }
+        ret = { 'stat': 'OK' }
         
+        if self.path == '/rest/v1/status.bson':
+            ret['response'] = { 'result': 'allow', 'status': 'good job!' }
+        else:
+            ret['response'] = { 'result': 'deny', 'status': 'WTF' }
+            
         buf = bson.dumps(ret)
 
         self.send_response(200)
@@ -75,55 +76,77 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.wfile.write(buf)
         
     def do_POST(self):
-        args = self._get_args();
+        self.method = 'POST'
+        self._get_args()
+        print self.args
 
-        if not self._verify_sig(SKEY, args):
+        if not self._verify_sig():
             self.send_response(401)
             self.send_header("Content-length", "0")
             self.end_headers()
             return
 
         try:
-            self.send_response(int(args['user']))
+            self.send_response(int(self.args['user']))
             self.send_header("Content-length", "0")
             self.end_headers()
             return
         except:
             pass
         
+        ret = { 'stat': 'OK' }
+        
         if self.path == '/rest/v1/preauth.bson':
-            ret = { 'stat': 'OK' }
-            if args['user'] == 'preauth-ok-missing_response':
+            if self.args['user'] == 'preauth-ok-missing_response':
                 pass
-            elif args['user'] == 'preauth-fail-missing_response':
+            elif self.args['user'] == 'preauth-fail-missing_response':
                 ret['stat'] = 'FAIL'
-            elif args['user'] == 'preauth-bad-stat':
+            elif self.args['user'] == 'preauth-bad-stat':
                 ret['stat'] = 'FFFFUUUU'
-            elif args['user'] == 'preauth-fail':
+            elif self.args['user'] == 'preauth-fail':
                 d = { 'stat': 'FAIL', 'code': 666, 'message': 'you fail' }
-            elif args['user'] == 'preauth-deny':
+            elif self.args['user'] == 'preauth-deny':
                 ret['response'] = { 'result': 'deny', 'status': 'you suck' }
-            elif args['user'] == 'preauth-allow':
+            elif self.args['user'] == 'preauth-allow':
                 ret['response'] = { 'result': 'allow', 'status': 'you rock' }
-            elif args['user'] == 'preauth-allow-bad_response':
+            elif self.args['user'] == 'preauth-allow-bad_response':
                 ret['response'] = { 'result': 'allow', 'xxx': 'you rock' }
             else:
                 ret['response'] = {
                     'result': 'auth',
-                    'prompt': 'Duo login for %s\n\n' % args['user'] + \
-                              '  1. Red\n  2. Green\n  3. Blue\n\n' + \
+                    'prompt': 'Duo login for %s\n\n' % self.args['user'] + \
+                              '  1. Push\n  2. Phone\n  3. SMS\n  4. F\n\n' + \
                               'Yo momma? ',
                     'factors': {
-                        'default': 'red',
-                        '1': 'red',
-                        '2': 'green',
-                        '3': 'blue',
+                        'default': 'push1',
+                        '1': 'push1',
+                        '2': 'voice1',
+                        '3': 'smsrefresh1',
+                        '4': 'voice2',
                         }
                     }
         elif self.path == '/rest/v1/auth.bson':
-            print 'got args', args
-            ret = { 'stat': 'OK',
-                    'response': { 'result': 'deny', 'status': 'denied' } }
+            print 'got self.args', self.args
+            if self.args['factor'] == 'auto':
+                if self.args['auto'] == 'push1':
+                    if self.args['async'] == '1':
+                        ret['response'] = { 'txid': 'txPUSH1' }
+                    else:
+                        ret['response'] = { 'result': 'deny',
+                                            'status': 'Push timed out' }
+                elif self.args['auto'] == 'voice1':
+                    if self.args['async'] == '1':
+                        ret['response'] = { 'txid': 'txVOICE1' }
+                    else:
+                        ret['response'] = { 'result': 'deny',
+                                            'status': 'Call timed out' }
+                else:
+                    ret['response'] = { 'result': 'deny',
+                                        'status': 'Invalid auto label' }
+            else:
+                ret['response'] = { 'result': 'deny',
+                                    'status': '%s denied' %
+                                    self.args['factor'] }
         elif self.path == '/rest/v1/status':
             ret = { 'stat': 'OK',
                     'response': { 'result': 'tx666' } }
