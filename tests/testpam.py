@@ -7,6 +7,8 @@ import subprocess
 import sys
 import tempfile
 
+import paths
+
 # login_duo-compatible wrapper to pam_duo
 
 def usage():
@@ -15,11 +17,6 @@ def usage():
     sys.exit(1)
     
 def main():
-    if os.environ.get('BUILDDIR'):
-        build = '%s/tests' % os.environ['BUILDDIR']
-    else:
-        build = os.path.dirname(__file__)
-    
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'dc:f:h:')
     except getopt.GetoptError:
@@ -37,29 +34,28 @@ def main():
         elif o == '-h':
             opt_host = a
 
-    args = [ build + '/testpam', opt_user ]
+    args = [ paths.build + '/testpam', opt_user ]
     if opt_host:
         args.append(opt_host)
     
-    topbuilddir = os.path.realpath(build + '/..')
-
     f = tempfile.NamedTemporaryFile()
     #f = open('/tmp/pam.conf', 'w')
     if sys.platform == 'sunos5':
         f.write('testpam ')
     f.write('auth  required  %s/pam_duo.so conf=%s debug' %
-            (topbuilddir + '/pam_duo/.libs', opt_conf))
+            (paths.topbuilddir + '/pam_duo/.libs', opt_conf))
     f.flush()
     
     env = os.environ.copy()
     env['PAM_CONF'] = f.name
 
     if sys.platform == 'darwin':
-        env['DYLD_LIBRARY_PATH'] = topbuilddir + '/lib/.libs'
-        env['DYLD_INSERT_LIBRARIES'] = topbuilddir + '/tests/.libs/libtestpam_preload.dylib'
+        env['DYLD_LIBRARY_PATH'] = paths.topbuilddir + '/lib/.libs'
+        env['DYLD_INSERT_LIBRARIES'] = paths.build + \
+                                       '/.libs/libtestpam_preload.dylib'
         env['DYLD_FORCE_FLAT_NAMESPACE'] = '1'
     else:
-        env['LD_PRELOAD'] = topbuilddir + '/tests/.libs/libtestpam_preload.so'
+        env['LD_PRELOAD'] = paths.build + '/.libs/libtestpam_preload.so'
         
     p = subprocess.Popen(args, env=env)
     p.wait()
