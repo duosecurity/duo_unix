@@ -7,7 +7,6 @@ mockduo with valid cert
   $ sleep 1
 
 HTTP server errors
-
   $ for http_code in 400 401 402 403 404 500 501 502 503 504; do ./testpam.py -d -c confs/mockduo.conf -f $http_code true; done
   [4] Failsafe Duo login for '400': HTTP 400
   [4] Failsafe Duo login for '401': HTTP 401
@@ -19,13 +18,27 @@ HTTP server errors
   [4] Failsafe Duo login for '502': HTTP 502
   [4] Failsafe Duo login for '503': HTTP 503
   [4] Failsafe Duo login for '504': HTTP 504
+  $ for http_code in 400 401 402 403 404 500 501 502 503 504; do ./testpam.py -d -c confs/mockduo_failsecure.conf -f $http_code true; done
+  [3] Error in Duo login for '400': HTTP 400
+  [3] Error in Duo login for '401': HTTP 401
+  [3] Error in Duo login for '402': HTTP 402
+  [3] Error in Duo login for '403': HTTP 403
+  [3] Error in Duo login for '404': HTTP 404
+  [3] Error in Duo login for '500': HTTP 500
+  [3] Error in Duo login for '501': HTTP 501
+  [3] Error in Duo login for '502': HTTP 502
+  [3] Error in Duo login for '503': HTTP 503
+  [3] Error in Duo login for '504': HTTP 504
+  [1]
 
 With bad keys
   $ ./testpam.py -d -c confs/mockduo_badkeys.conf -f whatever true
   [4] Failsafe Duo login for 'whatever': HTTP 401
+  $ ./testpam.py -d -c confs/mockduo_badkeys_failsecure.conf -f whatever true
+  [3] Error in Duo login for 'whatever': HTTP 401
+  [1]
 
 Preauth states
-
   $ for user in preauth-ok-missing_response preauth-fail-missing_response preauth-bad-stat preauth-fail preauth-deny preauth-allow preauth-allow-bad_response; do ./testpam.py -d -c confs/mockduo.conf -f $user true; done
   [4] Failsafe Duo login for 'preauth-ok-missing_response': BSON missing valid 'response'
   [4] Failsafe Duo login for 'preauth-fail-missing_response': BSON missing valid 'code'
@@ -34,9 +47,17 @@ Preauth states
   [4] Aborted Duo login for 'preauth-deny': you suck
   [4] Skipped Duo login for 'preauth-allow': you rock
   [4] Failsafe Duo login for 'preauth-allow-bad_response': BSON missing valid 'status'
+  $ for user in preauth-ok-missing_response preauth-fail-missing_response preauth-bad-stat preauth-fail preauth-deny preauth-allow preauth-allow-bad_response; do ./testpam.py -d -c confs/mockduo_failsecure.conf -f $user true; done
+  [3] Error in Duo login for 'preauth-ok-missing_response': BSON missing valid 'response'
+  [3] Error in Duo login for 'preauth-fail-missing_response': BSON missing valid 'code'
+  [3] Error in Duo login for 'preauth-bad-stat'
+  [3] Error in Duo login for 'preauth-fail': BSON missing valid 'response'
+  [4] Aborted Duo login for 'preauth-deny': you suck
+  [4] Skipped Duo login for 'preauth-allow': you rock
+  [3] Error in Duo login for 'preauth-allow-bad_response': BSON missing valid 'status'
+  [1]
 
 Test manually-set hosts
-
   $ for host in 1.2.3.4 XXXX:XXXX:XXXX:XXXX:XXXX:XXXX:AAA.BBB.CCC.DDD nowhere "%s" "!@#$%^&*()_+<>{}|;'"; do ./testpam.py -d -c confs/mockduo.conf -f preauth-allow -h $host true; done
   [4] Skipped Duo login for 'preauth-allow' from 1.2.3.4: you rock
   [4] Skipped Duo login for 'preauth-allow' from XXXX:XXXX:XXXX:XXXX:XXXX:XXXX:AAA.BBB.CCC.DDD: you rock
