@@ -107,7 +107,7 @@ duo_parse_config(const char *filename,
 	if ((fd = open(filename, O_RDONLY)) < 0) {
 		return (-1);
 	}
-	if (fstat(fd, &st) < 0 ||(fp = fdopen(fd, "r")) == NULL) {
+	if (fstat(fd, &st) < 0 || (fp = fdopen(fd, "r")) == NULL) {
 		close(fd);
 		return (-1);
 	}
