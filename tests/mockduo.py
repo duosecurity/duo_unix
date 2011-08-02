@@ -66,13 +66,13 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def _get_tx_response(self, txid, async):
         if async:
-            secs, msg = tx_msgs[self.args['txid']].pop(0).split(':', 1)
+            secs, msg = tx_msgs[txid].pop(0).split(':', 1)
         else:
-            secs, msg = tx_msgs[self.args['txid']][-1].split(':', 1)
+            secs, msg = tx_msgs[txid][-1].split(':', 1)
         
         if msg.startswith('Success'):
             rsp = { 'result': 'allow', 'status': msg }
-        elif async and tx_msgs[self.args['txid']]:
+        elif async and tx_msgs[txid]:
             rsp = { 'status': msg }
         else:
             rsp = { 'result': 'deny', 'status': msg }
