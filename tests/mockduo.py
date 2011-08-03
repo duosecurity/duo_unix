@@ -31,6 +31,7 @@ tx_msgs = {
 
 class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     server_version = 'MockDuo/1.0'
+    protocol_version = 'HTTP/1.1'
 
     def _verify_sig(self):
         authz = self.headers['Authorization'].split()[1].decode('base64')
