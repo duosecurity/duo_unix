@@ -21,12 +21,12 @@ tx_msgs = {
     'txPUSH1': [ '0:Pushed a login request to your phone.',
                  '1:Success. Logging you in...' ],
     'txVOICE1': [ '0:Dialing XXX-XXX-1234...',
-                  "2:Answered. Press '#' on your phone to log in.",
-                  '2:Success. Logging you in...' ],
+                  "1:Answered. Press '#' on your phone to log in.",
+                  '1:Success. Logging you in...' ],
     'txSMSREFRESH1': [ '0:New SMS passcodes sent' ],
     'txVOICE2': [ '0:Dialing XXX-XXX-5678...',
-                  "2:Answered. Press '#' on your phone to log in.",
-                  '4:Authentication timed out.' ],
+                  "1:Answered. Press '#' on your phone to log in.",
+                  '2:Authentication timed out.' ],
     }
 
 class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -65,14 +65,18 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         return args
 
     def _get_tx_response(self, txid, async):
-        if async:
+        last = True
+        if txid not in tx_msgs:
+            secs, msg = 0, 'Invalid passcode, please try again.'
+        elif async:
             secs, msg = tx_msgs[txid].pop(0).split(':', 1)
+            last = not tx_msgs[txid]
         else:
             secs, msg = tx_msgs[txid][-1].split(':', 1)
         
         if msg.startswith('Success'):
             rsp = { 'result': 'allow', 'status': msg }
-        elif async and tx_msgs[txid]:
+        elif async and not last:
             rsp = { 'status': msg }
         else:
             rsp = { 'result': 'deny', 'status': msg }
