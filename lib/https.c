@@ -36,6 +36,10 @@ struct https_ctx {
         char	             *ikey;
         char	             *skey;
         char	             *useragent;
+
+        char		     *proxy;
+        char		     *proxy_port;
+        char		     *proxy_auth;
         
         const char           *errstr;
         char	              errbuf[512];
@@ -49,7 +53,9 @@ struct https_request {
         BIO                  *body;
         SSL                  *ssl;
         
-        char                 *host;
+        char                 *host;	/* host */
+        const char           *port;	/* port */
+        
         http_parser          *parser;
         int	              done;
 };
@@ -74,8 +80,15 @@ __on_message_complete(http_parser *p)
 static const char *
 _SSL_strerror(void)
 {
-        const char *p = ERR_reason_error_string(ERR_get_error());
-
+        unsigned long code = ERR_get_error();
+        const char *p = NULL;
+        
+        if (code == 0x0906D06C) {
+                /* XXX - bad "PEM_read_bio:no start line" alias */
+                errno = ECONNREFUSED;
+        } else {
+                p = ERR_reason_error_string(code);
+        }
         return (p ? p : strerror(errno));
 }
 
@@ -159,9 +172,19 @@ _BIO_wait(BIO *cbio, int secs)
         } else if (BIO_should_read(cbio)) {
                 return (select(fd + 1, &confds, NULL, NULL, tvp));
         } else if (BIO_should_write(cbio)) {
-               return (select(fd + 1, &confds, &confds, NULL, tvp));
+                return (select(fd + 1, NULL, &confds, NULL, tvp));
         }
         return (-1);
+}
+
+static BIO *
+_BIO_new_base64(void)
+{
+        BIO *b64;
+        
+        b64 = BIO_push(BIO_new(BIO_f_base64()), BIO_new(BIO_s_mem()));
+        BIO_set_flags(b64,BIO_FLAGS_BASE64_NO_NL);
+        return (b64);
 }
 
 HTTPScode
@@ -185,7 +208,7 @@ https_init(const char *ikey, const char *skey,
         SSL_load_error_strings();
         OpenSSL_add_ssl_algorithms();
 
-        /* XXX - mirror openssl s_client -rand for ancient systems */
+        /* XXX - ape openssl s_client -rand for testing on ancient systems */
         if (!RAND_status()) {
                 if ((p = getenv("RANDFILE")) != NULL) {
                         RAND_load_file(p, 8192);
@@ -198,6 +221,7 @@ https_init(const char *ikey, const char *skey,
                 ctx->errstr = _SSL_strerror();
                 return (HTTPS_ERR_LIB);
         }
+        /* Set up our CA cert */
         if (cafile == NULL) {
                 /* Load default CA cert from memory */
                 if ((bio = BIO_new_mem_buf((void *)CACERT_PEM, -1)) == NULL ||
@@ -224,6 +248,31 @@ https_init(const char *ikey, const char *skey,
                 }
                 SSL_CTX_set_verify(ctx->ssl_ctx, SSL_VERIFY_PEER, NULL);
         }
+        /* Save our proxy config if any */
+        if ((p = getenv("http_proxy")) != NULL) {
+                if (strstr(p, "://") != NULL) {
+                        if (strncmp(p, "http://", 7) != 0) {
+                                ctx->errstr = "http_proxy must be HTTP";
+                                return (HTTPS_ERR_CLIENT);
+                        }
+                        p += 7;
+                }
+                p = strdup(p);
+                
+                if ((ctx->proxy = strchr(p, '@')) != NULL) {
+                        *ctx->proxy++ = '\0';
+                        ctx->proxy_auth = p;
+                } else {
+                        ctx->proxy = p;
+                }
+                strtok(ctx->proxy, "/");
+                
+                if ((ctx->proxy_port = strchr(ctx->proxy, ':')) != NULL) {
+                        *ctx->proxy_port++ = '\0';
+                } else {
+                        ctx->proxy_port = "80";
+                }
+        }
         /* Set HTTP parser callbacks */
         ctx->parse_settings.on_body = __on_body;
         ctx->parse_settings.on_message_complete = __on_message_complete;
@@ -237,6 +286,7 @@ HTTPScode
 https_open(struct https_request **reqp, const char *host)
 {
         struct https_request *req;
+        BIO *b64, *sbio;
         char *p;
         int n;
 
@@ -249,29 +299,31 @@ https_open(struct https_request **reqp, const char *host)
                 https_close(&req);
                 return (HTTPS_ERR_SYSTEM);
         }
-        if ((req->cbio = BIO_new_ssl_connect(ctx->ssl_ctx)) == NULL ||
+        if ((p = strchr(req->host, ':')) != NULL) {
+                *p = '\0';
+                req->port = p + 1;
+        } else {
+                req->port = "443";
+        }
+        if ((req->cbio = BIO_new(BIO_s_connect())) == NULL ||
             (req->body = BIO_new(BIO_s_mem())) == NULL) {
                 ctx->errstr = _SSL_strerror();
                 https_close(&req);
                 return (HTTPS_ERR_LIB);
         }
-        BIO_set_nbio(req->cbio, 1);
-        BIO_get_ssl(req->cbio, &req->ssl);
-        if (strchr(req->host, ':') == NULL) {
-                if (asprintf(&p, "%s:443", req->host) < 0) {
-                        ctx->errstr = strerror(errno);
-                        https_close(&req);
-                        return (HTTPS_ERR_SYSTEM);
-                }                        
-                BIO_set_conn_hostname(req->cbio, p);
-                free(p);
-        } else {
-                BIO_set_conn_hostname(req->cbio, req->host);
-        }
         http_parser_init(req->parser, HTTP_RESPONSE);
         req->parser->data = req;
 
         /* Connect to server */
+        if (ctx->proxy) {
+                BIO_set_conn_hostname(req->cbio, ctx->proxy);
+                BIO_set_conn_port(req->cbio, ctx->proxy_port);
+        } else {
+                BIO_set_conn_hostname(req->cbio, req->host);
+                BIO_set_conn_port(req->cbio, req->port);
+        }
+        BIO_set_nbio(req->cbio, 1);
+        
         while (BIO_do_connect(req->cbio) <= 0) {
                 if ((n = _BIO_wait(req->cbio, 10)) != 1) {
                         ctx->errstr = n ? _SSL_strerror() :
@@ -280,6 +332,49 @@ https_open(struct https_request **reqp, const char *host)
                         return (n ? HTTPS_ERR_SYSTEM : HTTPS_ERR_SERVER);
                 }
         }
+        /* Tunnel through proxy, if specified */
+        if (ctx->proxy != NULL) {
+                BIO_printf(req->cbio,
+                    "CONNECT %s:%s HTTP/1.0\r\n"
+                    "User-Agent: %s\r\n",
+                    req->host, req->port, ctx->useragent);
+                
+                if (ctx->proxy_auth != NULL) {
+                        b64 = _BIO_new_base64();
+                        BIO_puts(b64, ctx->proxy_auth);
+                        (void)BIO_flush(b64);
+                        n = BIO_get_mem_data(b64, &p);
+
+                        BIO_puts(req->cbio, "Proxy-Authorization: Basic ");
+                        BIO_write(req->cbio, p, n);
+                        BIO_puts(req->cbio, "\r\n");
+                        BIO_free_all(b64);
+                }
+                BIO_puts(req->cbio, "\r\n");
+                (void)BIO_flush(req->cbio);
+                
+                while ((n = BIO_read(req->cbio, ctx->parse_buf,
+                            sizeof(ctx->parse_buf))) <= 0) {
+                        _BIO_wait(req->cbio, 5);
+                }
+                if (strncmp("HTTP/1.0 200", ctx->parse_buf, 12) != 0) {
+                        snprintf(ctx->errbuf, sizeof(ctx->errbuf),
+                            "Proxy error: %s", ctx->parse_buf);
+                        ctx->errstr = strtok(ctx->errbuf, "\r\n");
+                        https_close(&req);
+                        if (n < 12 || atoi(ctx->parse_buf + 9) < 500)
+                                return (HTTPS_ERR_CLIENT);
+                        return (HTTPS_ERR_SERVER);
+                }
+        }
+        /* Establish SSL connection */
+        if ((sbio = BIO_new_ssl(ctx->ssl_ctx, 1)) == NULL) {
+                https_close(&req);
+                return (HTTPS_ERR_LIB);
+        }
+        req->cbio = BIO_push(sbio, req->cbio);
+        BIO_get_ssl(req->cbio, &req->ssl);
+        
         while (BIO_do_handshake(req->cbio) <= 0) {
                 if ((n = _BIO_wait(req->cbio, 5)) != 1) {
                         ctx->errstr = n ? _SSL_strerror() :
@@ -289,8 +384,7 @@ https_open(struct https_request **reqp, const char *host)
                 }
         }
         /* Validate server certificate name */
-        if (_SSL_check_server_cert(req->ssl,
-                BIO_get_conn_hostname(req->cbio)) != 1) {
+        if (_SSL_check_server_cert(req->ssl, req->host) != 1) {
                 ctx->errstr = "Certificate name validation failed";
                 https_close(&req);
                 return (HTTPS_ERR_LIB);
@@ -341,34 +435,34 @@ HTTPScode
 https_send(struct https_request *req, const char *method, const char *uri,
     int argc, char *argv[])
 {
-	HMAC_CTX hmac;
         BIO *b64;
+	HMAC_CTX hmac;
 	unsigned char MD[SHA_DIGEST_LENGTH];
         char *qs, *p;
         int i, n, is_get;
             
         req->done = 0;
-        is_get = (strcmp(method, "GET") == 0);
         
         /* Generate query string and canonical request to sign */
 	if ((qs = _argv_to_qs(argc, argv)) == NULL ||
-            (asprintf(&p, "%s\n%s\n%s\n%s", method,
-                BIO_get_conn_hostname(req->cbio), uri, qs)) < 0) {
+            (asprintf(&p, "%s\n%s\n%s\n%s", method, req->host, uri, qs)) < 0) {
                 free(qs);
                 ctx->errstr = strerror(errno);
                 return (HTTPS_ERR_LIB);
         }
         /* Format request */
-        if (is_get) {
+        if ((is_get = (strcmp(method, "GET") == 0))) {
                 BIO_printf(req->cbio, "GET %s?%s HTTP/1.1\r\n", uri, qs);
         } else {
                 BIO_printf(req->cbio, "%s %s HTTP/1.1\r\n", method, uri);
         }
-        BIO_printf(req->cbio, "Host: %s\r\n", req->host);
-
+        if (strcmp(req->port, "443") == 0) {
+                BIO_printf(req->cbio, "Host: %s\r\n", req->host);
+        } else {
+                BIO_printf(req->cbio, "Host: %s:%s\r\n", req->host, req->port);
+        }
         /* Add signature */
-        b64 = BIO_push(BIO_new(BIO_f_base64()), BIO_new(BIO_s_mem()));
-        BIO_set_flags(b64,BIO_FLAGS_BASE64_NO_NL);
+        BIO_puts(req->cbio, "Authorization: Basic ");
         
 	HMAC_CTX_init(&hmac);
 	HMAC_Init(&hmac, ctx->skey, strlen(ctx->skey), EVP_sha1());
@@ -377,7 +471,7 @@ https_send(struct https_request *req, const char *method, const char *uri,
 	HMAC_CTX_cleanup(&hmac);
         free(p);
         
-        BIO_puts(req->cbio, "Authorization: Basic ");
+        b64 = _BIO_new_base64();
         BIO_printf(b64, "%s:", ctx->ikey);
         for (i = 0; i < sizeof(MD); i++) {
                 BIO_printf(b64, "%02x", MD[i]);
@@ -452,9 +546,9 @@ https_close(struct https_request **reqp)
 
         if (req != NULL) {
                 if (req->body != NULL)
-                        BIO_vfree(req->body);
+                        BIO_free_all(req->body);
                 if (req->cbio != NULL)
-                        BIO_vfree(req->cbio);
+                        BIO_free_all(req->cbio);
                 free(req->parser);
                 free(req->host);
                 free(req);
