@@ -18,11 +18,11 @@ typedef enum {
         HTTPS_ERR_SERVER,	/* something the server did */
 } HTTPScode;
 
-/* Initialize library */
+/* Initialize HTTPS library */
 HTTPScode   https_init(const char *ikey, const char *skey,
                        const char *useragent, const char *cafile);
 
-/* Open HTTPS connection to host */
+/* Open HTTPS connection to host[:port] */
 HTTPScode   https_open(https_t **hp, const char *host);
 
 /* Send request, return 0 for success or -1 on error */
