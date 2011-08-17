@@ -217,12 +217,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 
 	memset(&cfg, 0, sizeof(cfg));
         cfg.failmode = DUO_FAIL_SAFE;
-        
-	/* Check user */
-	if ((pam_err = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS ||
-	    (pw = getpwnam(user)) == NULL) {
-		return (PAM_USER_UNKNOWN);
-	}
+
 	/* Parse configuration */
 	config = DUO_CONF;
 	for (i = 0; i < argc; i++) {
@@ -253,6 +248,35 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		_syslog(LOG_ERR, "Missing host, ikey, or skey in %s", config);
 		return (PAM_SERVICE_ERR);
 	}
+        
+        /* Check user */
+        if (pam_get_user(pamh, &user, NULL) != PAM_SUCCESS ||
+            (pw = getpwnam(user)) == NULL) {
+                return (PAM_USER_UNKNOWN);
+        }
+        /* XXX - Service-specific behavior */
+	flags = 0;
+        cmd = NULL;
+	if (pam_get_item(pamh, PAM_SERVICE, (duopam_const void **)
+		(duopam_const void *)&service) != PAM_SUCCESS) {
+                return (PAM_SERVICE_ERR);
+        }
+        if (strcmp(service, "sshd") == 0) {
+                /*
+                 * Disable incremental status reporting for sshd :-(
+                 * OpenSSH accumulates PAM_TEXT_INFO from modules to send in
+                 * an SSH_MSG_USERAUTH_BANNER post-auth, not real-time!
+                 */
+                flags |= DUO_FLAG_SYNC;
+        } else if (strcmp(service, "sudo") == 0) {
+                cmd = getenv("SUDO_COMMAND");
+        } else if (strcmp(service, "su") == 0) {
+                /* Check calling user for Duo auth, just like sudo */
+                if ((pw = getpwuid(getuid())) == NULL) {
+                        return (PAM_USER_UNKNOWN);
+                }
+                user = pw->pw_name;
+        }
 	/* Check group membership */
 	if (cfg.groups_cnt > 0) {
 		int matched = 0;
@@ -275,21 +299,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 			return (PAM_SUCCESS);
 	}
 
-	/*
-	 * XXX - Disable incremental status reporting for sshd :-(
-	 * OpenSSH accumulates PAM_TEXT_INFO from modules to send in
-	 * an SSH_MSG_USERAUTH_BANNER post-auth, not real-time!
-	 */
-	flags = 0;
-        cmd = NULL;
-	if (pam_get_item(pamh, PAM_SERVICE, (duopam_const void **)
-		(duopam_const void *)&service) == PAM_SUCCESS) {
-		if (strcmp(service, "sshd") == 0) {
-			flags |= DUO_FLAG_SYNC;
-                } else if (strcmp(service, "sudo") == 0) {
-                        cmd = getenv("SUDO_COMMAND");
-                }
-	}
 	ip = NULL;
 	pam_get_item(pamh, PAM_RHOST,
 	    (duopam_const void **)(duopam_const void *)&ip);
