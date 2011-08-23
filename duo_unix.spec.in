@@ -74,14 +74,13 @@ rm -f $RPM_BUILD_ROOT/%{_lib}/security/pam_duo.*a
 
 %files
 %defattr(-,root,root)
-%doc AUTHORS README CHANGES LICENSE README.ssh
+%doc AUTHORS README CHANGES LICENSE
 %dir %{_sysconfdir}/duo
 %config(noreplace) %{_sysconfdir}/duo/login_duo.conf
 %attr(4755, root, root) %{_sbindir}/login_duo
 %{_mandir}/man8/login_duo.8.gz
 
 %files -n pam_duo
-%doc README.pam
 %dir %{_sysconfdir}/duo
 /%{_lib}/security/pam_duo.so
 %config(noreplace) %attr(640, root, root) %{_sysconfdir}/duo/pam_duo.conf
@@ -100,5 +99,7 @@ rm -f $RPM_BUILD_ROOT/%{_lib}/security/pam_duo.*a
 %{_mandir}/man3/duo.3.gz
 
 %changelog
+* Tue Aug 23 2011 Mark Stanislav <mark.stanislav@gmail.com> 0:1.7-0
+- Removed README.{pam,ssh} from build related to commit 0d65488ae3cae2e97484
 * Thu May 12 2011 S. Zachariah Sprackett <zac@sprackett.com> 0:1.6-0
 - Rolled initial RPM
