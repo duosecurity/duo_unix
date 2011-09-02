@@ -76,7 +76,7 @@ rm -f $RPM_BUILD_ROOT/%{_lib}/security/pam_duo.*a
 %defattr(-,root,root)
 %doc AUTHORS README CHANGES LICENSE
 %dir %{_sysconfdir}/duo
-%config(noreplace) %{_sysconfdir}/duo/login_duo.conf
+%attr(0600, sshd, root) %config(noreplace) %{_sysconfdir}/duo/login_duo.conf
 %attr(4755, root, root) %{_sbindir}/login_duo
 %{_mandir}/man8/login_duo.8.gz
 
@@ -99,6 +99,8 @@ rm -f $RPM_BUILD_ROOT/%{_lib}/security/pam_duo.*a
 %{_mandir}/man3/duo.3.gz
 
 %changelog
+* Fri Sep 1 2011 R.I.Pienaar <rip@devco.net> 0:1.8-0
+- Fix the ownership of /etc/duo/login_duo.conf so that login as normal users work
 * Tue Aug 23 2011 Mark Stanislav <mark.stanislav@gmail.com> 0:1.7-0
 - Removed README.{pam,ssh} from build related to commit 0d65488ae3cae2e97484
 * Thu May 12 2011 S. Zachariah Sprackett <zac@sprackett.com> 0:1.6-0
