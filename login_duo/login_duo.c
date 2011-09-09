@@ -371,9 +371,15 @@ get_command(int argc, char *argv[])
 }
 
 static void
+version(void)
+{
+	die("login_duo " PACKAGE_VERSION);
+}
+
+static void
 usage(void)
 {
-	die("Usage: login_duo [-c config] [-d] [-f duouser] [-h host] [prog [args...]]");
+	die("Usage: login_duo [-v] [-c config] [-d] [-f duouser] [-h host] [prog [args...]]");
 }
 
 int
@@ -386,8 +392,11 @@ main(int argc, char *argv[])
 	
 	memset(ctx, 0, sizeof(ctx));
 	
-	while ((c = getopt(argc, argv, "c:df:h:?")) != -1) {
+	while ((c = getopt(argc, argv, "vc:df:h:?")) != -1) {
 		switch (c) {
+		case 'v':
+			version();
+			break;
 		case 'c':
 			ctx->config = optarg;
 			break;
