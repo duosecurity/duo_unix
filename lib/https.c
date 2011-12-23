@@ -341,7 +341,8 @@ https_open(struct https_request **reqp, const char *host)
                 
                 if (ctx->proxy_auth != NULL) {
                         b64 = _BIO_new_base64();
-                        BIO_puts(b64, ctx->proxy_auth);
+                        BIO_write(b64, ctx->proxy_auth,
+                            strlen(ctx->proxy_auth));
                         (void)BIO_flush(b64);
                         n = BIO_get_mem_data(b64, &p);
 
