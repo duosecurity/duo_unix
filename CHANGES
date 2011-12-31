@@ -1,4 +1,7 @@
 
+duo_unix-1.8:
+
+- Fixed authenticated HTTP_PROXY support
 
 duo_unix-1.7:
 
