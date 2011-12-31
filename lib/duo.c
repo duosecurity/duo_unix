@@ -416,38 +416,42 @@ duo_login(struct duo_ctx *ctx, const char *username,
 		_duo_seterr(ctx, "need username to authenticate");
 		return (DUO_CLIENT_ERROR);
 	}
-        /* Check preauth status */
-        if ((ret = _duo_preauth(ctx, &obj, username)) != -1) {
-                return (ret);
-        }
+
+	/* Check preauth status */
+	if ((ret = _duo_preauth(ctx, &obj, username)) != -1) {
+		return (ret);
+	}
+
 	/* Handle factor selection */
-        if ((ret = _duo_prompt(ctx, &obj, flags, buf, sizeof(buf), &p)) != -1) {
-                return (ret);
-        }
+	if ((ret = _duo_prompt(ctx, &obj, flags, buf, sizeof(buf), &p)) != -1) {
+		return (ret);
+	}
+
 	/* Try Duo authentication */
 	if (duo_add_param(ctx, "user", username) != DUO_OK ||
 	    duo_add_param(ctx, "factor", "auto") != DUO_OK ||
 	    duo_add_param(ctx, "auto", p) != DUO_OK ||
 	    duo_add_param(ctx, "async",
-		(flags & DUO_FLAG_SYNC) ? "0" : "1") != DUO_OK ||
+	    (flags & DUO_FLAG_SYNC) ? "0" : "1") != DUO_OK ||
 	    duo_add_param(ctx, "ipaddr",
-		client_ip ? client_ip : _local_ip()) != DUO_OK) {
+	    client_ip ? client_ip : _local_ip()) != DUO_OK) {
 		return (DUO_LIB_ERROR);
 	}
-        if (command != NULL) {
-                char *p, *v;
-                if ((v = urlenc_encode(command)) == NULL || 
-                    asprintf(&p, "Command=%s", v) < 0) {
-                        free(v);
-                        return (DUO_LIB_ERROR);
-                }
-                duo_add_param(ctx, "pushinfo", p);
-                free(p);
-        }
+	if (command != NULL) {
+		char *p, *v;
+		if ((v = urlenc_encode(command)) == NULL || 
+			asprintf(&p, "Command=%s", v) < 0) {
+			free(v);
+			return (DUO_LIB_ERROR);
+		}
+		duo_add_param(ctx, "pushinfo", p);
+		free(p);
+	}
 	if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/auth.bson")) != DUO_OK ||
 	    (ret = _duo_bson_response(ctx, &obj)) != DUO_OK) {
 		return (ret);
 	}
+
 	/* Handle sync status */
 	if ((flags & DUO_FLAG_SYNC) != 0) {
 		_BSON_FIND(ctx, &it, &obj, "status", bson_string);
