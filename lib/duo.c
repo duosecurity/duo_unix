@@ -269,13 +269,22 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *uri)
                 _duo_seterr(ctx, "Couldn't connect to %s: %s\n",
                     ctx->host, https_geterr());
         } else if (code / 100 == 2) {
+                /* 2xx indicates DUO_OK */
                 ret = DUO_OK;
+        } else if (code == 401) {
+                /* 401 indicates an invalid ikey or skey */
+                ret = DUO_CLIENT_ERROR;
+                _duo_seterr(ctx, "Invalid ikey or skey");
+        } else if (code / 100 == 5) {
+                /* 5xx indicates an internal server error */
+                ret = DUO_SERVER_ERROR;
+                _duo_seterr(ctx, "HTTP %d", code);
         } else {
-                ret = (code < 500) ? DUO_CLIENT_ERROR : DUO_SERVER_ERROR;
-                if (_duo_bson_response(ctx, NULL) != DUO_FAIL)
-                        _duo_seterr(ctx, "HTTP %d", code);
+                /* abort on any other HTTP codes */
+                ret = DUO_ABORT;
+                _duo_seterr(ctx, "HTTP %d", code);
         }
-	return (ret);
+        return (ret);
 }
 
 const char *
