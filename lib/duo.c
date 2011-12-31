@@ -409,6 +409,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
 	bson_iterator it;
 	duo_code_t ret;
 	char buf[256];
+	char *pushinfo = NULL;
 	const char *p;
 	int i;
 
@@ -427,7 +428,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
 		return (ret);
 	}
 
-	/* Try Duo authentication */
+	/* Add request parameters */
 	if (duo_add_param(ctx, "user", username) != DUO_OK ||
 	    duo_add_param(ctx, "factor", "auto") != DUO_OK ||
 	    duo_add_param(ctx, "auto", p) != DUO_OK ||
@@ -437,16 +438,16 @@ duo_login(struct duo_ctx *ctx, const char *username,
 	    client_ip ? client_ip : _local_ip()) != DUO_OK) {
 		return (DUO_LIB_ERROR);
 	}
-	if (command != NULL) {
-		char *p, *v;
-		if ((v = urlenc_encode(command)) == NULL || 
-			asprintf(&p, "Command=%s", v) < 0) {
-			free(v);
-			return (DUO_LIB_ERROR);
-		}
-		duo_add_param(ctx, "pushinfo", p);
-		free(p);
+
+	/* Add pushinfo parameters */
+	if (asprintf(&pushinfo, "Server+IP=%s&Command=%s",
+	    _local_ip(), command ? urlenc_encode(command) : "") < 0 ||
+	    duo_add_param(ctx, "pushinfo", pushinfo) != DUO_OK) {
+		return (DUO_LIB_ERROR);
 	}
+	free(pushinfo);
+
+	/* Try Duo authentication */
 	if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/auth.bson")) != DUO_OK ||
 	    (ret = _duo_bson_response(ctx, &obj)) != DUO_OK) {
 		return (ret);
