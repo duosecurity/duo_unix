@@ -3,6 +3,8 @@ duo_unix-1.8:
 
 - Fixed authenticated HTTP_PROXY support
 
+- Better handling of HTTP response status codes
+
 duo_unix-1.7:
 
 - Replaced libcurl (and its problematic axTLS, GnuTLS, NSS, polarssl,
