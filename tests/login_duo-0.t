@@ -3,7 +3,7 @@ Basic help output
 
   $ ${BUILDDIR}/login_duo/login_duo -h
   *login_duo: option requires an argument* (glob)
-  Usage: login_duo [-c config] [-d] [-f duouser] [-h host] [prog [args...]]
+  Usage: login_duo [-v] [-c config] [-d] [-f duouser] [-h host] [prog [args...]]
   [1]
 
 Missing conf file
