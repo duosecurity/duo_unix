@@ -5,6 +5,8 @@ duo_unix-1.8:
 
 - Better handling of HTTP response status codes
 
+- Include server IP address in pushinfo
+
 duo_unix-1.7:
 
 - Replaced libcurl (and its problematic axTLS, GnuTLS, NSS, polarssl,
