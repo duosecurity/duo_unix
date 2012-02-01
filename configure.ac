@@ -76,7 +76,7 @@ AC_HEADER_STDC
 AC_CHECK_HEADERS([inttypes.h limits.h memory.h stdint.h stdlib.h string.h unistd.h])
 
 # Check OpenSSL
-AX_CHECK_OPENSSL([], AC_MSG_FAILURE([OpenSSL not found]))
+PKG_CHECK_MODULES([OPENSSL], [libssl libcrypto])
 
 # Default PAM install dir
 case "$host" in

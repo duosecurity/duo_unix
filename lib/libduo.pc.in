@@ -6,7 +6,7 @@ includedir=@includedir@
 Name: libduo
 Description: Duo two-factor authentication for Unix systems
 Version: @VERSION@
-Requires.private: openssl
+Requires.private: libssl libcrypto
 
 Libs: -L${libdir} -lduo
 Cflags: -I${includedir}

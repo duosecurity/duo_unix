@@ -62,9 +62,6 @@ zlib
 
 Options to ./configure:
 
---with-openssl=DIR
-        Specify the OpenSSL directory if not found automatically.
-
 --with-pam[=DIR]
 	Build PAM module, and optionally override the default install
 	directory (determined automatically by platform) if necessary.
