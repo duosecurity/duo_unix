@@ -9,7 +9,7 @@ endif
 
 SUBDIRS += tests
 
-EXTRA_DIST = AUTHORS CHANGES LICENSE
+dist_doc_DATA = README AUTHORS CHANGES LICENSE
 
 # XXX - get around our default non-prefix-preserving paths for distcheck
 DISTCHECK_CONFIGURE_FLAGS = --sysconfdir='$${prefix}/etc/duo'
