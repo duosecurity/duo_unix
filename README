@@ -1,4 +1,3 @@
-
 Overview
 --------
 
@@ -43,6 +42,7 @@ OpenSSL
 	Solaris, HP-UX, AIX:	3rd party packages or source build
 	Redhat/Fedora/CentOS:	yum install openssl-devel
 	Debian/Ubuntu: 		apt-get install libssl-dev
+	SUSE/SLES:		zypper install libopenssl-devel
 
 libpam
 	Only required if building with PAM support (--with-pam below).
@@ -52,6 +52,13 @@ libpam
 
 	RedHat/Fedora/CentOS:	yum install pam-devel
 	Debian/Ubuntu:		apt-get install libpam-dev
+	SUSE/SLES:		zypper install pam-devel
+
+zlib
+	When compiling for SLES 11, it is reported that you need the
+	zlib package during compilation.
+
+	SUSE/SLES:		zypper install zlib-devel
 
 Options to ./configure:
 
