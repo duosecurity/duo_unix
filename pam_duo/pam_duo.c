@@ -231,6 +231,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 			options |= PAM_OPT_TRY_FIRST_PASS;
 		} else if (strcmp("use_first_pass", argv[i]) == 0) {
 			options |= PAM_OPT_USE_FIRST_PASS|PAM_OPT_TRY_FIRST_PASS;
+		} else if (strcmp("use_uid", argv[i]) == 0) {
+			options |= PAM_OPT_USE_UID;
 		} else {
 			_syslog(LOG_ERR, "Invalid pam_duo option: '%s'",
 			    argv[i]);
@@ -267,6 +269,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		(duopam_const void *)&service) != PAM_SUCCESS) {
                 return (PAM_SERVICE_ERR);
         }
+	if (options & PAM_OPT_USE_UID) {
+                /* Check calling user for Duo auth, just like sudo */
+                if ((pw = getpwuid(getuid())) == NULL) {
+                        return (PAM_USER_UNKNOWN);
+                }
+                user = pw->pw_name;
+	}
+
         if (strcmp(service, "sshd") == 0) {
                 /*
                  * Disable incremental status reporting for sshd :-(
@@ -276,12 +286,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
                 flags |= DUO_FLAG_SYNC;
         } else if (strcmp(service, "sudo") == 0) {
                 cmd = getenv("SUDO_COMMAND");
-        } else if (strcmp(service, "su") == 0) {
-                /* Check calling user for Duo auth, just like sudo */
-                if ((pw = getpwuid(getuid())) == NULL) {
-                        return (PAM_USER_UNKNOWN);
-                }
-                user = pw->pw_name;
         }
 	/* Check group membership */
 	if (cfg.groups_cnt > 0) {
