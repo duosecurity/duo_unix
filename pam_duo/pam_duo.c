@@ -177,12 +177,14 @@ __duo_prompt(void *arg, const char *prompt, char *buf, size_t bufsz)
 	const char *p;
 	int rc;
 
-	if ((rc = pam_get_pass(pamh, PAM_AUTHTOK, &p, prompt, options)) == PAM_SUCCESS) {
+	if (options & PAM_OPT_PUSH)
+		strlcpy(buf, "push", bufsz);
+	else if ((rc = pam_get_pass(pamh, PAM_AUTHTOK, &p, prompt, options)) == PAM_SUCCESS)
 		strlcpy(buf, p, bufsz);
-		return (buf);
-	}
+	else
+		return (NULL);
 
-	return (NULL);
+	return (buf);
 }
 
 static void
@@ -236,6 +238,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 			options |= PAM_OPT_USE_FIRST_PASS|PAM_OPT_TRY_FIRST_PASS;
 		} else if (strcmp("use_uid", argv[i]) == 0) {
 			options |= PAM_OPT_USE_UID;
+		} else if (strcmp("push", argv[i]) == 0) {
+			options |= PAM_OPT_PUSH;
 		} else {
 			_syslog(LOG_ERR, "Invalid pam_duo option: '%s'",
 			    argv[i]);
