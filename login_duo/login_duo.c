@@ -249,7 +249,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 		ip = strtok(buf, " ");
 	}
 
-	/* Honor configured http_proxy, or set by pam_env */
+	/* Honor configured http_proxy */
 	if (cfg.http_proxy != NULL) {
 		setenv("http_proxy", cfg.http_proxy, 1);
 	}
