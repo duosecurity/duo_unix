@@ -119,6 +119,13 @@ For a non-setuid install:
 If your Duo integration and secret keys are valid, you will be able to
 enroll and authenticate successfully, and congratulate yourself. :-)
 
+Setuid
+------
+
+The login_duo binary is marked setuid in order to read the protected
+login_duo.conf configuration file. However, privileges are dropped
+immediately after so the privileged attack surface is minimal.
+
 Support
 -------
 
