@@ -58,6 +58,7 @@
 #include "duo.h"
 #include "groupaccess.h"
 #include "pam_extra.h"
+#include "pam_duo_options.h"
 
 #ifndef PAM_EXTERN
 #define PAM_EXTERN
@@ -75,7 +76,7 @@ enum {
 	DUO_FAIL_SECURE,
 };
 
-int debug = 0;
+static int options = 0;
 
 struct duo_config {
 	char	*ikey;
@@ -96,7 +97,7 @@ _syslog(int priority, const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	if (debug) {
+	if (options & PAM_OPT_DEBUG) {
 		fprintf(stderr, "[%d] ", priority);
 		vfprintf(stderr, fmt, ap);
 		fputs("\n", stderr);
@@ -172,14 +173,17 @@ __duo_status(void *arg, const char *msg)
 static char *
 __duo_prompt(void *arg, const char *prompt, char *buf, size_t bufsz)
 {
-	char *p;
-	
-	if (pam_prompt((pam_handle_t *)arg, PAM_PROMPT_ECHO_ON, &p,
-		"%s", prompt) != PAM_SUCCESS) {
+	pam_handle_t *pamh = (pam_handle_t *)arg;
+	const char *p;
+	int rc;
+
+	if (options & PAM_OPT_PUSH)
+		strlcpy(buf, "push", bufsz);
+	else if ((rc = pam_get_pass(pamh, PAM_AUTHTOK, &p, prompt, options)) == PAM_SUCCESS)
+		strlcpy(buf, p, bufsz);
+	else
 		return (NULL);
-	}
-	strlcpy(buf, p, bufsz);
-	free(p);
+
 	return (buf);
 }
 
@@ -227,7 +231,15 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		if (strncmp("conf=", argv[i], 5) == 0) {
 			config = argv[i] + 5;
 		} else if (strcmp("debug", argv[i]) == 0) {
-			debug = 1;
+			options |= PAM_OPT_DEBUG;
+		} else if (strcmp("try_first_pass", argv[i]) == 0) {
+			options |= PAM_OPT_TRY_FIRST_PASS;
+		} else if (strcmp("use_first_pass", argv[i]) == 0) {
+			options |= PAM_OPT_USE_FIRST_PASS|PAM_OPT_TRY_FIRST_PASS;
+		} else if (strcmp("use_uid", argv[i]) == 0) {
+			options |= PAM_OPT_USE_UID;
+		} else if (strcmp("push", argv[i]) == 0) {
+			options |= PAM_OPT_PUSH;
 		} else {
 			_syslog(LOG_ERR, "Invalid pam_duo option: '%s'",
 			    argv[i]);
@@ -264,6 +276,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		(duopam_const void *)&service) != PAM_SUCCESS) {
                 return (PAM_SERVICE_ERR);
         }
+	if (options & PAM_OPT_USE_UID) {
+                /* Check calling user for Duo auth, just like sudo */
+                if ((pw = getpwuid(getuid())) == NULL) {
+                        return (PAM_USER_UNKNOWN);
+                }
+                user = pw->pw_name;
+	}
+
         if (strcmp(service, "sshd") == 0) {
                 /*
                  * Disable incremental status reporting for sshd :-(
@@ -273,12 +293,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
                 flags |= DUO_FLAG_SYNC;
         } else if (strcmp(service, "sudo") == 0) {
                 cmd = getenv("SUDO_COMMAND");
-        } else if (strcmp(service, "su") == 0) {
-                /* Check calling user for Duo auth, just like sudo */
-                if ((pw = getpwuid(getuid())) == NULL) {
-                        return (PAM_USER_UNKNOWN);
-                }
-                user = pw->pw_name;
         }
 	/* Check group membership */
 	if (cfg.groups_cnt > 0) {
