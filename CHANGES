@@ -4,6 +4,8 @@ duo_unix-1.9:
 
 - Added http_proxy option to the config file
 
+- Various build fixups
+
 - Documentation cleanups
 
 duo_unix-1.8:
