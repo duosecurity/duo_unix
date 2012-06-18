@@ -45,6 +45,7 @@ struct duo_config {
 	char	*skey;
 	char	*apihost;
 	char	*cafile;
+	char	*http_proxy;
 	char	*groups[MAX_GROUPS];
 	int	 groups_cnt;
 	int	 failmode;	/* Duo failure handling: DUO_FAIL_* */
@@ -87,6 +88,8 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 		cfg->apihost = strdup(val);
 	} else if (strcmp(name, "cafile") == 0) {
 		cfg->cafile = strdup(val);
+	} else if (strcmp(name, "http_proxy") == 0) {
+		cfg->http_proxy = strdup(val);
 	} else if (strcmp(name, "groups") == 0 || strcmp(name, "group") == 0) {
 		if ((buf = strdup(val)) == NULL) {
 			fprintf(stderr, "Out of memory parsing groups\n");
@@ -245,6 +248,12 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 		strlcpy(buf, ip, sizeof(buf));
 		ip = strtok(buf, " ");
 	}
+
+	/* Honor configured http_proxy, or set by pam_env */
+	if (cfg.http_proxy != NULL) {
+		setenv("http_proxy", cfg.http_proxy, 1);
+	}
+
 	/* Try Duo auth. */
 	if ((duo = duo_open(cfg.apihost, cfg.ikey, cfg.skey,
                     "login_duo/" PACKAGE_VERSION,
