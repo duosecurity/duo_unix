@@ -143,6 +143,24 @@ AC_DEFINE_UNQUOTED(DUO_PRIVSEP_USER, "$DUO_PRIVSEP_USER",
 	[Dedicated user for privilege separation])
 AC_SUBST(DUO_PRIVSEP_USER)
 
+# Multilib foo
+AC_ARG_ENABLE(lib64,
+[ --enable-lib64=[yes/no] Enable lib64 support [default=yes]],,
+    enable_lib64=yes)
+AC_SUBST(enable_lib64)
+
+# If the user specified a libdir ending in lib64 do not append another
+# 64 to the library names.
+base_libdir=`basename "$libdir"`
+case $base_libdir in
+lib64)
+  enable_lib64=no
+esac
+
+AC_MULTILIB($enable_lib64)
+libdir="$libdir$libdirsuffix"
+AC_MSG_NOTICE([Using libdir "$libdir"])
+
 # Check for functions
 AC_CONFIG_LIBOBJ_DIR([compat])
 AC_CHECK_FUNCS([memcpy memset sysconf])

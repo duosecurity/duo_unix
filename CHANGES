@@ -1,5 +1,7 @@
 duo_unix-1.9:
 
+- Add multilib support to auto-detect lib/lib64 libdirs
+
 - Added http_proxy option to the config file
 
 - Documentation cleanups
