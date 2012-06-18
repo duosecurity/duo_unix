@@ -80,7 +80,7 @@ AC_HEADER_STDC
 AC_CHECK_HEADERS([inttypes.h limits.h memory.h stdint.h stdlib.h string.h unistd.h])
 
 # Check OpenSSL
-AX_CHECK_OPENSSL([], AC_MSG_FAILURE([OpenSSL not found]))
+PKG_CHECK_MODULES([OPENSSL], [libssl libcrypto])
 
 # Default PAM install dir
 case "$host" in
@@ -99,12 +99,16 @@ AC_ARG_WITH(pam,
 )
 AM_CONDITIONAL([PAM], [ test "x$with_pam" != "xno" ])
 
-if test "x$with_pam" != "xno" ; then
+AS_IF([test "x$with_pam" != "xno"], [
+  save_LIBS=$LIBS
   AC_CHECK_HEADERS([security/pam_appl.h], [],
     [AC_MSG_ERROR([[PAM header files not found, install libpam-dev/pam-devel/etc.]])])
   AC_CHECK_HEADERS([security/pam_modules.h security/pam_ext.h], [], [],
     [#include <security/pam_appl.h>])
-  AC_CHECK_LIB([pam], [main], [AC_SUBST([LIBPAM], ["-lpam"])], AC_MSG_FAILURE([libpam not found]))
+
+  AC_CHECK_LIB([pam], [main], [], AC_MSG_FAILURE([libpam not found]))
+  AC_SUBST([LIBPAM], ["-lpam"])
+
   AS_IF([ test "x$with_pam" != "xno" ], [
     case "${withval}" in
     /*|\$*) PAMDIR="${withval}";;
@@ -113,8 +117,9 @@ if test "x$with_pam" != "xno" ; then
     esac
     AC_MSG_NOTICE([PAM installation path $PAMDIR])
   ])
-  AC_SEARCH_LIBS(pam_vprompt, pam, [AC_DEFINE([HAVE_PAM_VPROMPT], [1], [Define if pam_vprompt exists])])
-fi
+  AC_CHECK_FUNCS([pam_vprompt])
+  LIBS=$save_LIBS
+])
 AC_SUBST(PAMDIR, "$PAMDIR")
 
 # Check for Duo privsep user
@@ -150,6 +155,6 @@ AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy vsyslog])
 AC_SEARCH_LIBS(inet_ntoa, nsl)
 AC_SEARCH_LIBS(gethostbyname, resolv nsl)
 
-AC_CONFIG_FILES(Makefile compat/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile duo_unix.spec tests/Makefile)
+AC_CONFIG_FILES(Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile duo_unix.spec tests/Makefile)
 
 AC_OUTPUT
