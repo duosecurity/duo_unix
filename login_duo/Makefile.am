@@ -11,8 +11,10 @@ notrans_dist_man8_MANS = login_duo.8
 install-exec-hook:
 	-chown root $(DESTDIR)$(sbindir)/login_duo && \
 	 chmod 4755 $(DESTDIR)$(sbindir)/login_duo
+
+install-data-local:
+	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
 	-@if [ ! -f $(DESTDIR)$(sysconfdir)/login_duo.conf ]; then \
-	  mkdir -p -m 755 $(DESTDIR)$(sysconfdir); \
 	  cp login_duo.conf $(DESTDIR)$(sysconfdir)/login_duo.conf; \
 	  echo "Created ${DESTDIR}$(sysconfdir)/login_duo.conf"; \
 	  echo "Please edit it to add your Duo integration and secret keys"; \

@@ -11,7 +11,8 @@ pam_duo_la_LDFLAGS = -module -no-undefined -avoid-version -shared -export-symbol
 
 notrans_dist_man8_MANS = pam_duo.8
 
-install-exec-hook:
+install-data-local:
+	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
 	-@if [ ! -f $(DESTDIR)$(sysconfdir)/pam_duo.conf ]; then \
 		cp pam_duo.conf $(DESTDIR)$(sysconfdir)/pam_duo.conf; \
 		echo "Created ${DESTDIR}$(sysconfdir)/pam_duo.conf"; \
