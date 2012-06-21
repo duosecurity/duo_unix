@@ -6,7 +6,7 @@ lib_LTLIBRARIES = libduo.la
 libduo_la_SOURCES = bson.h bson.c cacert.h duo.c \
 		    http_parser.h http_parser.c https.h https.c ini.h ini.c \
 		    urlenc.h urlenc.c
-libduo_la_LIBADD = ../libcommon.la @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
+libduo_la_LIBADD = $(top_builddir)/compat/libcompat.la @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
 # http://sourceware.org/autobook/autobook/autobook_91.html
 libduo_la_LDFLAGS = -no-undefined -version-info 3:0:0 -export-symbols-regex '^duo_'
 
@@ -22,12 +22,12 @@ noinst_PROGRAMS = testduo
 
 testduo_LDADD = libduo.la
 
-install-exec-hook:
+install-data-local:
+	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
 	-@if [ ! -f $(DESTDIR)$(sysconfdir)/duo.crt ]; then \
-	  mkdir -p -m 755 $(DESTDIR)$(sysconfdir); \
 	  cp duo.crt $(DESTDIR)$(sysconfdir)/duo.crt; \
 	  echo "Created ${DESTDIR}$(sysconfdir)/duo.crt"; \
 	else \
-	  echo "Found existing ${DESTDIR}$(sysconfdir)/login_duo.conf - skipping"; \
+	  echo "Found existing ${DESTDIR}$(sysconfdir)/duo.crt - skipping"; \
 	fi
 
