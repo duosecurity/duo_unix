@@ -1,14 +1,7 @@
 
 ACLOCAL_AMFLAGS = -I autotools
 
-noinst_LTLIBRARIES = libcommon.la
-
-libcommon_la_SOURCES = \
-	lib/groupaccess.c lib/groupaccess.h \
-	lib/match.c lib/match.h
-libcommon_la_LIBADD = @LTLIBOBJS@
-
-SUBDIRS = . lib login_duo
+SUBDIRS = compat lib login_duo
 
 if PAM
 SUBDIRS += pam_duo
