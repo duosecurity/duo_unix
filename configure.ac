@@ -55,6 +55,10 @@ case "$host_os" in
 	AC_MSG_NOTICE([-fstack-protector disabled on SunOS])
 	has_stack_protector=no
 	;;
+     *solaris*)
+	AC_MSG_NOTICE([-fstack-protector disabled on Solaris])
+	has_stack_protector=no
+	;;
 esac
 if test x$has_stack_protector = xyes; then
    CFLAGS="$CFLAGS -fstack-protector"
