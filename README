@@ -126,6 +126,18 @@ The login_duo binary is marked setuid in order to read the protected
 login_duo.conf configuration file. However, privileges are dropped
 immediately after so the privileged attack surface is minimal.
 
+Proxy Support
+------
+Both login_duo and pam_duo (since duo_unix version 1.7) have experimental
+support for the standard "http_proxy" environment variable (honored by
+wget, curl, etc.).
+
+You can have this set by adding the http_proxy variable to your login_duo.conf
+file, in the following format:
+
+http_proxy=http://username:password@proxy.example.org:8080
+
+
 Support
 -------
 
