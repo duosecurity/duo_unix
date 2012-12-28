@@ -71,9 +71,9 @@ The default path for local configuration files will be set to /etc/duo
 (which can be changed by specifying --sysconfdir=DIR).
 
 NOTE: If you're missing ./configure you accidentally downloaded the
-git source tree tarball. Get a versioned package tarball instead:
+git source tree tarball. Grab the latest tarball instead:
 
-	https://github.com/duosecurity/duo_unix/downloads
+	https://dl.duosecurity.com/duo_unix-latest.tar.gz
 
 Then just run "make".
 
