@@ -358,7 +358,10 @@ https_open(struct https_request **reqp, const char *host)
                             sizeof(ctx->parse_buf))) <= 0) {
                         _BIO_wait(req->cbio, 5);
                 }
-                if (strncmp("HTTP/1.0 200", ctx->parse_buf, 12) != 0) {
+                /* Tolerate HTTP proxies that respond with an
+                   incorrect HTTP version number */
+                if ((strncmp("HTTP/1.0 200", ctx->parse_buf, 12) != 0)
+                    && (strncmp("HTTP/1.1 200", ctx->parse_buf, 12) != 0)) {
                         snprintf(ctx->errbuf, sizeof(ctx->errbuf),
                             "Proxy error: %s", ctx->parse_buf);
                         ctx->errstr = strtok(ctx->errbuf, "\r\n");
