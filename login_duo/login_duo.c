@@ -57,7 +57,7 @@ struct login_ctx {
 	const char	*config;
 	const char	*duouser;
 	const char	*host;
-        uid_t		 uid;
+	struct passwd	*pw;
 };
 
 int debug = 0;
@@ -132,13 +132,17 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 }
 
 static int
-drop_privs(uid_t uid, gid_t gid)
+drop_privs(struct passwd *pw)
 {
-	if (setgid(gid) < 0)
+	if (setgid(pw->pw_gid) < 0)
 		return (-1);
-	if (setuid(uid) < 0)
+#ifdef HAVE_INITGROUPS
+	if (initgroups(pw->pw_name, pw->pw_gid) < 0)
 		return (-1);
-	if (getgid() != gid || getuid() != uid)
+#endif
+	if (setuid(pw->pw_uid) < 0)
+		return (-1);
+	if (getgid() != pw->pw_gid || getuid() != pw->pw_uid)
 		return (-1);
 	return (0);
 }
@@ -175,16 +179,14 @@ static int
 do_auth(struct login_ctx *ctx, const char *cmd)
 {
 	struct duo_config cfg;
-        struct passwd *pw;
+	struct passwd *pw;
 	duo_t *duo;
 	duo_code_t code;
 	const char *config, *p, *duouser;
 	char *ip, buf[64];
 	int i, flags, ret, tries;
 
-        if ((pw = getpwuid(ctx->uid)) == NULL)
-                die("Who are you?");
-        
+	pw = ctx->pw;
 	duouser = ctx->duouser ? ctx->duouser : pw->pw_name;
 	config = ctx->config ? ctx->config : DUO_CONF;
 	flags = 0;
@@ -345,9 +347,8 @@ do_exec(struct login_ctx *ctx, const char *cmd)
 	char argv0[256];
 	int n;
 
-        if ((pw = getpwuid(ctx->uid)) == NULL)
-                die("Who are you?");
-        
+	pw = ctx->pw;
+
 	if ((shell0 = strrchr(pw->pw_shell, '/')) != NULL) {
 		shell0++;
 	} else {
@@ -425,9 +426,11 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-        ctx->uid = getuid();
-        
-	if (geteuid() != ctx->uid) {
+	if ((ctx->pw = getpwuid(getuid())) == NULL) {
+		die("Who are you?");
+	}
+
+	if (geteuid() != ctx->pw->pw_uid) {
 		/* Setuid-root operation protecting private config. */
 		if (ctx->config != NULL || ctx->duouser != NULL) {
 			die("Only root may specify -c or -f");
@@ -437,14 +440,14 @@ main(int argc, char *argv[])
 		}
 		if ((pid = fork()) == 0) {
 			/* Unprivileged auth child. */
-			if (drop_privs(pw->pw_uid, pw->pw_gid) != 0) {
+			if (drop_privs(pw) != 0) {
 				die("couldn't drop privileges: %s",
 				    strerror(errno));
 			}
 			exit(do_auth(ctx, get_command(argc, argv)));
 		} else {
 			/* Parent continues as user. */
-			if (drop_privs(getuid(), getgid()) != 0) {
+			if (drop_privs(ctx->pw) != 0) {
 				die("couldn't drop privileges: %s",
 				    strerror(errno));
 			}
