@@ -49,8 +49,9 @@ struct duo_config {
 	char	*groups[MAX_GROUPS];
 	int	 groups_cnt;
 	int	 failmode;	/* Duo failure handling: DUO_FAIL_* */
-        int	 pushinfo;
+    int	 pushinfo;
 	int	 noverify;
+	int  autopush;
 };
 
 struct login_ctx {
@@ -123,6 +124,11 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 		if (strcmp(val, "yes") == 0 || strcmp(val, "true") == 0 ||
 		    strcmp(val, "on") == 0 || strcmp(val, "1") == 0) {
 			cfg->noverify = 1;
+		}
+	} else if (strcmp(name, "autopush") == 0) {
+		if (strcmp(val, "yes") == 0 || strcmp(val, "true") == 0 ||
+			strcmp(val, "on") == 0 || strcmp(val, "1") == 0) {
+			cfg->autopush = 1;
 		}
 	} else {
 		fprintf(stderr, "Invalid login_duo option: '%s'\n", name);
@@ -262,14 +268,20 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 		    pw->pw_name, ip, NULL);
 		return (EXIT_FAILURE);
 	}
-	/* Special handling for non-interactive sessions */
+	/* Special handling for non-interactive sessions or autopush option */
 	if ((p = getenv("SSH_ORIGINAL_COMMAND")) != NULL ||
-	    !isatty(STDIN_FILENO)) {
+	    !isatty(STDIN_FILENO) || cfg.autopush) {
 		/* Try to support automatic one-shot login */
 		duo_set_conv_funcs(duo, NULL, NULL, NULL);
 		flags = (DUO_FLAG_SYNC|DUO_FLAG_AUTO);
 		tries = 1;
-        }
+    }
+
+    /* Still want to give retries with autopush */
+    if (cfg.autopush) {
+    	tries = MAX_RETRIES;
+    }
+
 	ret = EXIT_FAILURE;
 	
 	for (i = 0; i < tries; i++) {
@@ -280,6 +292,11 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 			    duouser, ip, duo_geterr(duo));
 			if ((flags & DUO_FLAG_SYNC) == 0) {
 				printf("\n");
+			}
+			/* The autopush failed, fall back to regular process */
+			if (cfg.autopush && i == 0) {
+				flags = 0;
+				duo_reset_conv_funcs(duo);
 			}
 			/* Keep going */
 			continue;

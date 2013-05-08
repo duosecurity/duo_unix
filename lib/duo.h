@@ -40,6 +40,9 @@ void	    duo_set_conv_funcs(duo_t *d,
 	    	void (*conv_status)(void *conv_arg, const char *msg),
 	    	void *conv_arg);
 
+/* Reset the conversation prompt/status functions back to default */
+void		duo_reset_conv_funcs(duo_t *d);
+
 /* Perform Duo authentication */
 duo_code_t  duo_login(duo_t *d, const char *username,
     		const char *client_ip, int flags, const char *command);

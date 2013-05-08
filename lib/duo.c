@@ -159,6 +159,13 @@ duo_set_conv_funcs(struct duo_ctx *ctx,
 	ctx->conv_arg = arg;
 }
 
+void
+duo_reset_conv_funcs(struct duo_ctx *ctx)
+{
+	ctx->conv_prompt = __prompt_fn;
+	ctx->conv_status = __status_fn;
+}
+
 static duo_code_t
 duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
 {
