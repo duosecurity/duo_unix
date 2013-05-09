@@ -34,6 +34,7 @@
 #define DUO_CONF		DUO_CONF_DIR "/login_duo.conf"
 #define MAX_RETRIES		3
 #define MAX_GROUPS		256
+#define MOTD_FILE		"/etc/motd"
 
 enum {
 	DUO_FAIL_SAFE = 0,
@@ -178,15 +179,45 @@ _log(int priority, const char *msg,
 }
 
 static int
+_print_motd()
+{
+	FILE *fp;
+	struct stat st;
+	int fd, bytes_read;
+	size_t nbytes = 80;
+	char *line;
+
+	if ((line = (char *) malloc(nbytes + 1)) == NULL) {
+		fprintf(stderr, "Out of memory printing MOTD\n");
+		return (-1);
+	}
+	if ((fd = open(MOTD_FILE, O_RDONLY)) < 0 ) {
+		return (-1);
+	}
+	if (fstat(fd, &st) < 0 || (fp = fdopen(fd, "r")) == NULL) {
+		close(fd);
+		return (-1);
+	}
+
+	while ((bytes_read = getline(&line, &nbytes, fp)) > 0) {
+		printf("%s", line);
+	}
+	free(line);
+	line = NULL;
+	return (0);
+}
+
+static int
 do_auth(struct login_ctx *ctx, const char *cmd)
 {
 	struct duo_config cfg;
-        struct passwd *pw;
+    struct passwd *pw;
 	duo_t *duo;
 	duo_code_t code;
 	const char *config, *p, *duouser;
 	char *ip, buf[64];
 	int i, flags, ret, tries;
+	int headless = 0;
 
         if ((pw = getpwuid(ctx->uid)) == NULL)
                 die("Who are you?");
@@ -268,18 +299,20 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 		    pw->pw_name, ip, NULL);
 		return (EXIT_FAILURE);
 	}
-	/* Special handling for non-interactive sessions or autopush option */
+	/* Special handling for non-interactive sessions */
 	if ((p = getenv("SSH_ORIGINAL_COMMAND")) != NULL ||
-	    !isatty(STDIN_FILENO) || cfg.autopush) {
+	    !isatty(STDIN_FILENO)) {
 		/* Try to support automatic one-shot login */
 		duo_set_conv_funcs(duo, NULL, NULL, NULL);
 		flags = (DUO_FLAG_SYNC|DUO_FLAG_AUTO);
 		tries = 1;
+		headless = 1;
     }
 
-    /* Still want to give retries with autopush */
+    /* Special handling for autopush */
     if (cfg.autopush) {
-    	tries = MAX_RETRIES;
+		duo_set_conv_funcs(duo, NULL, NULL, NULL);
+		flags = (DUO_FLAG_SYNC|DUO_FLAG_AUTO);
     }
 
 	ret = EXIT_FAILURE;
@@ -303,13 +336,16 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 		}
 		/* Terminal conditions */
 		if (code == DUO_OK) {
-                        if ((p = duo_geterr(duo)) != NULL) {
+            if ((p = duo_geterr(duo)) != NULL) {
 				_log(LOG_WARNING, "Skipped Duo login",
 				    duouser, ip, p);
-                        } else {
+            } else {
 				_log(LOG_INFO, "Successful Duo login",
 				    duouser, ip, NULL);
-                        }
+            }
+			if (!headless) {
+				_print_motd();
+			}
 			ret = EXIT_SUCCESS;
 		} else if (code == DUO_ABORT) {
 			_log(LOG_WARNING, "Aborted Duo login",
