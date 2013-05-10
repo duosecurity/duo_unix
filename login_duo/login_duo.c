@@ -53,6 +53,7 @@ struct duo_config {
     int	 pushinfo;
 	int	 noverify;
 	int  autopush;
+	int  motd;
 };
 
 struct login_ctx {
@@ -131,6 +132,11 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 			strcmp(val, "on") == 0 || strcmp(val, "1") == 0) {
 			cfg->autopush = 1;
 		}
+	} else if (strcmp(name, "motd") == 0) {
+		if (strcmp(val, "yes") == 0 || strcmp(val, "true") == 0 ||
+			strcmp(val, "on") == 0 || strcmp(val, "1") == 0) {
+			cfg->motd = 1;
+		}		
 	} else {
 		fprintf(stderr, "Invalid login_duo option: '%s'\n", name);
 		return (0);
@@ -343,7 +349,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 				_log(LOG_INFO, "Successful Duo login",
 				    duouser, ip, NULL);
             }
-			if (!headless) {
+			if (cfg.motd && !headless) {
 				_print_motd();
 			}
 			ret = EXIT_SUCCESS;
