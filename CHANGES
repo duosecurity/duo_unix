@@ -1,3 +1,9 @@
+duo_unix-1.9.1:
+
+- Add motd option to the config file
+
+- Add autopush option to the config file
+
 duo_unix-1.9:
 
 - Add multilib support to auto-detect lib/lib64 libdirs
