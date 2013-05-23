@@ -190,13 +190,10 @@ _print_motd()
 	FILE *fp;
 	struct stat st;
 	int fd, bytes_read;
-	size_t nbytes = 80;
-	char *line;
+	size_t nbytes = 81;
+	char read[nbytes];
+	char *result;
 
-	if ((line = (char *) malloc(nbytes + 1)) == NULL) {
-		fprintf(stderr, "Out of memory printing MOTD\n");
-		return (-1);
-	}
 	if ((fd = open(MOTD_FILE, O_RDONLY)) < 0 ) {
 		return (-1);
 	}
@@ -205,11 +202,9 @@ _print_motd()
 		return (-1);
 	}
 
-	while ((bytes_read = getline(&line, &nbytes, fp)) > 0) {
-		printf("%s", line);
+	while ((result = fgets(read, nbytes, fp))) {
+		printf("%s", result);
 	}
-	free(line);
-	line = NULL;
 	return (0);
 }
 
