@@ -77,6 +77,22 @@ Send command to be approved via Duo Push authentication. Default is
 .It Cm http_proxy
 Use the specified HTTP proxy, same format as the HTTP_PROXY environment
 variable.
+.It Cm autopush
+Upon successful first-factor authentication, automatically send a login request to the primary second-factor (usually Duo Push). Can be
+.Dq Li yes
+or
+.Dq Li no .
+Default is 
+.Dq Li no .
+.It Cm motd
+Print the contents of 
+.Pa /etc/motd
+to screen after a successful login. Either
+.Dq Li yes
+or
+.Dq Li no .
+Default is
+.Dq Li no .
 .El
 .Pp
 An example configuration file:
