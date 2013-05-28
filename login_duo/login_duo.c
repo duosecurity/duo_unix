@@ -188,23 +188,19 @@ static int
 _print_motd()
 {
 	FILE *fp;
-	struct stat st;
-	int fd, bytes_read;
-	size_t nbytes = 81;
+	size_t nbytes = 80;
 	char read[nbytes];
-	char *result;
+	size_t result;
 
-	if ((fd = open(MOTD_FILE, O_RDONLY)) < 0 ) {
-		return (-1);
-	}
-	if (fstat(fd, &st) < 0 || (fp = fdopen(fd, "r")) == NULL) {
-		close(fd);
+	if ((fp = fopen(MOTD_FILE, "r")) == NULL) {
 		return (-1);
 	}
 
-	while ((result = fgets(read, nbytes, fp))) {
-		printf("%s", result);
+	while ((result = fread(read, sizeof(char), nbytes, fp))) {
+		fwrite(read, sizeof(char), result, stdout);
 	}
+	fclose(fp);
+
 	return (0);
 }
 
