@@ -39,6 +39,7 @@ static const int zero = 0;
 #define bson_big_endian32(out, in) ( bson_swap_endian32(out, in) )
 #endif
 
+#ifdef WORDS_BIGENDIAN
 static void bson_swap_endian64(void* outp, const void* inp){
     const char *in = (const char*)inp;
     char *out = (char*)outp;
@@ -53,6 +54,7 @@ static void bson_swap_endian64(void* outp, const void* inp){
     out[7] = in[0];
 
 }
+#endif
 static void bson_swap_endian32(void* outp, const void* inp){
     const char *in = (const char*)inp;
     char *out = (char*)outp;
