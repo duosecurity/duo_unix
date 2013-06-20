@@ -9,6 +9,7 @@
 #define DUO_H
 
 typedef enum {
+	DUO_CONTINUE = -1,		/* continue authentication */
 	DUO_OK = 0,			/* great success! */
 	DUO_FAIL,			/* nice try */
 	DUO_ABORT,			/* give up */

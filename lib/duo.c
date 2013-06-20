@@ -362,7 +362,7 @@ _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username)
 		}
 		return (ret);
 	}
-        return (-1);
+        return (DUO_CONTINUE);
 }
 
 duo_code_t
@@ -405,7 +405,7 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
 			*p = buf;
 		}
 	}
-        return (-1);
+        return (DUO_CONTINUE);
 }
 
 duo_code_t
@@ -426,12 +426,12 @@ duo_login(struct duo_ctx *ctx, const char *username,
 	}
 
 	/* Check preauth status */
-	if ((ret = _duo_preauth(ctx, &obj, username)) != -1) {
+	if ((ret = _duo_preauth(ctx, &obj, username)) != DUO_CONTINUE) {
 		return (ret);
 	}
 
 	/* Handle factor selection */
-	if ((ret = _duo_prompt(ctx, &obj, flags, buf, sizeof(buf), &p)) != -1) {
+	if ((ret = _duo_prompt(ctx, &obj, flags, buf, sizeof(buf), &p)) != DUO_CONTINUE) {
 		return (ret);
 	}
 
