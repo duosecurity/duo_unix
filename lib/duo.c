@@ -39,7 +39,7 @@
 #define DUO_LIB_VERSION     "libduo/" PACKAGE_VERSION
 #define DUO_API_VERSION     "/rest/v1"
 #define AUTOPUSH_MSG        "Autopushing login reqest to phone..."
-#define AUTOPHONE_MSG       "Automatically calling your phone..."
+#define AUTOPHONE_MSG       "Calling your phone..."
 #define AUTODEFAULT_MSG     "Using default second-factor authentication."
 
 
