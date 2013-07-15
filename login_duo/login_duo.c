@@ -54,7 +54,7 @@ struct duo_config {
     int  noverify;
     int  autopush;
     int  motd;
-    int  tries;
+    int  prompts;
 };
 
 struct login_ctx {
@@ -145,7 +145,7 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
             strcmp(val, "on") == 0 || strcmp(val, "1") == 0) {
             cfg->motd = 1;
         }
-    } else if (strcmp(name, "tries") == 0) {
+    } else if (strcmp(name, "prompts") == 0) {
         int_val = atoi(val);
         // Clamp the value into acceptable range
         if (int_val <= 0) {
@@ -153,7 +153,7 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
         } else if (int_val > MAX_RETRIES) {
             int_val = MAX_RETRIES;
         }
-        cfg->tries = int_val;
+        cfg->prompts = int_val;
     } else {
         fprintf(stderr, "Invalid login_duo option: '%s'\n", name);
         return (0);
@@ -231,7 +231,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     duo_code_t code;
     const char *config, *p, *duouser;
     char *ip, buf[64];
-    int i, flags, ret, tries;
+    int i, flags, ret, prompts;
     int headless = 0;
 
         if ((pw = getpwuid(ctx->uid)) == NULL)
@@ -243,7 +243,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     
     memset(&cfg, 0, sizeof(cfg));
     cfg.failmode = DUO_FAIL_SAFE;
-    cfg.tries = MAX_RETRIES;
+    cfg.prompts = MAX_RETRIES;
         
     /* Load our private config. */
     if ((i = duo_parse_config(config, __ini_handler, &cfg)) != 0 ||
@@ -273,7 +273,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
                 }
                 return (EXIT_FAILURE);
     }
-    tries = cfg.tries;
+    prompts = cfg.prompts;
     /* Check group membership. */
     if (cfg.groups_cnt > 0) {
         int matched = 0;
@@ -321,7 +321,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         /* Try to support automatic one-shot login */
         duo_set_conv_funcs(duo, NULL, NULL, NULL);
         flags = (DUO_FLAG_SYNC|DUO_FLAG_AUTO);
-        tries = 1;
+        prompts = 1;
         headless = 1;
     } else if (cfg.autopush) { /* Special handling for autopush */
         duo_set_conv_funcs(duo, NULL, __autopush_status_fn, 
@@ -331,7 +331,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 
     ret = EXIT_FAILURE;
     
-    for (i = 0; i < tries; i++) {
+    for (i = 0; i < prompts; i++) {
         code = duo_login(duo, duouser, ip, flags,
                     cfg.pushinfo ? cmd : NULL);
         if (code == DUO_FAIL) {
