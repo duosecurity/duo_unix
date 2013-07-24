@@ -34,13 +34,30 @@ Duo integration key (required).
 .It Cm skey
 Duo secret key (required).
 .It Cm groups
-If specified, Duo authentication is required only for users whose
-primary group or supplementary group list matches one of the
+If specified, controls which users require Duo authentication based on whether
+their primary group or supplementary group list matches one of the
 space-separated 
 .Em pattern-lists
 (see
 .Sx PATTERNS
-below).
+below). By default, users in the listed groups will require Duo authentication,
+however this can be changed with the
+.Dq Li groups_mode
+option.
+.It Cm groups_mode
+Controls whether the listed groups are required to use Duo authentication or
+exempt from it. If set to
+.Dq Li include
+or
+.Dq Li required
+users of those groups and only users of those groups will require Duo
+authentication. If set to
+.Dq Li exclude
+or
+.Dq Li exempt
+users of those groups will not require Duo authentication but all others
+will. By default this option is set to
+.Dq Li include .
 .It Cm failmode
 On service or configuration errors that prevent Duo authentication, fail
 .Dq Li safe
