@@ -75,6 +75,11 @@ enum {
 	DUO_FAIL_SECURE,
 };
 
+enum {
+	DUO_GROUPS_MODE_INCLUDE = 0,
+	DUO_GROUPS_MODE_EXCLUDE,
+};
+
 static int debug = 0;
 
 struct duo_config {
@@ -84,6 +89,7 @@ struct duo_config {
 	char	*cafile;
 	char	*http_proxy;
 	char	*groups[MAX_GROUPS];
+	int	 groups_mode;
 	int	 groups_cnt;
 	int	 failmode;	/* Duo failure handling: DUO_FAIL_* */
         int	 pushinfo;
@@ -122,6 +128,22 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 		cfg->cafile = strdup(val);
 	} else if (strcmp(name, "http_proxy") == 0) {
 		cfg->http_proxy = strdup(val);
+	} else if (strcmp(name, "groups_mode") == 0 ||
+		   strcmp(name, "group_mode") == 0) {
+		if (strcmp(val, "include") == 0 ||
+		    strcmp(val, "included") == 0 ||
+		    strcmp(val, "require") == 0 ||
+		    strcmp(val, "required") == 0) {
+			cfg->groups_mode = DUO_GROUPS_MODE_INCLUDE;
+		} else if (strcmp(val, "exclude") == 0 ||
+			   strcmp(val, "excluded") == 0 ||
+			   strcmp(val, "exempt") == 0 ||
+			   strcmp(val, "exempted") == 0) {
+			cfg->groups_mode = DUO_GROUPS_MODE_EXCLUDE;
+		} else {
+			_syslog(LOG_ERR, "Invalid groups_mode: '%s'", val);
+			return (0);
+		}
 	} else if (strcmp(name, "groups") == 0 || strcmp(name, "group") == 0) {
 		if ((buf = strdup(val)) == NULL) {
 			_syslog(LOG_ERR, "Out of memory parsing groups");
@@ -220,6 +242,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 
 	memset(&cfg, 0, sizeof(cfg));
         cfg.failmode = DUO_FAIL_SAFE;
+	cfg.groups_mode = DUO_GROUPS_MODE_INCLUDE;
 
 	/* Parse configuration */
 	config = DUO_CONF;
@@ -280,7 +303,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
                 }
                 user = pw->pw_name;
         }
-	/* Check group membership */
+	/* Check group membership, include everyone if no groups listed */
 	if (cfg.groups_cnt > 0) {
 		int matched = 0;
 
@@ -297,8 +320,12 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		}
 		ga_free();
 
-		/* User in configured groups for Duo auth? */
-		if (!matched)
+		/* User in an group excluded from Duo auth? */
+		if (matched && cfg.groups_mode == DUO_GROUPS_MODE_EXCLUDE)
+			return (PAM_SUCCESS);
+
+		/* User *NOT* in a group included to Duo auth? */
+                if (!matched && cfg.groups_mode == DUO_GROUPS_MODE_INCLUDE)
 			return (PAM_SUCCESS);
 	}
 
