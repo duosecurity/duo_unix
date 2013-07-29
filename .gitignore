@@ -35,3 +35,6 @@
 /tests/testpam
 Makefile
 Makefile.in
+/autotools/test-driver
+/duo_unix-*
+test.conf

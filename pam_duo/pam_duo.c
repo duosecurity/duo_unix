@@ -55,6 +55,7 @@
 # define duopam_const           /* Solaris, HP-UX, AIX */
 #endif
 
+#include "util.h"
 #include "duo.h"
 #include "groupaccess.h"
 #include "pam_extra.h"
@@ -67,97 +68,14 @@
 # define DUO_PRIVSEP_USER	"duo"
 #endif
 #define DUO_CONF		DUO_CONF_DIR "/pam_duo.conf"
-#define MAX_RETRIES		3
-#define MAX_GROUPS		256
-
-enum {
-	DUO_FAIL_SAFE = 0,
-	DUO_FAIL_SECURE,
-};
-
-static int debug = 0;
-
-struct duo_config {
-	char	*ikey;
-	char	*skey;
-	char	*host;
-	char	*cafile;
-	char	*http_proxy;
-	char	*groups[MAX_GROUPS];
-	int	 groups_cnt;
-	int	 failmode;	/* Duo failure handling: DUO_FAIL_* */
-        int	 pushinfo;
-	int	 noverify;
-};
-
-static void
-_syslog(int priority, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	if (debug) {
-		fprintf(stderr, "[%d] ", priority);
-		vfprintf(stderr, fmt, ap);
-		fputs("\n", stderr);
-	} else {
-		vsyslog(priority, fmt, ap);
-	}
-	va_end(ap);
-}
 
 static int
 __ini_handler(void *u, const char *section, const char *name, const char *val)
 {
 	struct duo_config *cfg = (struct duo_config *)u;
-	char *buf, *p;
-	
-	if (strcmp(name, "ikey") == 0) {
-		cfg->ikey = strdup(val);
-	} else if (strcmp(name, "skey") == 0) {
-		cfg->skey = strdup(val);
-	} else if (strcmp(name, "host") == 0) {
-		cfg->host = strdup(val);
-	} else if (strcmp(name, "cafile") == 0) {
-		cfg->cafile = strdup(val);
-	} else if (strcmp(name, "http_proxy") == 0) {
-		cfg->http_proxy = strdup(val);
-	} else if (strcmp(name, "groups") == 0 || strcmp(name, "group") == 0) {
-		if ((buf = strdup(val)) == NULL) {
-			_syslog(LOG_ERR, "Out of memory parsing groups");
-			return (0);
-		}
-		for (p = strtok(buf, " "); p != NULL; p = strtok(NULL, " ")) {
-			if (cfg->groups_cnt >= MAX_GROUPS) {
-			        _syslog(LOG_ERR, "Exceeded max %d groups",
-				    MAX_GROUPS);
-				cfg->groups_cnt = 0;
-				free(buf);
-				return (0);
-			}
-			cfg->groups[cfg->groups_cnt++] = p;
-		}
-	} else if (strcmp(name, "failmode") == 0) {
-		if (strcmp(val, "secure") == 0) {
-			cfg->failmode = DUO_FAIL_SECURE;
-		} else if (strcmp(val, "safe") == 0) {
-			cfg->failmode = DUO_FAIL_SAFE;
-		} else {
-			_syslog(LOG_ERR, "Invalid failmode: '%s'", val);
-			return (0);
-		}
-	} else if (strcmp(name, "pushinfo") == 0) {
-		if (strcmp(val, "yes") == 0 || strcmp(val, "true") == 0 ||
-		    strcmp(val, "on") == 0 || strcmp(val, "1") == 0) {
-			cfg->pushinfo = 1;
-		}
-	} else if (strcmp(name, "noverify") == 0) {
-		if (strcmp(val, "yes") == 0 || strcmp(val, "true") == 0 ||
-		    strcmp(val, "on") == 0 || strcmp(val, "1") == 0) {
-			cfg->noverify = 1;
-		}
-	} else {
-		_syslog(LOG_ERR, "Invalid pam_duo option: '%s'", name);
+	if (!duo_common_ini_handler(cfg, section, name, val)) {
+		/* There are no options specific to pam_duo yet */
+		duo_syslog(LOG_ERR, "Invalid pam_duo option: '%s'", name);
 		return (0);
 	}
 	return (1);
@@ -183,30 +101,6 @@ __duo_prompt(void *arg, const char *prompt, char *buf, size_t bufsz)
 	return (buf);
 }
 
-static void
-_log(int priority, const char *msg,
-    const char *user, const char *ip, const char *err)
-{
-	char buf[512];
-	int i, n;
-
-	n = snprintf(buf, sizeof(buf), "%s", msg);
-
-	if (user != NULL &&
-	    (i = snprintf(buf + n, sizeof(buf) - n, " for '%s'", user)) > 0) {
-		n += i;
-	}
-	if (ip != NULL &&
-	    (i = snprintf(buf + n, sizeof(buf) - n, " from %s", ip)) > 0) {
-		n += i;
-	}
-	if (err != NULL &&
-	    (i = snprintf(buf + n, sizeof(buf) - n, ": %s", err)) > 0) {
-		n += i;
-	}
-	_syslog(priority, "%s", buf);
-}
-
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     int argc, const char *argv[])
@@ -216,10 +110,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	duo_t *duo;
 	duo_code_t code;
 	duopam_const char *config, *cmd, *ip, *p, *service, *user;
-	int i, flags, pam_err;
+	int i, flags, pam_err, matched;
 
-	memset(&cfg, 0, sizeof(cfg));
-        cfg.failmode = DUO_FAIL_SAFE;
+	duo_config_default(&cfg);
 
 	/* Parse configuration */
 	config = DUO_CONF;
@@ -227,80 +120,66 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		if (strncmp("conf=", argv[i], 5) == 0) {
 			config = argv[i] + 5;
 		} else if (strcmp("debug", argv[i]) == 0) {
-			debug = 1;
+			duo_debug = 1;
 		} else {
-			_syslog(LOG_ERR, "Invalid pam_duo option: '%s'",
+			duo_syslog(LOG_ERR, "Invalid pam_duo option: '%s'",
 			    argv[i]);
 			return (PAM_SERVICE_ERR);
 		}
 	}
 	i = duo_parse_config(config, __ini_handler, &cfg);
 	if (i == -2) {
-		_syslog(LOG_ERR, "%s must be readable only by user 'root'",
+		duo_syslog(LOG_ERR, "%s must be readable only by user 'root'",
 		    config);
-		return (PAM_SERVICE_ERR);
+		return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
 	} else if (i == -1) {
-		_syslog(LOG_ERR, "Couldn't open %s: %s",
+		duo_syslog(LOG_ERR, "Couldn't open %s: %s",
 		    config, strerror(errno));
-		return (PAM_SERVICE_ERR);
+		return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
 	} else if (i > 0) {
-		_syslog(LOG_ERR, "Parse error in %s, line %d", config, i);
-		return (PAM_SERVICE_ERR);
-	} else if (!cfg.host || !cfg.host[0] ||
+		duo_syslog(LOG_ERR, "Parse error in %s, line %d", config, i);
+		return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+	} else if (!cfg.apihost || !cfg.apihost[0] ||
             !cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0]) {
-		_syslog(LOG_ERR, "Missing host, ikey, or skey in %s", config);
-		return (PAM_SERVICE_ERR);
+		duo_syslog(LOG_ERR, "Missing host, ikey, or skey in %s", config);
+		return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
 	}
         
-        /* Check user */
-        if (pam_get_user(pamh, &user, NULL) != PAM_SUCCESS ||
-            (pw = getpwnam(user)) == NULL) {
-                return (PAM_USER_UNKNOWN);
-        }
-        /* XXX - Service-specific behavior */
+    /* Check user */
+    if (pam_get_user(pamh, &user, NULL) != PAM_SUCCESS ||
+        (pw = getpwnam(user)) == NULL) {
+            return (PAM_USER_UNKNOWN);
+    }
+    /* XXX - Service-specific behavior */
 	flags = 0;
-        cmd = NULL;
+    cmd = NULL;
 	if (pam_get_item(pamh, PAM_SERVICE, (duopam_const void **)
 		(duopam_const void *)&service) != PAM_SUCCESS) {
                 return (PAM_SERVICE_ERR);
         }
-        if (strcmp(service, "sshd") == 0) {
-                /*
-                 * Disable incremental status reporting for sshd :-(
-                 * OpenSSH accumulates PAM_TEXT_INFO from modules to send in
-                 * an SSH_MSG_USERAUTH_BANNER post-auth, not real-time!
-                 */
-                flags |= DUO_FLAG_SYNC;
-        } else if (strcmp(service, "sudo") == 0) {
-                cmd = getenv("SUDO_COMMAND");
-        } else if (strcmp(service, "su") == 0) {
-                /* Check calling user for Duo auth, just like sudo */
-                if ((pw = getpwuid(getuid())) == NULL) {
-                        return (PAM_USER_UNKNOWN);
-                }
-                user = pw->pw_name;
-        }
+    if (strcmp(service, "sshd") == 0) {
+            /*
+             * Disable incremental status reporting for sshd :-(
+             * OpenSSH accumulates PAM_TEXT_INFO from modules to send in
+             * an SSH_MSG_USERAUTH_BANNER post-auth, not real-time!
+             */
+            flags |= DUO_FLAG_SYNC;
+    } else if (strcmp(service, "sudo") == 0) {
+            cmd = getenv("SUDO_COMMAND");
+    } else if (strcmp(service, "su") == 0) {
+            /* Check calling user for Duo auth, just like sudo */
+            if ((pw = getpwuid(getuid())) == NULL) {
+                    return (PAM_USER_UNKNOWN);
+            }
+            user = pw->pw_name;
+    }
 	/* Check group membership */
-	if (cfg.groups_cnt > 0) {
-		int matched = 0;
-
-		if (ga_init(pw->pw_name, pw->pw_gid) < 0) {
-			_log(LOG_ERR, "Couldn't get groups",
-			    pw->pw_name, NULL, strerror(errno));
-			return (PAM_SERVICE_ERR);
-		}
-		for (i = 0; i < cfg.groups_cnt; i++) {
-			if (ga_match_pattern_list(cfg.groups[i])) {
-				matched = 1;
-				break;
-			}
-		}
-		ga_free();
-
-		/* User in configured groups for Duo auth? */
-		if (!matched)
-			return (PAM_SUCCESS);
-	}
+    matched = duo_check_groups(pw, cfg.groups, cfg.groups_cnt);
+    if (matched == -1) {
+        return (PAM_SERVICE_ERR);
+    } else if (matched == 0) {
+        return (PAM_SUCCESS);
+    }
 
 	ip = NULL;
 	pam_get_item(pamh, PAM_RHOST,
@@ -312,21 +191,25 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	}
 
 	/* Try Duo auth */
-	if ((duo = duo_open(cfg.host, cfg.ikey, cfg.skey,
+	if ((duo = duo_open(cfg.apihost, cfg.ikey, cfg.skey,
                     "pam_duo/" PACKAGE_VERSION,
                     cfg.noverify ? "" : cfg.cafile)) == NULL) {
-		_log(LOG_ERR, "Couldn't open Duo API handle", user, ip, NULL);
+		duo_log(LOG_ERR, "Couldn't open Duo API handle", user, ip, NULL);
 		return (PAM_SERVICE_ERR);
 	}
 	duo_set_conv_funcs(duo, __duo_prompt, __duo_status, pamh);
 
+	if (cfg.autopush) {
+		flags |= DUO_FLAG_AUTO;
+	}
+
 	pam_err = PAM_SERVICE_ERR;
 	
-	for (i = 0; i < MAX_RETRIES; i++) {
+	for (i = 0; i < cfg.prompts; i++) {
 		code = duo_login(duo, user, ip, flags,
                     cfg.pushinfo ? cmd : NULL);
 		if (code == DUO_FAIL) {
-			_log(LOG_WARNING, "Failed Duo login",
+			duo_log(LOG_WARNING, "Failed Duo login",
 			    user, ip, duo_geterr(duo));
 			if ((flags & DUO_FLAG_SYNC) == 0) {
 				pam_info(pamh, "%s", "");
@@ -337,31 +220,31 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		/* Terminal conditions */
 		if (code == DUO_OK) {
 			if ((p = duo_geterr(duo)) != NULL) {
-				_log(LOG_WARNING, "Skipped Duo login",
+				duo_log(LOG_WARNING, "Skipped Duo login",
 				    user, ip, p);
 			} else {
-				_log(LOG_INFO, "Successful Duo login",
+				duo_log(LOG_INFO, "Successful Duo login",
 				    user, ip, NULL);
 			}
 			pam_err = PAM_SUCCESS;
 		} else if (code == DUO_ABORT) {
-			_log(LOG_WARNING, "Aborted Duo login",
+			duo_log(LOG_WARNING, "Aborted Duo login",
 			    user, ip, duo_geterr(duo));
 			pam_err = PAM_ABORT;
 		} else if (cfg.failmode == DUO_FAIL_SAFE &&
                     (code == DUO_CONN_ERROR ||
                      code == DUO_CLIENT_ERROR || code == DUO_SERVER_ERROR)) {
-			_log(LOG_WARNING, "Failsafe Duo login",
+			duo_log(LOG_WARNING, "Failsafe Duo login",
 			    user, ip, duo_geterr(duo));
 			pam_err = PAM_SUCCESS;
 		} else {
-			_log(LOG_ERR, "Error in Duo login",
+			duo_log(LOG_ERR, "Error in Duo login",
 			    user, ip, duo_geterr(duo));
 			pam_err = PAM_SERVICE_ERR;
 		}
 		break;
 	}
-	if (i == MAX_RETRIES) {
+	if (i == MAX_PROMPTS) {
 		pam_err = PAM_MAXTRIES;
 	}
 	duo_close(duo);
