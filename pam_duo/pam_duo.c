@@ -203,6 +203,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		flags |= DUO_FLAG_AUTO;
 	}
 
+	if (cfg.accept_env) {
+		flags |= DUO_FLAG_ENV;
+	}
+
 	pam_err = PAM_SERVICE_ERR;
 	
 	for (i = 0; i < cfg.prompts; i++) {

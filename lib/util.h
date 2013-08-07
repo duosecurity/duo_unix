@@ -37,6 +37,7 @@ struct duo_config {
     int  autopush;
     int  motd; /* login_duo only */
     int  prompts;
+    int  accept_env;
 };
 
 int duo_config_default(struct duo_config *cfg);

@@ -201,6 +201,10 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         flags = (DUO_FLAG_SYNC|DUO_FLAG_AUTO);
     }
 
+    if (cfg.accept_env) {
+        flags |= DUO_FLAG_ENV;
+    }
+
     ret = EXIT_FAILURE;
     
     for (i = 0; i < prompts; i++) {

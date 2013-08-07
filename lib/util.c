@@ -90,6 +90,8 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         }
     } else if (strcmp(name, "autopush") == 0) {
         cfg->autopush = duo_set_boolean_option(val);
+    } else if (strcmp(name, "AcceptEnvFactor") == 0) {
+        cfg->accept_env = duo_set_boolean_option(val);
     } else {
         /* Couldn't handle the option, maybe it's target specific? */
         return (0);

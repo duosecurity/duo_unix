@@ -41,6 +41,7 @@
 #define AUTOPUSH_MSG        "Autopushing login reqest to phone..."
 #define AUTOPHONE_MSG       "Calling your phone..."
 #define AUTODEFAULT_MSG     "Using default second-factor authentication."
+#define ENV_VAR_MSG         "Reading $DUO_PASSCODE..."
 
 
 struct duo_ctx {
@@ -374,9 +375,14 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
     size_t sz, const char **p)
 {
     bson_iterator it;
-    char *pos;
-        
-    if ((flags & DUO_FLAG_AUTO) != 0) {
+    char *pos, *passcode;
+
+    passcode = getenv(DUO_ENV_VAR_NAME);
+
+    if ((flags & DUO_FLAG_ENV) && (passcode != NULL)) {
+        *p = passcode;
+        ctx->conv_status(NULL, ENV_VAR_MSG);
+    } else if ((flags & DUO_FLAG_AUTO) != 0) {
         /* Find default OOB factor for automatic login */
         _BSON_FIND(ctx, &it, obj, "factors", bson_object);
         bson_iterator_subobject(&it, obj);
