@@ -87,14 +87,12 @@ Default is
 .It Cm motd
 Print the contents of 
 .Pa /etc/motd
-to screen after a successful login. Either
-.Dq Li yes
-or
-.Dq Li no .
-Default is
-.Dq Li no .
-.It Cm tries
-Number of login attempts a user gets. Default is 3. If using autopush, it is recommended to set tries to 1.
+to screen after a successful login. Either "yes" or "no."
+Default is "no".
+.It Cm prompts
+Number of login attempts a user gets. Default is 3. If using autopush, it is recommended to set prompts to 1.
+.It Cm accept_env_factor
+Looks for a passcode, or command (e.g. "push", "sms", etc.) in the $DUO_PASSCODE environment variable. sshd will need to be configured to accept the $DUO_PASSCODE environment variable, and the ssh client will need to be configured to send it. Default is "no".
 .El
 .Pp
 An example configuration file:

@@ -1,8 +1,18 @@
+duo_unix-1.9.4:
+
+- Send codes / push requests using $DUO_PASSCODE environment variable
+
+- Fix error in 1.9.3 changelog :)
+
+- pam_duo is feature-par with login_duo (autopush, prompts)
+
+- Internal refactoring
+
 duo_unix-1.9.3:
 
 - Autopush is more user friendly
 
-- Add tries option to the config file 
+- Add prompts option to the config file 
 
 - Various build and test fixups
 
