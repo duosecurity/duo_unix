@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 
 #include "util.h"
 #include "duo.h"
@@ -113,6 +114,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 {
     struct duo_config cfg;
     struct passwd *pw;
+    struct in_addr addr;
     duo_t *duo;
     duo_code_t code;
     const char *config, *p, *duouser;
@@ -170,8 +172,12 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     /* Check for remote login host */
     if ((ip = getenv("SSH_CONNECTION")) != NULL ||
         (ip = (char *)ctx->host) != NULL) {
-        strlcpy(buf, ip, sizeof(buf));
-        ip = strtok(buf, " ");
+        if (inet_aton(ip, &addr)) {
+            strlcpy(buf, ip, sizeof(buf));
+            ip = strtok(buf, " ");
+        } else {
+            ip = (cfg.local_ip_fallback ? duo_local_ip() : NULL);
+        }
     }
 
     /* Honor configured http_proxy */
@@ -187,6 +193,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
             pw->pw_name, ip, NULL);
         return (EXIT_FAILURE);
     }
+
     /* Special handling for non-interactive sessions */
     if ((p = getenv("SSH_ORIGINAL_COMMAND")) != NULL ||
         !isatty(STDIN_FILENO)) {

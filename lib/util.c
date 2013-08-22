@@ -10,18 +10,24 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "util.h"
 #include "groupaccess.h"
 
 int duo_debug = 0;
 
-int
+void
 duo_config_default(struct duo_config *cfg)
 {
     memset(cfg, 0, sizeof(struct duo_config));
     cfg->failmode = DUO_FAIL_SAFE;
     cfg->prompts = MAX_PROMPTS;
+    cfg->local_ip_fallback = 0;
 }
 
 int
@@ -90,8 +96,10 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         }
     } else if (strcmp(name, "autopush") == 0) {
         cfg->autopush = duo_set_boolean_option(val);
-    } else if (strcmp(name, "AcceptEnvFactor") == 0) {
+    } else if (strcmp(name, "accept_env_factor") == 0) {
         cfg->accept_env = duo_set_boolean_option(val);
+    } else if (strcmp(name, "fallback_local_ip") == 0) {
+        cfg->local_ip_fallback = duo_set_boolean_option(val);
     } else {
         /* Couldn't handle the option, maybe it's target specific? */
         return (0);
@@ -165,5 +173,29 @@ duo_syslog(int priority, const char *fmt, ...)
         vsyslog(priority, fmt, ap);
     }
     va_end(ap);
+}
+
+const char *
+duo_local_ip()
+{
+    struct sockaddr_in sin;
+    socklen_t slen;
+    int fd;
+    const char *ip = NULL;
+
+    memset(&sin, 0, sizeof(sin));
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = inet_addr("8.8.8.8"); /* XXX Google's DNS Server */
+    sin.sin_port = htons(53);
+    slen = sizeof(sin);
+
+    if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) != -1) {
+            if (connect(fd, (struct sockaddr *)&sin, slen) != -1 &&
+                getsockname(fd, (struct sockaddr *)&sin, &slen) != -1) {
+                    ip = inet_ntoa(sin.sin_addr); /* XXX statically allocated */
+            }
+            close(fd);
+    }
+    return (ip);
 }
 

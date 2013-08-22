@@ -107,9 +107,11 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 {
 	struct duo_config cfg;
 	struct passwd *pw;
+	struct in_addr addr;
 	duo_t *duo;
 	duo_code_t code;
-	duopam_const char *config, *cmd, *ip, *p, *service, *user;
+	duopam_const char *config, *cmd, *p, *service, *user;
+	const char *ip;
 	int i, flags, pam_err, matched;
 
 	duo_config_default(&cfg);
@@ -181,9 +183,18 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         return (PAM_SUCCESS);
     }
 
+    /* Grab the remote host */
 	ip = NULL;
 	pam_get_item(pamh, PAM_RHOST,
 	    (duopam_const void **)(duopam_const void *)&ip);
+	/* PAM is weird, check to see if PAM_RHOST is IP or hostname */
+	if (ip == NULL) {
+		ip = ""; /* XXX inet_addr needs a non-null IP */
+	}
+	if (!inet_aton(ip, &addr)) {
+		/* We have a hostname, don't try to resolve, check fallback */
+		ip = (cfg.local_ip_fallback ? duo_local_ip() : NULL);
+	}
 
 	/* Honor configured http_proxy */
 	if (cfg.http_proxy != NULL) {

@@ -38,9 +38,10 @@ struct duo_config {
     int  motd; /* login_duo only */
     int  prompts;
     int  accept_env;
+    int  local_ip_fallback;
 };
 
-int duo_config_default(struct duo_config *cfg);
+void duo_config_default(struct duo_config *cfg);
 
 int duo_set_boolean_option(const char *val);
 
@@ -54,7 +55,11 @@ void duo_log(int priority, const char*msg, const char *user, const char *ip,
 
 void duo_syslog(int priority, const char *fmt, ...);
 
+const char *
+duo_resolve_name(const char *hostname);
 
+const char *
+duo_local_ip();
 
 
 #endif

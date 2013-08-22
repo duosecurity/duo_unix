@@ -30,6 +30,7 @@
 #include <openssl/sha.h>
 #include <openssl/ssl.h>
 
+#include "util.h"
 #include "bson.h"
 #include "duo.h"
 #include "https.h"
@@ -305,32 +306,9 @@ duo_geterr(struct duo_ctx *ctx)
     return (ctx->err[0] ? ctx->err : NULL);
 }
 
-static const char *
-_local_ip(void)
-{
-        struct sockaddr_in sin;
-        socklen_t slen;
-        int fd;
-        const char *ip = NULL;
-
-        memset(&sin, 0, sizeof(sin));
-        sin.sin_family = AF_INET;
-        sin.sin_addr.s_addr = inet_addr("8.8.8.8"); /* XXX */
-        sin.sin_port = htons(53);
-        slen = sizeof(sin);
-
-        if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) != -1) {
-                if (connect(fd, (struct sockaddr *)&sin, slen) != -1 &&
-                    getsockname(fd, (struct sockaddr *)&sin, &slen) != -1) {
-                        ip = inet_ntoa(sin.sin_addr);
-                }
-                close(fd);
-        }
-        return (ip);
-}
-
 duo_code_t
-_duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username)
+_duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
+    const char *client_ip)
 {
     bson_iterator it;
     duo_code_t ret;
@@ -340,6 +318,13 @@ _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username)
     if (duo_add_param(ctx, "user", username) != DUO_OK) {
         return (DUO_LIB_ERROR);
     }
+
+    if (client_ip) {
+        if (duo_add_param(ctx, "ipaddr", client_ip) != DUO_OK) {
+            return (DUO_LIB_ERROR);
+        }
+    }
+
     if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/preauth.bson")) != DUO_OK ||
         (ret = _duo_bson_response(ctx, obj)) != DUO_OK) {
         return (ret);
@@ -439,6 +424,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
     char *pushinfo = NULL;
     const char *p;
     int i;
+    const char *local_ip;
 
     if (username == NULL) {
         _duo_seterr(ctx, "need username to authenticate");
@@ -446,7 +432,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
     }
 
     /* Check preauth status */
-    if ((ret = _duo_preauth(ctx, &obj, username)) != DUO_CONTINUE) {
+    if ((ret = _duo_preauth(ctx, &obj, username, client_ip)) != DUO_CONTINUE) {
         return (ret);
     }
 
@@ -460,15 +446,21 @@ duo_login(struct duo_ctx *ctx, const char *username,
         duo_add_param(ctx, "factor", "auto") != DUO_OK ||
         duo_add_param(ctx, "auto", p) != DUO_OK ||
         duo_add_param(ctx, "async",
-        (flags & DUO_FLAG_SYNC) ? "0" : "1") != DUO_OK ||
-        duo_add_param(ctx, "ipaddr",
-        client_ip ? client_ip : _local_ip()) != DUO_OK) {
+        (flags & DUO_FLAG_SYNC) ? "0" : "1") != DUO_OK) {
         return (DUO_LIB_ERROR);
     }
 
+    /* Add client IP, if passed in */
+    if (client_ip) {
+        if (duo_add_param(ctx, "ipaddr", client_ip) != DUO_OK) {
+            return (DUO_LIB_ERROR);
+        }
+    }
+
     /* Add pushinfo parameters */
+    local_ip = duo_local_ip();
     if (asprintf(&pushinfo, "Server+IP=%s&Command=%s",
-        _local_ip(), command ? urlenc_encode(command) : "") < 0 ||
+        local_ip, command ? urlenc_encode(command) : "") < 0 ||
         duo_add_param(ctx, "pushinfo", pushinfo) != DUO_OK) {
         return (DUO_LIB_ERROR);
     }
