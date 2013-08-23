@@ -74,11 +74,14 @@ rm -f $RPM_BUILD_ROOT/%{_lib}/security/pam_duo.*a
 
 %files
 %defattr(-,root,root)
-%doc AUTHORS README CHANGES LICENSE
 %dir %{_sysconfdir}/duo
 %attr(0600, sshd, root) %config(noreplace) %{_sysconfdir}/duo/login_duo.conf
 %attr(4755, root, root) %{_sbindir}/login_duo
 %{_mandir}/man8/login_duo.8.gz
+%{_defaultdocdir}/%{name}/AUTHORS
+%{_defaultdocdir}/%{name}/CHANGES
+%{_defaultdocdir}/%{name}/LICENSE
+%{_defaultdocdir}/%{name}/README
 
 %files -n pam_duo
 %dir %{_sysconfdir}/duo
@@ -99,6 +102,8 @@ rm -f $RPM_BUILD_ROOT/%{_lib}/security/pam_duo.*a
 %{_mandir}/man3/duo.3.gz
 
 %changelog
+* Thu Aug 22 2013 Mark Stanislav <mark.stanislav@gmail.com> 0:1.9.3-0
+- Fixed documentation path for files breaking RPM build
 * Fri Sep 1 2011 R.I.Pienaar <rip@devco.net> 0:1.8-0
 - Fix the ownership of /etc/duo/login_duo.conf so that login as normal users work
 * Tue Aug 23 2011 Mark Stanislav <mark.stanislav@gmail.com> 0:1.7-0
