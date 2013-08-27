@@ -8,6 +8,9 @@ duo_unix-1.9.4:
 
 - Internal refactoring
 
+- Configuration option for falling back to the local IP if the client
+  IP cannot be detected.
+
 duo_unix-1.9.3:
 
 - Autopush is more user friendly

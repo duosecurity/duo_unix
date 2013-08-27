@@ -91,8 +91,12 @@ to screen after a successful login. Either "yes" or "no."
 Default is "no".
 .It Cm prompts
 Number of login attempts a user gets. Default is 3. If using autopush, it is recommended to set prompts to 1.
-.It Cm AcceptEnvFactor
-Looks for a passcode, or command (e.g. "push", "sms", etc.) in the $DUO_PASSCODE environment variable. sshd will need to be configured to accept the $DUO_PASSCODE environment variable, and the ssh client will need to be configured to send it. Default is "no".
+.It Cm accept_env_factor
+Look for factor selection or passcode in the DUO_PASSCODE environment variable,
+before prompting the user. Can override autopush. Default is "no".
+.It Cm fallback_local_ip
+If unable to determine the authentication users's IP address, fallback on the
+IP address of the server. Default is "no".
 .El
 .Pp
 An example configuration file:
@@ -102,6 +106,7 @@ host = api-deadbeef.duosecurity.com
 ikey = SI9F...53RI
 skey = 4MjR...Q2NmRiM2Q1Y
 pushinfo = yes
+autopush = yes
 .Ed
 .Pp
 If installed setuid root (the default), 
