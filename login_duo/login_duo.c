@@ -118,7 +118,8 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     duo_t *duo;
     duo_code_t code;
     const char *config, *p, *duouser;
-    char *ip, buf[64];
+    const char *ip, *host = NULL;
+    char buf[64];
     int i, flags, ret, prompts, matched;
     int headless = 0;
 
@@ -170,11 +171,12 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 
 
     /* Check for remote login host */
-    if ((ip = getenv("SSH_CONNECTION")) != NULL ||
-        (ip = (char *)ctx->host) != NULL) {
+    if ((host = ip = getenv("SSH_CONNECTION")) != NULL ||
+        (host = ip = (char *)ctx->host) != NULL) {
         if (inet_aton(ip, &addr)) {
             strlcpy(buf, ip, sizeof(buf));
             ip = strtok(buf, " ");
+            host = ip;
         } else {
             ip = (cfg.local_ip_fallback ? duo_local_ip() : NULL);
         }
@@ -190,7 +192,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
                     "login_duo/" PACKAGE_VERSION,
                     cfg.noverify ? "" : cfg.cafile)) == NULL) {
         duo_log(LOG_ERR, "Couldn't open Duo API handle",
-            pw->pw_name, ip, NULL);
+            pw->pw_name, host, NULL);
         return (EXIT_FAILURE);
     }
 
@@ -215,11 +217,11 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     ret = EXIT_FAILURE;
     
     for (i = 0; i < prompts; i++) {
-        code = duo_login(duo, duouser, ip, flags,
+        code = duo_login(duo, duouser, host, flags,
                     cfg.pushinfo ? cmd : NULL);
         if (code == DUO_FAIL) {
             duo_log(LOG_WARNING, "Failed Duo login",
-                duouser, ip, duo_geterr(duo));
+                duouser, host, duo_geterr(duo));
             if ((flags & DUO_FLAG_SYNC) == 0) {
                 printf("\n");
             }
@@ -235,10 +237,10 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         if (code == DUO_OK) {
             if ((p = duo_geterr(duo)) != NULL) {
                 duo_log(LOG_WARNING, "Skipped Duo login",
-                    duouser, ip, p);
+                    duouser, host, p);
             } else {
                 duo_log(LOG_INFO, "Successful Duo login",
-                    duouser, ip, NULL);
+                    duouser, host, NULL);
             }
             if (cfg.motd && !headless) {
                 _print_motd();
@@ -246,16 +248,16 @@ do_auth(struct login_ctx *ctx, const char *cmd)
             ret = EXIT_SUCCESS;
         } else if (code == DUO_ABORT) {
             duo_log(LOG_WARNING, "Aborted Duo login",
-                duouser, ip, duo_geterr(duo));
+                duouser, host, duo_geterr(duo));
         } else if (cfg.failmode == DUO_FAIL_SAFE &&
                     (code == DUO_CONN_ERROR ||
                      code == DUO_CLIENT_ERROR || code == DUO_SERVER_ERROR)) {
             duo_log(LOG_WARNING, "Failsafe Duo login",
-                duouser, ip, duo_geterr(duo));
+                duouser, host, duo_geterr(duo));
                         ret = EXIT_SUCCESS;
         } else {
             duo_log(LOG_ERR, "Error in Duo login",
-                duouser, ip, duo_geterr(duo));
+                duouser, host, duo_geterr(duo));
         }
         break;
     }

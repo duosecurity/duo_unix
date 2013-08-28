@@ -111,7 +111,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	duo_t *duo;
 	duo_code_t code;
 	duopam_const char *config, *cmd, *p, *service, *user;
-	const char *ip;
+	const char *ip, *host;
 	int i, flags, pam_err, matched;
 
 	duo_config_default(&cfg);
@@ -187,6 +187,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	ip = NULL;
 	pam_get_item(pamh, PAM_RHOST,
 	    (duopam_const void **)(duopam_const void *)&ip);
+	host = ip;
 	/* PAM is weird, check to see if PAM_RHOST is IP or hostname */
 	if (ip == NULL) {
 		ip = ""; /* XXX inet_addr needs a non-null IP */
@@ -205,7 +206,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	if ((duo = duo_open(cfg.apihost, cfg.ikey, cfg.skey,
                     "pam_duo/" PACKAGE_VERSION,
                     cfg.noverify ? "" : cfg.cafile)) == NULL) {
-		duo_log(LOG_ERR, "Couldn't open Duo API handle", user, ip, NULL);
+		duo_log(LOG_ERR, "Couldn't open Duo API handle", user, host, NULL);
 		return (PAM_SERVICE_ERR);
 	}
 	duo_set_conv_funcs(duo, __duo_prompt, __duo_status, pamh);
@@ -221,11 +222,11 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	pam_err = PAM_SERVICE_ERR;
 	
 	for (i = 0; i < cfg.prompts; i++) {
-		code = duo_login(duo, user, ip, flags,
+		code = duo_login(duo, user, host, flags,
                     cfg.pushinfo ? cmd : NULL);
 		if (code == DUO_FAIL) {
 			duo_log(LOG_WARNING, "Failed Duo login",
-			    user, ip, duo_geterr(duo));
+			    user, host, duo_geterr(duo));
 			if ((flags & DUO_FLAG_SYNC) == 0) {
 				pam_info(pamh, "%s", "");
                         }
@@ -236,25 +237,25 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		if (code == DUO_OK) {
 			if ((p = duo_geterr(duo)) != NULL) {
 				duo_log(LOG_WARNING, "Skipped Duo login",
-				    user, ip, p);
+				    user, host, p);
 			} else {
 				duo_log(LOG_INFO, "Successful Duo login",
-				    user, ip, NULL);
+				    user, host, NULL);
 			}
 			pam_err = PAM_SUCCESS;
 		} else if (code == DUO_ABORT) {
 			duo_log(LOG_WARNING, "Aborted Duo login",
-			    user, ip, duo_geterr(duo));
+			    user, host, duo_geterr(duo));
 			pam_err = PAM_ABORT;
 		} else if (cfg.failmode == DUO_FAIL_SAFE &&
                     (code == DUO_CONN_ERROR ||
                      code == DUO_CLIENT_ERROR || code == DUO_SERVER_ERROR)) {
 			duo_log(LOG_WARNING, "Failsafe Duo login",
-			    user, ip, duo_geterr(duo));
+			    user, host, duo_geterr(duo));
 			pam_err = PAM_SUCCESS;
 		} else {
 			duo_log(LOG_ERR, "Error in Duo login",
-			    user, ip, duo_geterr(duo));
+			    user, host, duo_geterr(duo));
 			pam_err = PAM_SERVICE_ERR;
 		}
 		break;

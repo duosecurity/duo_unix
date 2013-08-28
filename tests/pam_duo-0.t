@@ -9,14 +9,12 @@ Missing conf file
 
   $ ${TESTDIR}/testpam.py -d -c /nonexistent true
   [3] Couldn't open /nonexistent: No such file or directory
-  [1]
 
 Bad permissions on conf file
 
   $ ${TESTDIR}/../autotools/install-sh -c -m 644 ${TESTDIR}/confs/duo.conf ${TMPDIR}
   $ ${TESTDIR}/testpam.py -d -c ${TMPDIR}/duo.conf true
   */duo.conf must be readable only by user '*' (glob)
-  [1]
 
 Ensure perms on conf files
 
@@ -33,5 +31,4 @@ Bad configuration files
   [3] Missing host, ikey, or skey in */tests/confs/bad-header_only.conf (glob)
   ==> bad-missing_values.conf
   [3] Missing host, ikey, or skey in */tests/confs/bad-missing_values.conf (glob)
-  [1]
 
