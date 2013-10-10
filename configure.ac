@@ -15,7 +15,7 @@ AC_CONFIG_AUX_DIR([autotools])
 AC_CONFIG_MACRO_DIR([autotools])
 
 # Init automake
-AM_INIT_AUTOMAKE([foreign subdir-objects])
+AM_INIT_AUTOMAKE([1.12.0 foreign subdir-objects serial-tests])
 AM_MAINTAINER_MODE
 AB_INIT
 
