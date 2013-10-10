@@ -1,3 +1,9 @@
+duo_unix-1.9.5:
+
+- Fix issues running 'make check'
+
+- Remove accept_env_factor from pam_duo manpage, as it will not work
+
 duo_unix-1.9.4:
 
 - Send codes / push requests using $DUO_PASSCODE environment variable
