@@ -1,5 +1,5 @@
-# 
-# Copyright 2010 Duo Security
+#
+# Copyright 2013 Duo Security
 # All rights reserved, all wrongs reversed
 
 # Minimum autoconf version
@@ -7,7 +7,7 @@ AC_PREREQ(2.65)
 
 # Package, version, bug report address
 AC_INIT([duo_unix],
-	[1.9.5],
+	[1.9.6],
 	[support@duosecurity.com])
 
 # Tells autoconf where to find necessary build scripts and macros.
