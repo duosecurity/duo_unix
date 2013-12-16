@@ -43,7 +43,7 @@ invoked, or if an alternate
 or
 .Ev SSH_ORIGINAL_COMMAND
 environment variable is specified, it will be executed via the user's
-shell with a -c option.
+shell with a \-c option.
 .Sh CONFIGURATION
 The INI-format configuration file must have a
 .Dq Li duo
@@ -152,9 +152,9 @@ as the forced command for each public key in
 .Pa ~root/.ssh/authorized_keys :
 .Pp
 .Bd -literal -offset 8n
-command="/usr/local/sbin/login_duo -f alice"
+command="/usr/local/sbin/login_duo \-f alice"
 ssh-rsa AAAAB2...19Q== alice@example.net
-command="/usr/local/sbin/login_duo -f bob"
+command="/usr/local/sbin/login_duo \-f bob"
 ssh-dss AAAAC3...51R== bob@example.net
 .Ed
 .Pp

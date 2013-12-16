@@ -143,12 +143,7 @@ AC_ARG_WITH(privsep-user,
 	fi
   ]
 )
-if id "$DUO_PRIVSEP_USER" >/dev/null 2>&1; then
-   AC_MSG_NOTICE([Found privilege separation user "$DUO_PRIVSEP_USER"])
-else
-   DUO_PRIVSEP_USER="nobody"
-   AC_MSG_NOTICE([Using privilege separation user "nobody"])
-fi
+AC_MSG_NOTICE([Using privilege separation user "$DUO_PRIVSEP_USER"])
 AC_DEFINE_UNQUOTED(DUO_PRIVSEP_USER, "$DUO_PRIVSEP_USER",
 	[Dedicated user for privilege separation])
 AC_SUBST(DUO_PRIVSEP_USER)
