@@ -366,7 +366,9 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
 
     if ((flags & DUO_FLAG_ENV) && (passcode != NULL)) {
         *p = passcode;
-        ctx->conv_status(NULL, ENV_VAR_MSG);
+        if (ctx->conv_status != NULL) {
+            ctx->conv_status(NULL, ENV_VAR_MSG);
+        }
     } else if ((flags & DUO_FLAG_AUTO) != 0) {
         /* Find default OOB factor for automatic login */
         _BSON_FIND(ctx, &it, obj, "factors", bson_object);
