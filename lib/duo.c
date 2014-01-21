@@ -367,7 +367,7 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
     if ((flags & DUO_FLAG_ENV) && (passcode != NULL)) {
         *p = passcode;
         if (ctx->conv_status != NULL) {
-            ctx->conv_status(NULL, ENV_VAR_MSG);
+            ctx->conv_status(ctx->conv_arg, ENV_VAR_MSG);
         }
     } else if ((flags & DUO_FLAG_AUTO) != 0) {
         /* Find default OOB factor for automatic login */
@@ -381,11 +381,11 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
         *p = bson_iterator_string(&it);
         if (ctx->conv_status) {
             if ((pos = strstr(*p, "push"))) {
-                ctx->conv_status(NULL, AUTOPUSH_MSG);
+                ctx->conv_status(ctx->conv_arg, AUTOPUSH_MSG);
             } else if ((pos = strstr(*p, "phone"))) {
-                ctx->conv_status(NULL, AUTOPHONE_MSG);
+                ctx->conv_status(ctx->conv_arg, AUTOPHONE_MSG);
             } else {
-                ctx->conv_status(NULL, AUTODEFAULT_MSG);
+                ctx->conv_status(ctx->conv_arg, AUTODEFAULT_MSG);
             }
         }
     } else {
