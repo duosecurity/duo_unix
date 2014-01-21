@@ -107,7 +107,7 @@ AM_CONDITIONAL([PAM], [ test "x$with_pam" != "xno" ])
 AS_IF([test "x$with_pam" != "xno"], [
   save_LIBS=$LIBS
   AC_CHECK_HEADERS([security/pam_appl.h], [],
-    [AC_MSG_ERROR([[PAM header files not found, install libpam-dev/pam-devel/etc.]])])
+    [AC_MSG_ERROR([[PAM header files not found. Install libpam-dev/pam-devel/etc.]])])
   AC_CHECK_HEADERS([security/pam_modules.h security/pam_ext.h], [], [],
     [#include <security/pam_appl.h>])
 
