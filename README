@@ -80,7 +80,9 @@ Then just run "make".
 Install
 -------
 
-"make install" as root should do it.
+"make install" as root should do it. 
+Then run "ldconfig" as root so that your OS finds and loads the 
+new shared library.
 
 login_duo will be installed setuid root by default in order to keep
 the Duo integration and secret keys in your configuration files
