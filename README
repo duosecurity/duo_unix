@@ -80,8 +80,8 @@ Then just run "make".
 Install
 -------
 
-"make install" as root should do it. 
-Then run "ldconfig" as root so that your OS finds and loads the 
+"make install" as root should do it.
+Then run "ldconfig" as root so that your OS finds and loads the
 new shared library.
 
 login_duo will be installed setuid root by default in order to keep
@@ -99,7 +99,7 @@ Setup
 If you don't have a Duo account, sign up at http://www.duosecurity.com
 
 From your admin account, add a new Unix integration (Integrations >
-New integration) and use the integration key (ikey), secret key 
+New integration) and use the integration key (ikey), secret key
 (skey), and API hostname in your Duo configuration files (by default
 in /etc/duo).
 
