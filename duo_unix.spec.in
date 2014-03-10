@@ -3,7 +3,7 @@
 
 Name: duo_unix
 Version: @VERSION@
-Release: 0
+Release: 0%{?dist}
 Epoch: 0
 Summary: Duo two-factor authentication for Unix systems
 Packager: S. Zachariah Sprackett <zac@sprackett.com>
