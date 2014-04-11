@@ -206,7 +206,7 @@ https_init(const char *ikey, const char *skey,
         /* Initialize SSL context */
         SSL_library_init();
         SSL_load_error_strings();
-        OpenSSL_add_ssl_algorithms();
+        OpenSSL_add_all_algorithms();
 
         /* XXX - ape openssl s_client -rand for testing on ancient systems */
         if (!RAND_status()) {
