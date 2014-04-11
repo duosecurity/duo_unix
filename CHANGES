@@ -1,3 +1,7 @@
+duo_unix-1.9.8:
+
+- Improve support for SHA2 in HTTPS.
+
 duo_unix-1.9.7:
 
 - Allow using accept_env_factor with SSH.
