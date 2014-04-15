@@ -12,6 +12,7 @@
 #include <sys/time.h>
 
 #include <netdb.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -149,32 +150,34 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
 int
 _BIO_wait(BIO *cbio, int secs)
 {
-        struct timeval tv, *tvp;
-        fd_set confds;
-        int fd;
-
         if (!BIO_should_retry(cbio)) {
                 return (-1);
         }
-        BIO_get_fd(cbio, &fd);
-        FD_ZERO(&confds);
-        FD_SET(fd, &confds);
 
-        if (secs >= 0) {
-                tv.tv_sec = secs;
-                tv.tv_usec = 0;
-                tvp = &tv;
-        } else {
-                tvp = NULL;
-        }
+        struct pollfd pfd;
+        BIO_get_fd(cbio, &pfd.fd);
+        pfd.events = 0;
+        pfd.revents = 0;
+
         if (BIO_should_io_special(cbio)) {
-                return (select(fd + 1, NULL, &confds, NULL, tvp));
+                pfd.events = POLLOUT | POLLWRBAND;
         } else if (BIO_should_read(cbio)) {
-                return (select(fd + 1, &confds, NULL, NULL, tvp));
+                pfd.events = POLLIN | POLLPRI | POLLWRNORM;
         } else if (BIO_should_write(cbio)) {
-                return (select(fd + 1, NULL, &confds, NULL, tvp));
+                pfd.events = POLLOUT | POLLWRBAND;
+        } else {
+                return (-1);
         }
-        return (-1);
+        
+        int result = poll(&pfd, 1, secs);
+
+        // Timeout or poll internal error
+        if (result <= 0) {
+                return (result);
+        }
+
+        // Return 1 if the event was not an error
+        return (pfd.revents & pfd.events ? 1 : -1);
 }
 
 static BIO *
