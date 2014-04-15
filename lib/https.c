@@ -462,9 +462,13 @@ https_send(struct https_request *req, const char *method, const char *uri,
         } else {
                 BIO_printf(req->cbio, "Host: %s:%s\r\n", req->host, req->port);
         }
+        /* Add User-Agent header */
+        BIO_printf(req->cbio,
+                   "User-Agent: %s\r\n",
+                   ctx->useragent);
         /* Add signature */
         BIO_puts(req->cbio, "Authorization: Basic ");
-        
+
 	HMAC_CTX_init(&hmac);
 	HMAC_Init(&hmac, ctx->skey, strlen(ctx->skey), EVP_sha1());
 	HMAC_Update(&hmac, (unsigned char *)p, strlen(p));
