@@ -162,7 +162,7 @@ _BIO_wait(BIO *cbio, int secs)
         if (BIO_should_io_special(cbio)) {
                 pfd.events = POLLOUT | POLLWRBAND;
         } else if (BIO_should_read(cbio)) {
-                pfd.events = POLLIN | POLLPRI | POLLWRNORM;
+                pfd.events = POLLIN | POLLPRI | POLLRDBAND;
         } else if (BIO_should_write(cbio)) {
                 pfd.events = POLLOUT | POLLWRBAND;
         } else {
