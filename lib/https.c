@@ -168,8 +168,8 @@ _BIO_wait(BIO *cbio, int secs)
         } else {
                 return (-1);
         }
-        
-        int result = poll(&pfd, 1, secs);
+
+        int result = poll(&pfd, 1, secs * 1000);
 
         // Timeout or poll internal error
         if (result <= 0) {
