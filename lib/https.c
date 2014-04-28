@@ -147,8 +147,8 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
 }
 
 // Return -1 on hard error (abort), 0 on timeout, >= 1 on successful wakeup
-int
-_BIO_wait(BIO *cbio, int secs)
+static int
+_BIO_wait(BIO *cbio, int msecs)
 {
         if (!BIO_should_retry(cbio)) {
                 return (-1);
@@ -169,7 +169,12 @@ _BIO_wait(BIO *cbio, int secs)
                 return (-1);
         }
 
-        int result = poll(&pfd, 1, secs * 1000);
+        if (msecs < 0) {
+            /* POSIX requires -1 for "no timeout" although some libcs
+               accept any negative value. */
+            msecs = -1;
+        }
+        int result = poll(&pfd, 1, msecs);
 
         // Timeout or poll internal error
         if (result <= 0) {
@@ -328,7 +333,7 @@ https_open(struct https_request **reqp, const char *host)
         BIO_set_nbio(req->cbio, 1);
         
         while (BIO_do_connect(req->cbio) <= 0) {
-                if ((n = _BIO_wait(req->cbio, 10)) != 1) {
+                if ((n = _BIO_wait(req->cbio, 10000)) != 1) {
                         ctx->errstr = n ? _SSL_strerror() :
                             "Connection timed out";
                         https_close(&req);
@@ -359,7 +364,7 @@ https_open(struct https_request **reqp, const char *host)
                 
                 while ((n = BIO_read(req->cbio, ctx->parse_buf,
                             sizeof(ctx->parse_buf))) <= 0) {
-                        _BIO_wait(req->cbio, 5);
+                        _BIO_wait(req->cbio, 5000);
                 }
                 /* Tolerate HTTP proxies that respond with an
                    incorrect HTTP version number */
@@ -383,7 +388,7 @@ https_open(struct https_request **reqp, const char *host)
         BIO_get_ssl(req->cbio, &req->ssl);
         
         while (BIO_do_handshake(req->cbio) <= 0) {
-                if ((n = _BIO_wait(req->cbio, 5)) != 1) {
+                if ((n = _BIO_wait(req->cbio, 5000)) != 1) {
                         ctx->errstr = n ? _SSL_strerror() :
                             "SSL handshake timed out";
                         https_close(&req);
