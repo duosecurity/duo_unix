@@ -86,7 +86,8 @@ AC_CHECK_HEADERS([inttypes.h limits.h memory.h stdint.h stdlib.h string.h unistd
 
 # Check OpenSSL
 AX_CHECK_OPENSSL([], AC_MSG_FAILURE([OpenSSL not found]))
-
+# Define if X509_TEA_set_state exists
+AX_CHECK_X509(AC_DEFINE([HAVE_X509_TEA_SET_STATE],[1],[Define if X509_set_state exists]), [])
 # Default PAM install dir
 case "$host" in
      *darwin*)         PAM_DIR="/usr/lib/pam" ;;

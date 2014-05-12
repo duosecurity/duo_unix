@@ -32,6 +32,10 @@
 #include "https.h"
 #include "match.h"
 
+#ifdef HAVE_X509_TEA_SET_STATE
+extern void X509_TEA_set_state(int change);
+#endif
+
 struct https_ctx {
         SSL_CTX              *ssl_ctx;
         char	             *ikey;
@@ -104,7 +108,6 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
         ASN1_STRING *tmp;
         int i, n, match = -1;
         const char *p;
-        
         if (SSL_get_verify_mode(ssl) == SSL_VERIFY_NONE ||
             (cert = SSL_get_peer_certificate(ssl)) == NULL) {
                 return (1);
@@ -203,7 +206,7 @@ https_init(const char *ikey, const char *skey,
         X509 *cert;
         BIO *bio;
         char *p;
-        
+
         if ((ctx = calloc(1, sizeof(*ctx))) == NULL ||
             (ctx->ikey = strdup(ikey)) == NULL ||
             (ctx->skey = strdup(skey)) == NULL ||
@@ -212,6 +215,13 @@ https_init(const char *ikey, const char *skey,
                 return (HTTPS_ERR_SYSTEM);
         }
         /* Initialize SSL context */
+#ifdef HAVE_X509_TEA_SET_STATE
+        /* If applicable, disable use of Apple's Trust Evaluation Agent for certificate
+         * validation, to enforce proper CA pinning:
+         * http://www.opensource.apple.com/source/OpenSSL098/OpenSSL098-35.1/src/crypto/x509/x509_vfy_apple.h
+         */
+        X509_TEA_set_state(0);
+#endif
         SSL_library_init();
         SSL_load_error_strings();
         OpenSSL_add_all_algorithms();
