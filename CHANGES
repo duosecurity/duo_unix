@@ -1,4 +1,10 @@
+duo_unix-1.7.1:
 
+- Update HTTPS CA certificates.
+
+- Improve support for SHA2 in HTTPS.
+
+- Send User-Agent header with each request.
 
 duo_unix-1.7:
 
