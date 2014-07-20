@@ -9,6 +9,7 @@
 #define DUO_H
 
 typedef enum {
+	DUO_CONTINUE = -1,		/* continue authentication */
 	DUO_OK = 0,			/* great success! */
 	DUO_FAIL,			/* nice try */
 	DUO_ABORT,			/* give up */
@@ -20,6 +21,9 @@ typedef enum {
 
 #define DUO_FLAG_SYNC	(1 << 0)	/* no incremental status reporting */
 #define DUO_FLAG_AUTO	(1 << 1)	/* use default factor without prompt */
+#define DUO_FLAG_ENV    (1 << 2)    /* Get factor from environment variable */
+
+#define DUO_ENV_VAR_NAME "DUO_PASSCODE"
 
 typedef struct duo_ctx duo_t;
 
@@ -39,6 +43,9 @@ void	    duo_set_conv_funcs(duo_t *d,
 		    char *buf, size_t bufsz),
 	    	void (*conv_status)(void *conv_arg, const char *msg),
 	    	void *conv_arg);
+
+/* Reset the conversation prompt/status functions back to default */
+void		duo_reset_conv_funcs(duo_t *d);
 
 /* Perform Duo authentication */
 duo_code_t  duo_login(duo_t *d, const char *username,

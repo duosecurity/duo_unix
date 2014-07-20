@@ -1,3 +1,67 @@
+duo_unix-1.9.11:
+
+- Improve compatibility with FreeBSD 10.
+
+duo_unix-1.9.10:
+
+- Use the correct timeout when polling.
+
+duo_unix-1.9.9:
+
+- Use poll(2) instead of select(2) for timeouts to support busy
+  systems with many open file descriptors.
+- Send User-Agent header with each request.
+
+duo_unix-1.9.8:
+
+- Improve support for SHA2 in HTTPS.
+
+duo_unix-1.9.7:
+
+- Allow using accept_env_factor with SSH.
+- Allow using autopush with PAM on Mac OS X.
+
+duo_unix-1.9.6:
+
+- Update HTTPS CA certificates.
+
+duo_unix-1.9.5:
+
+- Fix issues running 'make check'
+
+- Remove accept_env_factor from pam_duo manpage, as it will not work
+
+duo_unix-1.9.4:
+
+- Send codes / push requests using $DUO_PASSCODE environment variable
+
+- Fix error in 1.9.3 changelog :)
+
+- pam_duo is feature-par with login_duo (autopush, prompts)
+
+- Internal refactoring
+
+- Configuration option for falling back to the local IP if the client
+  IP cannot be detected.
+
+duo_unix-1.9.3:
+
+- Autopush is more user friendly
+
+- Add prompts option to the config file 
+
+- Various build and test fixups
+
+duo_unix-1.9.2:
+
+- Restore compatability with Mac OS X <= 10.6
+
+duo_unix-1.9.1:
+
+- Add motd option to the config file
+
+- Add autopush option to the config file
+
 duo_unix-1.9:
 
 - Add multilib support to auto-detect lib/lib64 libdirs

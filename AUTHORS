@@ -17,3 +17,8 @@ Dug Song <dugsong@duosecurity.com>
 S. Zachariah Sprackett <zac@sprackett.com>
 	duo_unix.spec
 
+David Adrian <davidadrian@duosecurity.com>
+	various config options
+
+Adam Goodman <akgood@duosecurity.com>
+	repairing what David fixed

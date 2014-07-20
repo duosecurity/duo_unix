@@ -54,6 +54,15 @@ Send command to be approved via Duo Push authentication. Default is
 .It Cm http_proxy
 Use the specified HTTP proxy, same format as the HTTP_PROXY environment
 variable.
+.It Cm autopush
+Automatically send a login request to the first factor (usually push),
+instead of prompting the user. Default is "no".
+.It Cm prompts
+Set the maxiumum number of prompts pam_duo will show before denying access.
+Default is 3.
+.It Cm fallback_local_ip
+If unable to detect the authorizing user's IP address, fallback on the server's
+IP. Default is "no".
 .El
 .Pp
 An example configuration file:
@@ -63,6 +72,7 @@ host = api-deadbeef.duosecurity.com
 ikey = SI9F...53RI
 skey = 4MjR...Q2NmRiM2Q1Y
 pushinfo = yes
+autopush = yes
 .Ed
 .Pp
 Other authentication restrictions may be implemented using 

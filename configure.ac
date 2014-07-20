@@ -1,5 +1,5 @@
-# 
-# Copyright 2010 Duo Security
+#
+# Copyright 2013 Duo Security
 # All rights reserved, all wrongs reversed
 
 # Minimum autoconf version
@@ -7,7 +7,7 @@ AC_PREREQ(2.65)
 
 # Package, version, bug report address
 AC_INIT([duo_unix],
-	[1.9],
+	[1.9.11],
 	[support@duosecurity.com])
 
 # Tells autoconf where to find necessary build scripts and macros.
@@ -15,7 +15,7 @@ AC_CONFIG_AUX_DIR([autotools])
 AC_CONFIG_MACRO_DIR([autotools])
 
 # Init automake
-AM_INIT_AUTOMAKE([foreign subdir-objects])
+AM_INIT_AUTOMAKE([1.12.0 foreign subdir-objects serial-tests])
 AM_MAINTAINER_MODE
 AB_INIT
 
@@ -86,7 +86,8 @@ AC_CHECK_HEADERS([inttypes.h limits.h memory.h stdint.h stdlib.h string.h unistd
 
 # Check OpenSSL
 AX_CHECK_OPENSSL([], AC_MSG_FAILURE([OpenSSL not found]))
-
+# Define if X509_TEA_set_state exists
+AX_CHECK_X509(AC_DEFINE([HAVE_X509_TEA_SET_STATE],[1],[Define if X509_set_state exists]), [])
 # Default PAM install dir
 case "$host" in
      *darwin*)         PAM_DIR="/usr/lib/pam" ;;
@@ -107,7 +108,7 @@ AM_CONDITIONAL([PAM], [ test "x$with_pam" != "xno" ])
 AS_IF([test "x$with_pam" != "xno"], [
   save_LIBS=$LIBS
   AC_CHECK_HEADERS([security/pam_appl.h], [],
-    [AC_MSG_ERROR([[PAM header files not found, install libpam-dev/pam-devel/etc.]])])
+    [AC_MSG_ERROR([[PAM header files not found. Install libpam-dev/pam-devel/etc.]])])
   AC_CHECK_HEADERS([security/pam_modules.h security/pam_ext.h], [], [],
     [#include <security/pam_appl.h>])
 
@@ -143,12 +144,7 @@ AC_ARG_WITH(privsep-user,
 	fi
   ]
 )
-if id "$DUO_PRIVSEP_USER" >/dev/null 2>&1; then
-   AC_MSG_NOTICE([Found privilege separation user "$DUO_PRIVSEP_USER"])
-else
-   DUO_PRIVSEP_USER="nobody"
-   AC_MSG_NOTICE([Using privilege separation user "nobody"])
-fi
+AC_MSG_NOTICE([Using privilege separation user "$DUO_PRIVSEP_USER"])
 AC_DEFINE_UNQUOTED(DUO_PRIVSEP_USER, "$DUO_PRIVSEP_USER",
 	[Dedicated user for privilege separation])
 AC_SUBST(DUO_PRIVSEP_USER)

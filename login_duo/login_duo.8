@@ -43,7 +43,7 @@ invoked, or if an alternate
 or
 .Ev SSH_ORIGINAL_COMMAND
 environment variable is specified, it will be executed via the user's
-shell with a -c option.
+shell with a \-c option.
 .Sh CONFIGURATION
 The INI-format configuration file must have a
 .Dq Li duo
@@ -77,6 +77,26 @@ Send command to be approved via Duo Push authentication. Default is
 .It Cm http_proxy
 Use the specified HTTP proxy, same format as the HTTP_PROXY environment
 variable.
+.It Cm autopush
+Upon successful first-factor authentication, automatically send a login request to the primary second-factor (usually Duo Push). Can be
+.Dq Li yes
+or
+.Dq Li no .
+Default is 
+.Dq Li no .
+.It Cm motd
+Print the contents of 
+.Pa /etc/motd
+to screen after a successful login. Either "yes" or "no."
+Default is "no".
+.It Cm prompts
+Number of login attempts a user gets. Default is 3. If using autopush, it is recommended to set prompts to 1.
+.It Cm accept_env_factor
+Look for factor selection or passcode in the DUO_PASSCODE environment variable,
+before prompting the user. Can override autopush. Default is "no".
+.It Cm fallback_local_ip
+If unable to determine the authentication users's IP address, fallback on the
+IP address of the server. Default is "no".
 .El
 .Pp
 An example configuration file:
@@ -86,6 +106,7 @@ host = api-deadbeef.duosecurity.com
 ikey = SI9F...53RI
 skey = 4MjR...Q2NmRiM2Q1Y
 pushinfo = yes
+autopush = yes
 .Ed
 .Pp
 If installed setuid root (the default), 
@@ -131,9 +152,9 @@ as the forced command for each public key in
 .Pa ~root/.ssh/authorized_keys :
 .Pp
 .Bd -literal -offset 8n
-command="/usr/local/sbin/login_duo -f alice"
+command="/usr/local/sbin/login_duo \-f alice"
 ssh-rsa AAAAB2...19Q== alice@example.net
-command="/usr/local/sbin/login_duo -f bob"
+command="/usr/local/sbin/login_duo \-f bob"
 ssh-dss AAAAC3...51R== bob@example.net
 .Ed
 .Pp

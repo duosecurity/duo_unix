@@ -12,6 +12,7 @@
 #include <sys/time.h>
 
 #include <netdb.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +31,10 @@
 #include "http_parser.h"
 #include "https.h"
 #include "match.h"
+
+#ifdef HAVE_X509_TEA_SET_STATE
+extern void X509_TEA_set_state(int change);
+#endif
 
 struct https_ctx {
         SSL_CTX              *ssl_ctx;
@@ -103,7 +108,6 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
         ASN1_STRING *tmp;
         int i, n, match = -1;
         const char *p;
-        
         if (SSL_get_verify_mode(ssl) == SSL_VERIFY_NONE ||
             (cert = SSL_get_peer_certificate(ssl)) == NULL) {
                 return (1);
@@ -146,35 +150,42 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
 }
 
 // Return -1 on hard error (abort), 0 on timeout, >= 1 on successful wakeup
-int
-_BIO_wait(BIO *cbio, int secs)
+static int
+_BIO_wait(BIO *cbio, int msecs)
 {
-        struct timeval tv, *tvp;
-        fd_set confds;
-        int fd;
-
         if (!BIO_should_retry(cbio)) {
                 return (-1);
         }
-        BIO_get_fd(cbio, &fd);
-        FD_ZERO(&confds);
-        FD_SET(fd, &confds);
 
-        if (secs >= 0) {
-                tv.tv_sec = secs;
-                tv.tv_usec = 0;
-                tvp = &tv;
-        } else {
-                tvp = NULL;
-        }
+        struct pollfd pfd;
+        BIO_get_fd(cbio, &pfd.fd);
+        pfd.events = 0;
+        pfd.revents = 0;
+
         if (BIO_should_io_special(cbio)) {
-                return (select(fd + 1, NULL, &confds, NULL, tvp));
+                pfd.events = POLLOUT | POLLWRBAND;
         } else if (BIO_should_read(cbio)) {
-                return (select(fd + 1, &confds, NULL, NULL, tvp));
+                pfd.events = POLLIN | POLLPRI | POLLRDBAND;
         } else if (BIO_should_write(cbio)) {
-                return (select(fd + 1, NULL, &confds, NULL, tvp));
+                pfd.events = POLLOUT | POLLWRBAND;
+        } else {
+                return (-1);
         }
-        return (-1);
+
+        if (msecs < 0) {
+            /* POSIX requires -1 for "no timeout" although some libcs
+               accept any negative value. */
+            msecs = -1;
+        }
+        int result = poll(&pfd, 1, msecs);
+
+        // Timeout or poll internal error
+        if (result <= 0) {
+                return (result);
+        }
+
+        // Return 1 if the event was not an error
+        return (pfd.revents & pfd.events ? 1 : -1);
 }
 
 static BIO *
@@ -195,7 +206,7 @@ https_init(const char *ikey, const char *skey,
         X509 *cert;
         BIO *bio;
         char *p;
-        
+
         if ((ctx = calloc(1, sizeof(*ctx))) == NULL ||
             (ctx->ikey = strdup(ikey)) == NULL ||
             (ctx->skey = strdup(skey)) == NULL ||
@@ -204,9 +215,16 @@ https_init(const char *ikey, const char *skey,
                 return (HTTPS_ERR_SYSTEM);
         }
         /* Initialize SSL context */
+#ifdef HAVE_X509_TEA_SET_STATE
+        /* If applicable, disable use of Apple's Trust Evaluation Agent for certificate
+         * validation, to enforce proper CA pinning:
+         * http://www.opensource.apple.com/source/OpenSSL098/OpenSSL098-35.1/src/crypto/x509/x509_vfy_apple.h
+         */
+        X509_TEA_set_state(0);
+#endif
         SSL_library_init();
         SSL_load_error_strings();
-        OpenSSL_add_ssl_algorithms();
+        OpenSSL_add_all_algorithms();
 
         /* XXX - ape openssl s_client -rand for testing on ancient systems */
         if (!RAND_status()) {
@@ -325,7 +343,7 @@ https_open(struct https_request **reqp, const char *host)
         BIO_set_nbio(req->cbio, 1);
         
         while (BIO_do_connect(req->cbio) <= 0) {
-                if ((n = _BIO_wait(req->cbio, 10)) != 1) {
+                if ((n = _BIO_wait(req->cbio, 10000)) != 1) {
                         ctx->errstr = n ? _SSL_strerror() :
                             "Connection timed out";
                         https_close(&req);
@@ -356,9 +374,12 @@ https_open(struct https_request **reqp, const char *host)
                 
                 while ((n = BIO_read(req->cbio, ctx->parse_buf,
                             sizeof(ctx->parse_buf))) <= 0) {
-                        _BIO_wait(req->cbio, 5);
+                        _BIO_wait(req->cbio, 5000);
                 }
-                if (strncmp("HTTP/1.0 200", ctx->parse_buf, 12) != 0) {
+                /* Tolerate HTTP proxies that respond with an
+                   incorrect HTTP version number */
+                if ((strncmp("HTTP/1.0 200", ctx->parse_buf, 12) != 0)
+                    && (strncmp("HTTP/1.1 200", ctx->parse_buf, 12) != 0)) {
                         snprintf(ctx->errbuf, sizeof(ctx->errbuf),
                             "Proxy error: %s", ctx->parse_buf);
                         ctx->errstr = strtok(ctx->errbuf, "\r\n");
@@ -377,7 +398,7 @@ https_open(struct https_request **reqp, const char *host)
         BIO_get_ssl(req->cbio, &req->ssl);
         
         while (BIO_do_handshake(req->cbio) <= 0) {
-                if ((n = _BIO_wait(req->cbio, 5)) != 1) {
+                if ((n = _BIO_wait(req->cbio, 5000)) != 1) {
                         ctx->errstr = n ? _SSL_strerror() :
                             "SSL handshake timed out";
                         https_close(&req);
@@ -462,9 +483,13 @@ https_send(struct https_request *req, const char *method, const char *uri,
         } else {
                 BIO_printf(req->cbio, "Host: %s:%s\r\n", req->host, req->port);
         }
+        /* Add User-Agent header */
+        BIO_printf(req->cbio,
+                   "User-Agent: %s\r\n",
+                   ctx->useragent);
         /* Add signature */
         BIO_puts(req->cbio, "Authorization: Basic ");
-        
+
 	HMAC_CTX_init(&hmac);
 	HMAC_Init(&hmac, ctx->skey, strlen(ctx->skey), EVP_sha1());
 	HMAC_Update(&hmac, (unsigned char *)p, strlen(p));
