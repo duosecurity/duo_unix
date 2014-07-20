@@ -15,7 +15,7 @@ Source0: https://dl.duosecurity.com/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 Requires: pam openssl %{libname} = %{version}
-BuildRequires: pam-devel openssl-devel pkgconfig
+BuildRequires: pam-devel openssl-devel pkgconfig openssh-server
 
 %description
 Duo provides simple two-factor authentication as a service via:
@@ -57,7 +57,7 @@ Development files and documentation for duo_unix
 %setup -q -n %{name}-%{version}
 
 %build
-%configure --with-pam=/%{_lib}/security --sysconfdir=%{_sysconfdir}/duo
+%configure --with-pam=/%{_lib}/security --sysconfdir=%{_sysconfdir}/duo --with-privsep-user=sshd --includedir=/%{_includedir}/duo
 make %{?_smp_mflags}
 
 %clean
@@ -97,13 +97,22 @@ rm -f $RPM_BUILD_ROOT/%{_lib}/security/pam_duo.*a
 %defattr(-,root,root)
 %{_libdir}/libduo.a
 %{_libdir}/libduo.la
-%{_includedir}/duo.h
+%{_includedir}/duo/duo.h
+%{_includedir}/duo/util.h
 %{_libdir}/pkgconfig/libduo.pc
 %{_mandir}/man3/duo.3.gz
 
 %changelog
+* Sun Jul 12 2014 S. Zachariah Sprackett <zac@sprackett.com> 0:1.9.11-0
+- Make things work with modern duo
+
 * Thu Aug 22 2013 Mark Stanislav <mark.stanislav@gmail.com> 0:1.9.3-0
 - Fixed documentation path for files breaking RPM build
+
+* Mon Feb 11 2013 S. Zachariah Sprackett <zac@sprackett.com> 0:1.9-0
+- Add OpenSSH server buildreq for people building in chroots with Mock
+- Fixups to handle documentation being installed by Makefile
+
 * Fri Sep 1 2011 R.I.Pienaar <rip@devco.net> 0:1.8-0
 - Fix the ownership of /etc/duo/login_duo.conf so that login as normal users work
 * Tue Aug 23 2011 Mark Stanislav <mark.stanislav@gmail.com> 0:1.7-0
