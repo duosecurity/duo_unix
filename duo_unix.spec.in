@@ -57,7 +57,7 @@ Development files and documentation for duo_unix
 %setup -q -n %{name}-%{version}
 
 %build
-%configure --with-pam=/%{_lib}/security --sysconfdir=%{_sysconfdir}/duo --with-privsep-user=sshd
+%configure --with-pam=/%{_lib}/security --sysconfdir=%{_sysconfdir}/duo --with-privsep-user=sshd --includedir=/%{_includedir}/duo
 make %{?_smp_mflags}
 
 %clean
@@ -97,11 +97,15 @@ rm -f $RPM_BUILD_ROOT/%{_lib}/security/pam_duo.*a
 %defattr(-,root,root)
 %{_libdir}/libduo.a
 %{_libdir}/libduo.la
-%{_includedir}/duo.h
+%{_includedir}/duo/duo.h
+%{_includedir}/duo/util.h
 %{_libdir}/pkgconfig/libduo.pc
 %{_mandir}/man3/duo.3.gz
 
 %changelog
+* Sun Jul 12 2014 S. Zachariah Sprackett <zac@sprackett.com> 0:1.9.11-0
+- Make things work with modern duo
+
 * Mon Feb 11 2013 S. Zachariah Sprackett <zac@sprackett.com> 0:1.9-0
 - Add OpenSSH server buildreq for people building in chroots with Mock
 - Fixups to handle documentation being installed by Makefile
