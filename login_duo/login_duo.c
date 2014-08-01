@@ -351,6 +351,7 @@ main(int argc, char *argv[])
     struct passwd *pw;
     pid_t pid;
     int c, stat;
+    pid_t wait_res;
     
     memset(ctx, 0, sizeof(ctx));
     
@@ -402,7 +403,11 @@ main(int argc, char *argv[])
                     strerror(errno));
             }
             /* Check auth child status. */
-            if (waitpid(pid, &stat, 0) != pid) {
+            while ((wait_res = waitpid(pid, &stat, 0)) == -1 &&
+                    errno == EINTR) {
+                ;
+            }
+            if (wait_res != pid) {
                 die("waitpid: %s", strerror(errno));
             }
             if (WEXITSTATUS(stat) == 0) {
