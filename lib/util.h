@@ -39,6 +39,7 @@ struct duo_config {
     int  prompts;
     int  accept_env;
     int  local_ip_fallback;
+    int  https_timeout;
 };
 
 void duo_config_default(struct duo_config *cfg);

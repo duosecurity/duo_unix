@@ -25,6 +25,8 @@ typedef enum {
 
 #define DUO_ENV_VAR_NAME "DUO_PASSCODE"
 
+#define DUO_NO_TIMEOUT -1
+
 typedef struct duo_ctx duo_t;
 
 /* Parse INI config file */
@@ -35,7 +37,7 @@ int	    duo_parse_config(const char *filename,
 
 /* Open Duo API handle */
 duo_t	   *duo_open(const char *host, const char *ikey, const char *skey,
-	    	const char *progname, const char *cafile);
+                     const char *progname, const char *cafile, int https_timeout);
 
 /* Override conversation prompt/status functions */
 void	    duo_set_conv_funcs(duo_t *d,

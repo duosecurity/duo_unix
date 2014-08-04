@@ -29,6 +29,7 @@ duo_config_default(struct duo_config *cfg)
     cfg->failmode = DUO_FAIL_SAFE;
     cfg->prompts = MAX_PROMPTS;
     cfg->local_ip_fallback = 0;
+    cfg->https_timeout = -1;
 }
 
 int
@@ -101,6 +102,15 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         cfg->accept_env = duo_set_boolean_option(val);
     } else if (strcmp(name, "fallback_local_ip") == 0) {
         cfg->local_ip_fallback = duo_set_boolean_option(val);
+    } else if (strcmp(name, "https_timeout") == 0) {
+        cfg->https_timeout = atoi(val);
+        if (cfg->https_timeout <= 0) {
+            cfg->https_timeout = -1; /* no timeout */
+        }
+        else {
+            /* Make timeout milliseconds */
+            cfg->https_timeout *= 1000;
+        }
     } else {
         /* Couldn't handle the option, maybe it's target specific? */
         return (0);

@@ -29,8 +29,11 @@ HTTPScode   https_open(https_t **hp, const char *host);
 HTTPScode   https_send(https_t *h, const char *method, const char *uri,
                        int param_cnt, char *params[]);
 
-/* Read response, return HTTP status code, set body and length if available */
-HTTPScode   https_recv(https_t *h, int *code, const char **body, int *length);
+/* Read response, return HTTP status code, set body and length if available.
+ * Wait msecs milliseconds for a response.  To disable a timeout, set msecs
+ * to -1.
+ */
+HTTPScode   https_recv(https_t *h, int *code, const char **body, int *length, int msecs);
 
 /* Return and clear last API error */
 const char *https_geterr(void);

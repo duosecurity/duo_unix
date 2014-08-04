@@ -665,7 +665,8 @@ https_send(struct https_request *req, const char *method, const char *uri,
 }
 
 HTTPScode
-https_recv(struct https_request *req, int *code, const char **body, int *len)
+https_recv(struct https_request *req, int *code, const char **body, int *len,
+        int msecs)
 {
         int n, err;
         
@@ -677,7 +678,7 @@ https_recv(struct https_request *req, int *code, const char **body, int *len)
         while (!req->done) {
                 while ((n = BIO_read(req->cbio, ctx->parse_buf,
                             sizeof(ctx->parse_buf))) <= 0) {
-                        if ((n = _BIO_wait(req->cbio, -1)) != 1) {
+                        if ((n = _BIO_wait(req->cbio, msecs)) != 1) {
                                 ctx->errstr = n ? _SSL_strerror() :
                                     "Connection closed";
                                 return (HTTPS_ERR_SERVER);
