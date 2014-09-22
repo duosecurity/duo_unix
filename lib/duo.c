@@ -443,7 +443,6 @@ duo_login(struct duo_ctx *ctx, const char *username,
 
     /* Check preauth status */
     if ((ret = _duo_preauth(ctx, &obj, username, client_ip)) != DUO_CONTINUE) {
-        // free(modified_username);
         return (ret);
     }
 
