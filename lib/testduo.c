@@ -46,7 +46,7 @@ main(int argc, char *argv[])
 		    retries = 1;
 	}
 	for (i = 0; i < retries; i++) {
-		code = duo_login(duo, username, NULL, flags, "test");
+		code = duo_login(duo, username, NULL, flags, "test", NULL);
 		
 		printf("\n");
 		

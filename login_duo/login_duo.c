@@ -219,7 +219,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     
     for (i = 0; i < prompts; i++) {
         code = duo_login(duo, duouser, host, flags,
-                    cfg.pushinfo ? cmd : NULL);
+                    cfg.pushinfo ? cmd : NULL, cfg.suffix);
         if (code == DUO_FAIL) {
             duo_log(LOG_WARNING, "Failed Duo login",
                 duouser, host, duo_geterr(duo));

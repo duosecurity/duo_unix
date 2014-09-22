@@ -420,7 +420,7 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
 
 duo_code_t
 duo_login(struct duo_ctx *ctx, const char *username,
-    const char *client_ip, int flags, const char *command)
+    const char *client_ip, int flags, const char *command, const char *suffix)
 {
     bson obj;
     bson_iterator it;
@@ -436,13 +436,13 @@ duo_login(struct duo_ctx *ctx, const char *username,
         return (DUO_CLIENT_ERROR);
     }
 
-    /* Need to do the username munging here before the _duo_preauth */
-    const char *suffix = "hcc";
-    char *modified_username = NULL;
-    asprintf(&modified_username, "%s%s", username, suffix);
+    /* If a suffix was specifed in the config file, append it to the username */
+    if (suffix != NULL) {
+        asprintf(&username, "%s%s", username, suffix);
+    }
 
     /* Check preauth status */
-    if ((ret = _duo_preauth(ctx, &obj, modified_username, client_ip)) != DUO_CONTINUE) {
+    if ((ret = _duo_preauth(ctx, &obj, username, client_ip)) != DUO_CONTINUE) {
         // free(modified_username);
         return (ret);
     }
@@ -453,7 +453,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
     }
 
     /* Add request parameters */
-    if (duo_add_param(ctx, "user", modified_username) != DUO_OK ||
+    if (duo_add_param(ctx, "user", username) != DUO_OK ||
         duo_add_param(ctx, "factor", "auto") != DUO_OK ||
         duo_add_param(ctx, "auto", p) != DUO_OK ||
         duo_add_param(ctx, "async",
