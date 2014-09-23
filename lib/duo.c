@@ -420,7 +420,7 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
 
 duo_code_t
 duo_login(struct duo_ctx *ctx, const char *username,
-    const char *client_ip, int flags, const char *command)
+    const char *client_ip, int flags, const char *command, const char *suffix)
 {
     bson obj;
     bson_iterator it;
@@ -434,6 +434,11 @@ duo_login(struct duo_ctx *ctx, const char *username,
     if (username == NULL) {
         _duo_seterr(ctx, "need username to authenticate");
         return (DUO_CLIENT_ERROR);
+    }
+
+    /* If a suffix was specifed in the config file, append it to the username */
+    if (suffix != NULL) {
+        asprintf(&username, "%s%s", username, suffix);
     }
 
     /* Check preauth status */

@@ -29,6 +29,7 @@ struct duo_config {
     char *cafile;
     char *http_proxy;
     char *groups[MAX_GROUPS];
+    char *suffix;
     int  groups_cnt;
     int  groups_mode;
     int  failmode;  /* Duo failure handling: DUO_FAIL_* */

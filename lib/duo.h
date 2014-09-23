@@ -51,7 +51,8 @@ void		duo_reset_conv_funcs(duo_t *d);
 
 /* Perform Duo authentication */
 duo_code_t  duo_login(duo_t *d, const char *username,
-    		const char *client_ip, int flags, const char *command);
+    		const char *client_ip, int flags, const char *command,
+    		const char *suffix);
 
 /* Return error message from last API call */
 const char *duo_geterr(duo_t *d);

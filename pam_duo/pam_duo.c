@@ -219,7 +219,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	
 	for (i = 0; i < cfg.prompts; i++) {
 		code = duo_login(duo, user, host, flags,
-                    cfg.pushinfo ? cmd : NULL);
+                    cfg.pushinfo ? cmd : NULL, cfg.suffix);
 		if (code == DUO_FAIL) {
 			duo_log(LOG_WARNING, "Failed Duo login",
 			    user, host, duo_geterr(duo));

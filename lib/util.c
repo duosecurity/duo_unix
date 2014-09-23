@@ -111,6 +111,8 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
             /* Make timeout milliseconds */
             cfg->https_timeout *= 1000;
         }
+    } else if (strcmp(name, "suffix") == 0) {
+        cfg->suffix = strdup(val);
     } else {
         /* Couldn't handle the option, maybe it's target specific? */
         return (0);
