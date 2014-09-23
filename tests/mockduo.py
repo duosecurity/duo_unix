@@ -13,6 +13,7 @@ import ssl
 import sys
 import time
 import urllib
+import re
 
 IKEY = 'DIXYZV6YM8IFYVWBINCA'
 SKEY = 'yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo'
@@ -119,24 +120,32 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             return self._send(401)
         
         try:
-            return self._send(int(self.args['user']))
+            user = re.search('^(\d+)', self.args['user'])
+            return self._send(int(user.group(0)))
         except:
             ret = { 'stat': 'OK' }
         
         if self.path == '/rest/v1/preauth.bson':
-            if self.args['user'] == 'preauth-ok-missing_response':
+            if ((self.args['user'] == 'preauth-ok-missing_response') or 
+                (self.args['user'] == 'preauth-ok-missing_response@test.com')):
                 pass
-            elif self.args['user'] == 'preauth-fail-missing_response':
+            elif ((self.args['user'] == 'preauth-fail-missing_response') or
+                  (self.args['user'] == 'preauth-fail-missing_response@test.com')):
                 ret['stat'] = 'FAIL'
-            elif self.args['user'] == 'preauth-bad-stat':
+            elif ((self.args['user'] == 'preauth-bad-stat') or
+                  (self.args['user'] == 'preauth-bad-stat@test.com')):
                 ret['stat'] = 'FFFFUUUU'
-            elif self.args['user'] == 'preauth-fail':
+            elif ((self.args['user'] == 'preauth-fail') or
+                  (self.args['user'] == 'preauth-fail@test.com')):
                 d = { 'stat': 'FAIL', 'code': 666, 'message': 'you fail' }
-            elif self.args['user'] == 'preauth-deny':
+            elif ((self.args['user'] == 'preauth-deny') or
+                  (self.args['user'] == 'preauth-deny@test.com')):
                 ret['response'] = { 'result': 'deny', 'status': 'you suck' }
-            elif self.args['user'] == 'preauth-allow':
+            elif ((self.args['user'] == 'preauth-allow') or
+                  (self.args['user'] == 'preauth-allow@test.com')):
                 ret['response'] = { 'result': 'allow', 'status': 'you rock' }
-            elif self.args['user'] == 'preauth-allow-bad_response':
+            elif ((self.args['user'] == 'preauth-allow-bad_response') or
+                  (self.args['user'] == 'preauth-allow-bad_response@test.com')):
                 ret['response'] = { 'result': 'allow', 'xxx': 'you rock' }
             else:
                 ret['response'] = {
