@@ -8,14 +8,14 @@ PAM_TESTS = pam_duo-0.t pam_duo-1.t pam_duo-2.t pam_duo-3.t pam_duo-4.t
 
 check_LTLIBRARIES = libgroups_preload.la
 libgroups_preload_la_SOURCES = groups_preload.c
-libgroups_preload_la_LDFLAGS = -no-undefined -avoid-version -rpath /foo -module -shared
+libgroups_preload_la_LDFLAGS = -no-undefined -avoid-version -rpath /foo -shared
 
 if PAM
 TESTS += $(PAM_TESTS)
 
 check_LTLIBRARIES += libtestpam_preload.la
 libtestpam_preload_la_SOURCES = testpam_preload.c
-libtestpam_preload_la_LDFLAGS = -no-undefined -avoid-version -rpath /bar -module -shared
+libtestpam_preload_la_LDFLAGS = -no-undefined -avoid-version -rpath /bar -shared
 
 check_PROGRAMS = testpam
 testpam_LDADD = -lpam
