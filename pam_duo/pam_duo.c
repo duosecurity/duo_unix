@@ -90,10 +90,10 @@ __duo_status(void *arg, const char *msg)
 static char *
 __duo_prompt(void *arg, const char *prompt, char *buf, size_t bufsz)
 {
-	char *p;
-	
+	char *p = NULL;
+
 	if (pam_prompt((pam_handle_t *)arg, PAM_PROMPT_ECHO_ON, &p,
-		"%s", prompt) != PAM_SUCCESS) {
+		"%s", prompt) != PAM_SUCCESS || p == NULL) {
 		return (NULL);
 	}
 	strlcpy(buf, p, bufsz);
@@ -216,7 +216,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	}
 
 	pam_err = PAM_SERVICE_ERR;
-	
+
 	for (i = 0; i < cfg.prompts; i++) {
 		code = duo_login(duo, user, host, flags,
                     cfg.pushinfo ? cmd : NULL);
