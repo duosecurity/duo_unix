@@ -167,7 +167,10 @@ _fd_wait(int fd, int msecs)
         msecs = -1;
     }
 
-    result = poll(&pfd, 1, msecs);
+    do {
+        result = poll(&pfd, 1, msecs);
+    } while (result == -1 && errno == EINTR);
+
     if (result <= 0) {
         return result;
     }
@@ -178,6 +181,7 @@ _fd_wait(int fd, int msecs)
 static int
 _BIO_wait(BIO *cbio, int msecs)
 {
+        int result;
         if (!BIO_should_retry(cbio)) {
                 return (-1);
         }
@@ -202,7 +206,9 @@ _BIO_wait(BIO *cbio, int msecs)
                accept any negative value. */
             msecs = -1;
         }
-        int result = poll(&pfd, 1, msecs);
+        do {
+            result = poll(&pfd, 1, msecs);
+        } while (result == -1 && errno == EINTR);
 
         /* Timeout or poll internal error */
         if (result <= 0) {
