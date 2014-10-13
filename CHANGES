@@ -1,3 +1,7 @@
+duo_unix-1.9.13:
+
+- Bugfixes for signal handling
+
 duo_unix-1.9.12:
 
 - Include https_timeout configuration parameter
