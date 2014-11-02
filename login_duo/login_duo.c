@@ -136,16 +136,15 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     char buf[64];
     int i, flags, ret, prompts, matched;
     int headless = 0;
+    if ((pw = getpwuid(ctx->uid)) == NULL)
+            die("Who are you?");
 
-        if ((pw = getpwuid(ctx->uid)) == NULL)
-                die("Who are you?");
-        
     duouser = ctx->duouser ? ctx->duouser : pw->pw_name;
     config = ctx->config ? ctx->config : DUO_CONF;
     flags = 0;
-    
+
     duo_config_default(&cfg);
-        
+
     /* Load our private config. */
     if ((i = duo_parse_config(config, __ini_handler, &cfg)) != 0 ||
             (!cfg.apihost || !cfg.apihost[0] || !cfg.skey || !cfg.skey[0] ||
