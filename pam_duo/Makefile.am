@@ -11,6 +11,18 @@ pam_duo_la_LDFLAGS = -module -no-undefined -avoid-version -shared -export-symbol
 
 notrans_dist_man8_MANS = pam_duo.8
 
+semodule_name = authlogin_duo
+semodule:
+	-checkmodule -M -m -o $(semodule_name).mod $(semodule_name).te
+	-semodule_package -o $(semodule_name).pp -m $(semodule_name).mod
+	-semodule -i $(semodule_name).pp
+
+semodule-remove:
+	-semodule -r $(semodule_name)
+	-rm -f $(semodule_name).mod $(semodule_name).pp
+
+.PHONY: semodule semodule-remove
+
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
 	-@if [ ! -f $(DESTDIR)$(sysconfdir)/pam_duo.conf ]; then \

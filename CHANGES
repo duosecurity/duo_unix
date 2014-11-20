@@ -1,3 +1,7 @@
+duo_unix-1.9.14:
+
+- Added SELinux policy module
+
 duo_unix-1.9.13:
 
 - Bugfixes for signal handling
