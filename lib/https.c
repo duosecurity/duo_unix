@@ -174,6 +174,9 @@ _fd_wait(int fd, int msecs)
     if (result <= 0) {
         return result;
     }
+    if (pfd.revents & (POLLERR | POLLHUP)) {
+        return -1;
+    }
     return (pfd.revents & pfd.events ? 1 : -1);
 }
 
@@ -213,6 +216,9 @@ _BIO_wait(BIO *cbio, int msecs)
         /* Timeout or poll internal error */
         if (result <= 0) {
                 return (result);
+        }
+        if (pfd.revents & (POLLERR | POLLHUP)) {
+            return -1;
         }
 
         /* Return 1 if the event was not an error */

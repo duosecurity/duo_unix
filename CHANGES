@@ -1,6 +1,7 @@
 duo_unix-1.9.14:
 
 - Added SELinux policy module
+- Improve poll(2) error handling
 
 duo_unix-1.9.13:
 
