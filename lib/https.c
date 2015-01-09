@@ -174,7 +174,7 @@ _fd_wait(int fd, int msecs)
     if (result <= 0) {
         return result;
     }
-    if (pfd.revents & (POLLERR | POLLHUP)) {
+    if (pfd.revents & POLLERR) {
         return -1;
     }
     return (pfd.revents & pfd.events ? 1 : -1);
@@ -217,7 +217,7 @@ _BIO_wait(BIO *cbio, int msecs)
         if (result <= 0) {
                 return (result);
         }
-        if (pfd.revents & (POLLERR | POLLHUP)) {
+        if (pfd.revents & POLLERR) {
             return -1;
         }
 
