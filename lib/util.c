@@ -111,6 +111,21 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
             /* Make timeout milliseconds */
             cfg->https_timeout *= 1000;
         }
+    } else if (strcmp(name, "ip_whitelist") == 0) {
+        if ((buf = strdup(val)) == NULL) {
+            fprintf(stderr, "Out of memory parsing ip_whitelist\n");
+            return (0);
+        }
+        for (p = strtok(buf, " "); p != NULL; p = strtok(NULL, " ")) {
+            if (cfg->ip_whitelist_cnt >= MAX_IP_WHITELIST) {
+                fprintf(stderr, "Exceeded max %d ip_whitelist\n",
+                    MAX_IP_WHITELIST);
+                cfg->ip_whitelist_cnt = 0;
+                free(buf);
+                return (0);
+            }
+            cfg->ip_whitelist[cfg->ip_whitelist_cnt++] = p;
+        }
     } else {
         /* Couldn't handle the option, maybe it's target specific? */
         return (0);
@@ -144,6 +159,23 @@ duo_check_groups(struct passwd *pw, char **groups, int groups_cnt)
     } else {
         return 1;
     }
+}
+
+int 
+duo_check_ip_whitelist(const char *host, char **ip_whitelist, int ip_whitelist_cnt)
+{
+    int i;
+    int matched = 0;
+    
+    if (ip_whitelist_cnt > 0) {
+        for (i = 0; i < ip_whitelist_cnt; i++) {
+            if (strcmp(host, ip_whitelist[i]) == 0) {
+                matched = 1;
+                break;
+            }
+        }        
+    }
+    return matched;
 }
 
 void
