@@ -99,6 +99,8 @@ If unable to determine the authentication users's IP address, fallback on the
 IP address of the server. Default is "no".
 .It Cm https_timeout
 Set to the number of seconds to wait for HTTPS responses from Duo Security. If Duo Security takes longer than the configured number of seconds to respond to the preauth API call, the configured failmode is triggered. Other network operations such as DNS resolution, TCP connection establishment, and the SSL handshake have their own independent timeout and retry logic. Default is 0, which disables the HTTPS timeout.
+.It Cm ip_whitelist
+A list of space separated IP addresses for which to bypass Duo authentication.
 .El
 .Pp
 An example configuration file:
