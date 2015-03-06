@@ -183,6 +183,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         return (PAM_SUCCESS);
     }
 
+    user = duo_map_user(user, cfg.user_map);
+
     /* Grab the remote host */
 	ip = NULL;
 	pam_get_item(pamh, PAM_RHOST,

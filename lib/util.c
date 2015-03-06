@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <netdb.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -30,6 +31,7 @@ duo_config_default(struct duo_config *cfg)
     cfg->prompts = MAX_PROMPTS;
     cfg->local_ip_fallback = 0;
     cfg->https_timeout = -1;
+    cfg->user_map = NULL;
 }
 
 int
@@ -111,11 +113,73 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
             /* Make timeout milliseconds */
             cfg->https_timeout *= 1000;
         }
+    } else if (strcmp(name, "user_map_file") == 0) {
+        FILE *f = fopen(val, "r");
+        struct stat stbuf;
+        if (f == NULL) {
+            fprintf(stderr, "Unable to open duo user_map_file %s\n", val);
+            return (0);
+        }
+        if (fstat(fileno(f), &stbuf) != 0) {
+            fprintf(stderr, "Could not stat duo user_map_file %s\n", val);
+            return (1);
+        }
+        if (stbuf.st_mode & (S_IROTH | S_IWOTH)) {
+            duo_syslog(LOG_ERR, "duo user_map_file %s is world readable/writable, bailing\n", val);
+            return (1);
+        }
+        char line[USER_MAP_MAX];
+        int i = 0;
+        struct user_map* last = NULL;
+        while (fgets(line, USER_MAP_MAX - 1, f) != NULL) {
+            ++i;
+            char *space = strchr(line, ' ');
+            if (space == NULL) {
+                fprintf(stderr, "line %d malformed in %s\n", i, val);
+                return (0);
+            }
+            struct user_map *map_cell = malloc(sizeof(struct user_map));
+            map_cell->next = NULL;
+            size_t space_offset = space - line;
+            strncpy(map_cell->from, line, space_offset);
+            map_cell->from[space_offset] = '\0';
+            char *newline = strchr(line + space_offset, '\n');
+            if (newline != NULL) {
+                *newline = '\0';
+            }
+            strncpy(map_cell->to, line + space_offset + 1, USER_MAP_MAX - space_offset - 1);
+            // The above will include the trailing NULK from fgets(3)
+            if (cfg->user_map == NULL) {
+                cfg->user_map = map_cell;
+            }
+            if (last != NULL) {
+                last->next = map_cell;
+            }
+            last = map_cell;
+        }
+        fclose(f);
     } else {
         /* Couldn't handle the option, maybe it's target specific? */
         return (0);
     }
     return (1);
+}
+
+/* map a user using the user_map_file. Returns the original user if no
+ * mapping was found
+ */
+const char*
+duo_map_user(const char *user, const struct user_map *user_map)
+{
+    while (user_map != NULL) {
+        if (strcmp(user, user_map->from) == 0) {
+            duo_syslog(LOG_DEBUG, "Found mapping from %s to %s in user map file", user_map->from, user_map->to);
+            return user_map->to;
+        }
+        user_map = user_map->next;
+    }
+    duo_syslog(LOG_DEBUG, "No match found for %s in user map file", user);
+    return user;
 }
 
 int 
