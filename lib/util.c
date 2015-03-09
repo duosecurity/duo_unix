@@ -152,7 +152,7 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
                 *newline = '\0';
             }
             strncpy(map_cell->to, line + space_offset + 1, USER_MAP_MAX - space_offset - 1);
-            // The above will include the trailing NULK from fgets(3)
+            // The above will include the trailing NUL from fgets(3)
             if (cfg->user_map == NULL) {
                 cfg->user_map = map_cell;
             }
