@@ -178,15 +178,17 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
 void
 duo_config_release(struct duo_config *cfg)
 {
-	struct user_map *map = cfg->user_map;
-	while (map != NULL) {
-		map = map->next;
-		free(map);
-	}
+    struct user_map *map = cfg->user_map;
+    int i;
 
-	for (int i = 0; i < cfg->groups_cnt; ++i) {
-		free(cfg->groups[i]);
-	}
+    while (map != NULL) {
+        map = map->next;
+        free(map);
+    }
+
+    for (i = 0; i < cfg->groups_cnt; ++i) {
+        free(cfg->groups[i]);
+    }
 }
 
 /* map a user using the user_map_file. Returns the original user if no

@@ -151,7 +151,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	} else if (!cfg.apihost || !cfg.apihost[0] ||
             !cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0]) {
 		duo_syslog(LOG_ERR, "Missing host, ikey, or skey in %s", config);
-		return_val (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+		return_val = (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
 		duo_config_release(&cfg);
 		return return_val;
 	}
