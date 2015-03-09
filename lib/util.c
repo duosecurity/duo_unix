@@ -131,7 +131,7 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         char line[USER_MAP_MAX];
         int i = 0;
         struct user_map* last = NULL;
-        while (fgets(line, USER_MAP_MAX - 1, f) != NULL) {
+        while (fgets(line, USER_MAP_MAX, f) != NULL) {
             ++i;
             char *space = strchr(line, ' ');
             if (space == NULL) {
