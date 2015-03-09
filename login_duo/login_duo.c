@@ -164,8 +164,10 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     /* Check group membership. */
     matched = duo_check_groups(pw, cfg.groups, cfg.groups_cnt);
     if (matched == -1) {
+        duo_config_release(&cfg);
         return (EXIT_FAILURE);
     } else if (matched == 0) {
+        duo_config_release(&cfg);
         return (EXIT_SUCCESS);
     }
 
@@ -194,6 +196,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
                     cfg.https_timeout)) == NULL) {
         duo_log(LOG_ERR, "Couldn't open Duo API handle",
             pw->pw_name, host, NULL);
+        duo_config_release(&cfg);
         return (EXIT_FAILURE);
     }
 
@@ -264,6 +267,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     }
     duo_close(duo);
 
+    duo_config_release(&cfg);
     return (ret);
 }
 

@@ -139,6 +139,10 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
                 return (0);
             }
             struct user_map *map_cell = malloc(sizeof(struct user_map));
+            if (map_cell == NULL) {
+                fprintf(stderr, "Out of memory parsing user map file\n");
+                return (0);
+            }
             map_cell->next = NULL;
             size_t space_offset = space - line;
             strncpy(map_cell->from, line, space_offset);
@@ -163,6 +167,26 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         return (0);
     }
     return (1);
+}
+
+
+/* Release all dynamic memory associated with a config. Does not free the
+ * config struct itself (which, of course, might be on the stack). If the
+ * config was allocated on the heap, freeing that remains the caller's
+ * responsibility.
+ */
+void
+duo_config_release(struct duo_config *cfg)
+{
+	struct user_map *map = cfg->user_map;
+	while (map != NULL) {
+		map = map->next;
+		free(map);
+	}
+
+	for (int i = 0; i < cfg->groups_cnt; ++i) {
+		free(cfg->groups[i]);
+	}
 }
 
 /* map a user using the user_map_file. Returns the original user if no

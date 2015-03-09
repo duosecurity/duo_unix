@@ -53,6 +53,8 @@ struct duo_config {
 
 void duo_config_default(struct duo_config *cfg);
 
+void duo_config_release(struct duo_config *cfg);
+
 int duo_set_boolean_option(const char *val);
 
 int duo_common_ini_handler(struct duo_config *cfg, const char *section, 
