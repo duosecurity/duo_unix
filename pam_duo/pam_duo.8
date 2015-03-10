@@ -63,6 +63,11 @@ Default is 3.
 .It Cm fallback_local_ip
 If unable to detect the authorizing user's IP address, fallback on the server's
 IP. Default is "no".
+.It Cm user_map_file
+A path to a file which contains mappings from system usernames to Duo usernames.
+Each line of the file should contain a single space-separated mapping pair, with
+the system username before a literal space (ASCII 20) and the duo username after it.
+This doesn't support wide characters at all.
 .El
 .Pp
 An example configuration file:

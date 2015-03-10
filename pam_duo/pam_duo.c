@@ -113,6 +113,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	duopam_const char *config, *cmd, *p, *service, *user;
 	const char *ip, *host;
 	int i, flags, pam_err, matched;
+	int return_val;
 
 	duo_config_default(&cfg);
 
@@ -126,6 +127,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		} else {
 			duo_syslog(LOG_ERR, "Invalid pam_duo option: '%s'",
 			    argv[i]);
+			duo_config_release(&cfg);
 			return (PAM_SERVICE_ERR);
 		}
 	}
@@ -133,23 +135,32 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	if (i == -2) {
 		duo_syslog(LOG_ERR, "%s must be readable only by user 'root'",
 		    config);
-		return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+		return_val = (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+		duo_config_release(&cfg);
+		return return_val;
 	} else if (i == -1) {
 		duo_syslog(LOG_ERR, "Couldn't open %s: %s",
 		    config, strerror(errno));
-		return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+		return_val = (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+		duo_config_release(&cfg);
+		return return_val;
 	} else if (i > 0) {
 		duo_syslog(LOG_ERR, "Parse error in %s, line %d", config, i);
-		return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+		return_val = (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+		duo_config_release(&cfg);
+		return return_val;
 	} else if (!cfg.apihost || !cfg.apihost[0] ||
             !cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0]) {
 		duo_syslog(LOG_ERR, "Missing host, ikey, or skey in %s", config);
-		return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+		return_val = (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+		duo_config_release(&cfg);
+		return return_val;
 	}
         
     /* Check user */
     if (pam_get_user(pamh, &user, NULL) != PAM_SUCCESS ||
         (pw = getpwnam(user)) == NULL) {
+            duo_config_release(&cfg);
             return (PAM_USER_UNKNOWN);
     }
     /* XXX - Service-specific behavior */
@@ -157,6 +168,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     cmd = NULL;
 	if (pam_get_item(pamh, PAM_SERVICE, (duopam_const void **)
 		(duopam_const void *)&service) != PAM_SUCCESS) {
+                duo_config_release(&cfg);
                 return (PAM_SERVICE_ERR);
         }
     if (strcmp(service, "sshd") == 0) {
@@ -171,6 +183,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     } else if (strcmp(service, "su") == 0) {
             /* Check calling user for Duo auth, just like sudo */
             if ((pw = getpwuid(getuid())) == NULL) {
+                    duo_config_release(&cfg);
                     return (PAM_USER_UNKNOWN);
             }
             user = pw->pw_name;
@@ -178,10 +191,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	/* Check group membership */
     matched = duo_check_groups(pw, cfg.groups, cfg.groups_cnt);
     if (matched == -1) {
+        duo_config_release(&cfg);
         return (PAM_SERVICE_ERR);
     } else if (matched == 0) {
+        duo_config_release(&cfg);
         return (PAM_SUCCESS);
     }
+
+    user = duo_map_user(user, cfg.user_map);
 
     /* Grab the remote host */
 	ip = NULL;
@@ -207,6 +224,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
                     "pam_duo/" PACKAGE_VERSION,
                     cfg.noverify ? "" : cfg.cafile, DUO_NO_TIMEOUT)) == NULL) {
 		duo_log(LOG_ERR, "Couldn't open Duo API handle", user, host, NULL);
+		duo_config_release(&cfg);
 		return (PAM_SERVICE_ERR);
 	}
 	duo_set_conv_funcs(duo, __duo_prompt, __duo_status, pamh);
@@ -261,6 +279,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	}
 	duo_close(duo);
 	
+	duo_config_release(&cfg);
 	return (pam_err);
 }
 
