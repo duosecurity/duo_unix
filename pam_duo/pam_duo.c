@@ -127,6 +127,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		} else {
 			duo_syslog(LOG_ERR, "Invalid pam_duo option: '%s'",
 			    argv[i]);
+			duo_config_release(&cfg);
 			return (PAM_SERVICE_ERR);
 		}
 	}

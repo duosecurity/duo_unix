@@ -151,7 +151,7 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
             if (newline != NULL) {
                 *newline = '\0';
             }
-            strncpy(map_cell->to, line + space_offset + 1, USER_MAP_MAX - space_offset - 1);
+            strncpy(map_cell->to, space + 1, USER_MAP_MAX - space_offset - 1);
             // The above will include the trailing NUL from fgets(3)
             if (cfg->user_map == NULL) {
                 cfg->user_map = map_cell;
@@ -178,17 +178,22 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
 void
 duo_config_release(struct duo_config *cfg)
 {
-    struct user_map *map = cfg->user_map;
+    struct user_map *next_map = cfg->user_map;
+    struct user_map *this_map = NULL;
     int i;
 
-    while (map != NULL) {
-        map = map->next;
-        free(map);
+    while (next_map != NULL) {
+        this_map = next_map;
+        next_map = this_map->next;
+        free(this_map);
     }
+    cfg->user_map = NULL;
 
     for (i = 0; i < cfg->groups_cnt; ++i) {
         free(cfg->groups[i]);
+        cfg->groups[i] = NULL;
     }
+    cfg->groups_cnt = 0;
 }
 
 /* map a user using the user_map_file. Returns the original user if no
