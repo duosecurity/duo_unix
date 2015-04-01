@@ -168,7 +168,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
             flags |= DUO_FLAG_SYNC;
     } else if (strcmp(service, "sudo") == 0) {
             cmd = getenv("SUDO_COMMAND");
-    } else if (strcmp(service, "su") == 0) {
+    } else if (strcmp(service, "su") == 0 || strcmp(service, "su-l") == 0) {
             /* Check calling user for Duo auth, just like sudo */
             if ((pw = getpwuid(getuid())) == NULL) {
                     return (PAM_USER_UNKNOWN);
