@@ -106,13 +106,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     int argc, const char *argv[])
 {
 	struct duo_config cfg;
-	struct passwd *pw;
+	struct passwd *pw = NULL;
 	struct in_addr addr;
 	duo_t *duo;
 	duo_code_t code;
 	duopam_const char *config, *cmd, *p, *service, *user;
 	const char *ip, *host;
 	int i, flags, pam_err, matched;
+	int duo_nosshpwcheck = 0;
 
 	duo_config_default(&cfg);
 
@@ -123,6 +124,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 			config = argv[i] + 5;
 		} else if (strcmp("debug", argv[i]) == 0) {
 			duo_debug = 1;
+		} else if (strcmp("nosshpwcheck", argv[i]) == 0) {
+			duo_nosshpwcheck = 1;
 		} else {
 			duo_syslog(LOG_ERR, "Invalid pam_duo option: '%s'",
 			    argv[i]);
@@ -147,9 +150,16 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
 	}
         
+    if (duo_nosshpwcheck == 1 && cfg.groups_cnt != 0) {
+	duo_syslog(LOG_ERR, "nosshpwcheck pam_duo option specified but config"
+                         " file specifies 'groups' option; both can't be used"
+                         " at the same time");
+	return (PAM_CRED_INSUFFICIENT);
+    }
+
     /* Check user */
     if (pam_get_user(pamh, &user, NULL) != PAM_SUCCESS ||
-        (pw = getpwnam(user)) == NULL) {
+        (duo_nosshpwcheck == 0 && (pw = getpwnam(user)) == NULL)) {
             return (PAM_USER_UNKNOWN);
     }
     /* XXX - Service-specific behavior */

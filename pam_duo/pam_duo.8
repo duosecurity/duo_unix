@@ -18,6 +18,8 @@ PAM module configuration options supported:
 .It conf
 Specify an alternate configuration file to load. Default is 
 .Pa /etc/duo/pam_duo.conf
+.It nosshpwcheck
+Doesn't check that user exists in local system when service is ssh. Can't be used together with groups option in the configuration file.
 .It debug
 Debug mode; send log messages to stderr instead of syslog.
 .El
