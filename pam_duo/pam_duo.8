@@ -63,6 +63,9 @@ Default is 3.
 .It Cm fallback_local_ip
 If unable to detect the authorizing user's IP address, fallback on the server's
 IP. Default is "no".
+.It Cm send_gecos
+Instead of using the unix username, send Duo the contents of the GECOS field
+from /etc/passwd.  Default is "no".
 .El
 .Pp
 An example configuration file:
