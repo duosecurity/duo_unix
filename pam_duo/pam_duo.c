@@ -186,8 +186,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 
     /* Use GECOS field if called for */
     if (cfg.send_gecos) {
-      if (strlen(pw->gecos) > 0) {
-          user = pw->gecos;
+      if (strlen(pw->pw_gecos) > 0) {
+          user = pw->pw_gecos;
       } else {
           duo_log(LOG_WARNING, "Empty GECOS field", pw->pw_name, host, NULL);
       }
