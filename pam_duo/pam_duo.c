@@ -184,6 +184,15 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         return (PAM_IGNORE);
     }
 
+    /* Use GECOS field if called for */
+    if (cfg.send_gecos) {
+      if (strlen(pw->pw_gecos) > 0) {
+          user = pw->pw_gecos;
+      } else {
+          duo_log(LOG_WARNING, "Empty GECOS field", pw->pw_name, host, NULL);
+      }
+    }
+
     /* Grab the remote host */
 	ip = NULL;
 	pam_get_item(pamh, PAM_RHOST,
@@ -207,7 +216,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	if ((duo = duo_open(cfg.apihost, cfg.ikey, cfg.skey,
                     "pam_duo/" PACKAGE_VERSION,
                     cfg.noverify ? "" : cfg.cafile, DUO_NO_TIMEOUT)) == NULL) {
-		duo_log(LOG_ERR, "Couldn't open Duo API handle", user, host, NULL);
+		duo_log(LOG_ERR, "Couldn't open Duo API handle", pw->pw_name, host, NULL);
 		return (PAM_SERVICE_ERR);
 	}
 	duo_set_conv_funcs(duo, __duo_prompt, __duo_status, pamh);
@@ -223,7 +232,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
                     cfg.pushinfo ? cmd : NULL);
 		if (code == DUO_FAIL) {
 			duo_log(LOG_WARNING, "Failed Duo login",
-			    user, host, duo_geterr(duo));
+			    pw->pw_name, host, duo_geterr(duo));
 			if ((flags & DUO_FLAG_SYNC) == 0) {
 				pam_info(pamh, "%s", "");
                         }
@@ -234,25 +243,25 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		if (code == DUO_OK) {
 			if ((p = duo_geterr(duo)) != NULL) {
 				duo_log(LOG_WARNING, "Skipped Duo login",
-				    user, host, p);
+				    pw->pw_name, host, p);
 			} else {
 				duo_log(LOG_INFO, "Successful Duo login",
-				    user, host, NULL);
+				    pw->pw_name, host, NULL);
 			}
 			pam_err = PAM_SUCCESS;
 		} else if (code == DUO_ABORT) {
 			duo_log(LOG_WARNING, "Aborted Duo login",
-			    user, host, duo_geterr(duo));
+			    pw->pw_name, host, duo_geterr(duo));
 			pam_err = PAM_ABORT;
 		} else if (cfg.failmode == DUO_FAIL_SAFE &&
                     (code == DUO_CONN_ERROR ||
                      code == DUO_CLIENT_ERROR || code == DUO_SERVER_ERROR)) {
 			duo_log(LOG_WARNING, "Failsafe Duo login",
-			    user, host, duo_geterr(duo));
+			    pw->pw_name, host, duo_geterr(duo));
 			pam_err = PAM_SUCCESS;
 		} else {
 			duo_log(LOG_ERR, "Error in Duo login",
-			    user, host, duo_geterr(duo));
+			    pw->pw_name, host, duo_geterr(duo));
 			pam_err = PAM_SERVICE_ERR;
 		}
 		break;
