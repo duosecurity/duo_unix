@@ -1,3 +1,9 @@
+duo_unix-1.9.15:
+
+- SELinux policy module package support
+- PAM module improvements
+- Removed deprecated SHA1 Entrust CA
+
 duo_unix-1.9.14:
 
 - Added SELinux policy module
