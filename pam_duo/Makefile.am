@@ -34,4 +34,4 @@ install-data-local:
 	fi
 	-chmod 600 $(DESTDIR)$(sysconfdir)/pam_duo.conf
 
-EXTRA_DIST = pam_duo.conf
+EXTRA_DIST = pam_duo.conf $(semodule_name).te
