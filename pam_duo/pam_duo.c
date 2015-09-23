@@ -181,6 +181,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         return (PAM_SERVICE_ERR);
     } else if (matched == 0) {
 	/* If user not in a Duo group, ignore the pam_duo module */
+	duo_syslog(LOG_INFO, "User %s is not in a duo-enabled group", pw->pw_name);
         return (PAM_IGNORE);
     }
 
