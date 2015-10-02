@@ -78,6 +78,15 @@ fopen(const char *filename, const char *mode)
 struct passwd *
 getpwnam(const char *name)
 {
-	return (getpwuid(getuid()));
+	// Tests rely on the username being correctly set.
+	static char username[1024];
+	strncpy(username, name, 1024);
+	username[1024 - 1] = '\0';
+
+	static struct passwd ret;
+	memcpy(&ret, getpwuid(getuid()), sizeof(struct passwd));
+	ret.pw_name = username;
+
+	return &ret;
 }
 
