@@ -27,7 +27,9 @@
 static void _preload_init(void) __attribute((constructor));
 
 int (*_sys_open)(const char *pathname, int flags, ...);
+int (*_sys_open64)(const char *pathname, int flags, ...);
 FILE *(*_sys_fopen)(const char *filename, const char *mode);
+FILE *(*_sys_fopen64)(const char *filename, const char *mode);
 
 static void
 _fatal(const char *msg)
@@ -48,8 +50,12 @@ _preload_init(void)
 		_fatal("couldn't dlopen " _PATH_LIBC);
 	} else if (!(_sys_open = dlsym(libc, "open"))) {
 		_fatal("couldn't dlsym 'open'");
+	} else if (!(_sys_open = dlsym(libc, "open64"))) {
+		_fatal("couldn't dlsym 'open64'");
 	} else if (!(_sys_fopen = dlsym(libc, "fopen"))) {
 		_fatal("couldn't dlsym 'fopen'");
+	} else if (!(_sys_fopen64 = dlsym(libc, "fopen64"))) {
+		_fatal("couldn't dlsym 'fopen64'");
 	}
 }
 
@@ -69,15 +75,36 @@ open(const char *filename, int flags, ...)
 	return ((*_sys_open)(_replace(filename), flags));
 }
 
+int
+open64(const char *filename, int flags, ...)
+{
+	return ((*_sys_open64)(_replace(filename), flags));
+}
+
 FILE *
 fopen(const char *filename, const char *mode)
 {
 	return ((*_sys_fopen)(_replace(filename), mode));
 }
 
+FILE *
+fopen64(const char *filename, const char *mode)
+{
+	return ((*_sys_fopen64)(_replace(filename), mode));
+}
+
 struct passwd *
 getpwnam(const char *name)
 {
-	return (getpwuid(getuid()));
+	// Tests rely on the username being correctly set.
+	static char username[1024];
+	strncpy(username, name, 1024);
+	username[1024 - 1] = '\0';
+
+	static struct passwd ret;
+	memcpy(&ret, getpwuid(getuid()), sizeof(struct passwd));
+	ret.pw_name = username;
+
+	return &ret;
 }
 

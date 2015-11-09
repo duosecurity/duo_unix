@@ -1,3 +1,12 @@
+duo_unix-1.9.17:
+
+- Fixed PAM return code issue
+
+duo_unix-1.9.16:
+
+- Test fixes
+- Compilation fixes
+
 duo_unix-1.9.15:
 
 - SELinux policy module package support

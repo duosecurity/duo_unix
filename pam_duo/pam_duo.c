@@ -180,8 +180,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     if (matched == -1) {
         return (PAM_SERVICE_ERR);
     } else if (matched == 0) {
-	/* If user not in a Duo group, ignore the pam_duo module */
-        return (PAM_IGNORE);
+        return (PAM_SUCCESS);
     }
 
     /* Use GECOS field if called for */
@@ -189,7 +188,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
       if (strlen(pw->pw_gecos) > 0) {
           user = pw->pw_gecos;
       } else {
-          duo_log(LOG_WARNING, "Empty GECOS field", pw->pw_name, host, NULL);
+          duo_log(LOG_WARNING, "Empty GECOS field", pw->pw_name, NULL, NULL);
       }
     }
 
