@@ -15,13 +15,20 @@ semodule_name = authlogin_duo
 semodule:
 	-checkmodule -M -m -o $(semodule_name).mod $(semodule_name).te
 	-semodule_package -o $(semodule_name).pp -m $(semodule_name).mod
+
+semodule-enable:
 	-semodule -i $(semodule_name).pp
+
+semodule-install:
+	-bzip2 -9 $(semodule_name).pp
+	-install -d $(DESTDIR)/usr/share/selinux/packages/
+	-install -m 0644 $(semodule_name).pp.bz2 $(DESTDIR)/usr/share/selinux/packages/
 
 semodule-remove:
 	-semodule -r $(semodule_name)
-	-rm -f $(semodule_name).mod $(semodule_name).pp
+	-rm -f $(semodule_name).{mod,pp,pp.bz2} $(DESTDIR)/usr/share/selinux/packages/$(semodule_name).pp.bz2
 
-.PHONY: semodule semodule-remove
+.PHONY: semodule semodule-enable semodule-install semodule-remove
 
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
