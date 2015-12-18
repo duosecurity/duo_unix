@@ -128,6 +128,28 @@ AS_IF([test "x$with_pam" != "xno"], [
 ])
 AC_SUBST(PAMDIR, "$PAMDIR")
 
+# Check QR
+AC_ARG_WITH(qrencode,
+  AS_HELP_STRING([--with-qrencode=DIR],[include qr code enrollment capabilities]),
+  [],
+  [ with_qrencode=no ]
+)
+AM_CONDITIONAL([QRENCODE], [ test "x$with_qrencode" != "xno" ])
+
+AS_IF([test "x$with_qrencode" != "xno"], [
+  save_LIBS=$LIBS
+
+  AC_CHECK_HEADERS([qrencode.h], [],
+    [AC_MSG_ERROR([[qrencode header files not found. Install libqrencode-dev/qrencode-devel/etc.]])])
+  AC_CHECK_LIB([qrencode], [main], [], AC_MSG_FAILURE([libqrencode not found]))
+  AC_CHECK_FUNCS([QRcode_encodeString QRcode_free])
+  AC_SUBST([QRENCODE_LDFLAGS], "-lqrencode")
+
+  LIBS=$save_LIBS
+], [
+  AC_SUBST([QRENCODE_LDFLAGS], [""])
+])
+
 # Check for Duo privsep user
 case "$host" in
      *darwin*)		DUO_PRIVSEP_USER="_sshd" ;;

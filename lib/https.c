@@ -614,10 +614,15 @@ https_send(struct https_request *req, const char *method, const char *uri,
         int i, n, is_get;
             
         req->done = 0;
+
+    size_t now_s = 100;
+    char nowstr[now_s];
+    time_t now = time (0);
+    strftime (nowstr, now_s, "%a, %d %b %Y %T %z", localtime (&now));
         
         /* Generate query string and canonical request to sign */
 	if ((qs = _argv_to_qs(argc, argv)) == NULL ||
-            (asprintf(&p, "%s\n%s\n%s\n%s", method, req->host, uri, qs)) < 0) {
+            (asprintf(&p, "%s\n%s\n%s\n%s\n%s", nowstr, method, req->host, uri, qs)) < 0) {
                 free(qs);
                 ctx->errstr = strerror(errno);
                 return (HTTPS_ERR_LIB);
@@ -637,6 +642,10 @@ https_send(struct https_request *req, const char *method, const char *uri,
         BIO_printf(req->cbio,
                    "User-Agent: %s\r\n",
                    ctx->useragent);
+        /* Add Date header */
+        BIO_printf(req->cbio,
+                   "Date: %s\r\n",
+                   nowstr);
         /* Add signature */
         BIO_puts(req->cbio, "Authorization: Basic ");
 

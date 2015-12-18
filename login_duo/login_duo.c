@@ -215,6 +215,10 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         flags |= DUO_FLAG_ENV;
     }
 
+    if (cfg.qr_enroll) {
+        flags |= DUO_FLAG_QR_ENROLL;
+    }
+
     ret = EXIT_FAILURE;
     
     for (i = 0; i < prompts; i++) {
@@ -250,6 +254,10 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         } else if (code == DUO_ABORT) {
             duo_log(LOG_WARNING, "Aborted Duo login",
                 duouser, host, duo_geterr(duo));
+        } else if (code == DUO_JSON_ERROR) {
+            duo_log(LOG_WARNING, "Erroring parsing JSON response",
+                duouser, host, duo_geterr(duo));
+            ret = EXIT_FAILURE;
         } else if (cfg.failmode == DUO_FAIL_SAFE &&
                     (code == DUO_CONN_ERROR ||
                      code == DUO_CLIENT_ERROR || code == DUO_SERVER_ERROR)) {

@@ -30,15 +30,21 @@
 #include <openssl/sha.h>
 #include <openssl/ssl.h>
 
+#ifdef HAVE_LIBQRENCODE
+#include <qrencode.h>
+#endif /* HAVE_LIBQRENCODE */
+
 #include "util.h"
 #include "bson.h"
 #include "duo.h"
 #include "https.h"
 #include "ini.h"
 #include "urlenc.h"
+#include "parson.h"
 
 #define DUO_LIB_VERSION     "libduo/" PACKAGE_VERSION
 #define DUO_API_VERSION     "/rest/v1"
+#define DUO_API_VERSION_2   "/auth/v2"
 #define AUTOPUSH_MSG        "Autopushing login request to phone..."
 #define AUTOPHONE_MSG       "Calling your phone..."
 #define AUTODEFAULT_MSG     "Using default second-factor authentication."
@@ -309,9 +315,54 @@ duo_geterr(struct duo_ctx *ctx)
     return (ctx->err[0] ? ctx->err : NULL);
 }
 
+#ifdef HAVE_LIBQRENCODE
+
+duo_code_t
+_duo_enroll(struct duo_ctx *ctx, bson *obj, const char *username)
+{
+    duo_code_t ret;
+
+    /* Get enrollment code */
+    if (duo_add_param(ctx, "username", username) != DUO_OK) {
+        return (DUO_LIB_ERROR);
+    }
+
+    if ((ret = duo_call(ctx, "POST", DUO_API_VERSION_2 "/enroll", ctx->https_timeout)) != DUO_OK) {
+        return (ret);
+    }
+
+    /* Parse API results */
+    JSON_Value *json_value = json_parse_string(ctx->body);
+    if (json_value == NULL) {
+        return (DUO_JSON_ERROR);
+    }
+
+    JSON_Object *json_object = json_value_get_object(json_value);
+    if (json_object == NULL) {
+        json_value_free(json_value);
+        return (DUO_JSON_ERROR);
+    }
+
+    const char *code = json_object_dotget_string(json_object, "response.activation_code");
+    if (code == NULL) {
+        json_value_free(json_value);
+        return (DUO_JSON_ERROR);
+    }
+
+    QRcode *qrcode = QRcode_encodeString(code, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
+    duo_print_qrcode(ctx->conv_status, ctx->conv_arg, qrcode, 0);
+    QRcode_free(qrcode);
+
+    json_value_free(json_value);
+
+    return (DUO_CONTINUE);
+}
+
+#endif /* HAVE_LIBQRENCODE */
+
 duo_code_t
 _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
-    const char *client_ip)
+    const char *client_ip, int qr_enroll)
 {
     bson_iterator it;
     duo_code_t ret;
@@ -347,8 +398,13 @@ _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
             if (ctx->conv_status != NULL)
                 ctx->conv_status(ctx->conv_arg,
                     bson_iterator_string(&it));
+#ifdef HAVE_LIBQRENCODE
+            if (qr_enroll) {
+                ret = _duo_enroll(ctx, obj, username);
+            }
+#endif /* HAVE_LIBQRENCODE */
             _duo_seterr(ctx, "User enrollment required");
-            ret = DUO_ABORT;
+            ret = (ret == DUO_JSON_ERROR ? ret : DUO_ABORT);
         } else {
             _duo_seterr(ctx, "BSON invalid 'result': %s", p);
             ret = DUO_SERVER_ERROR;
@@ -437,7 +493,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
     }
 
     /* Check preauth status */
-    if ((ret = _duo_preauth(ctx, &obj, username, client_ip)) != DUO_CONTINUE) {
+    if ((ret = _duo_preauth(ctx, &obj, username, client_ip, flags & DUO_FLAG_QR_ENROLL)) != DUO_CONTINUE) {
         return (ret);
     }
 
