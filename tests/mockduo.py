@@ -39,9 +39,14 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         if ikey != IKEY:
             return False
         
-        canon = [ self.method,
-                  self.headers['Host'].split(':')[0].lower(),
-                  self.path ]
+        if 'Date' in self.headers:
+            canon = [ self.headers['Date'] ]
+        else:
+            canon = []
+
+        canon += [ self.method,
+                   self.headers['Host'].split(':')[0].lower(),
+                   self.path ]
         l = []
         for k in sorted(self.args.keys()):
             l.append('%s=%s' % (urllib.quote(k, '~'),
