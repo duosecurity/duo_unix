@@ -130,7 +130,7 @@ AC_SUBST(PAMDIR, "$PAMDIR")
 
 # Check QR
 AC_ARG_WITH(qrencode,
-  AS_HELP_STRING([--with-qrencode=DIR],[include qr code enrollment capabilities]),
+  AS_HELP_STRING([--with-qrencode],[include qr code enrollment capabilities [default=no]]),
   [],
   [ with_qrencode=no ]
 )
