@@ -110,8 +110,17 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	struct in_addr addr;
 	duo_t *duo;
 	duo_code_t code;
-	duopam_const char *config, *cmd, *p, *service, *user;
-	const char *ip, *host;
+
+	/*
+	 * Only variables that will be passed to a pam_* function
+	 * need to be marked as 'duopam_const char *', anything else
+	 * should be 'const char *'. This is because there are different
+	 * PAM implementations, some with the const qualifier, and some
+	 * without.
+	 */
+	duopam_const char *ip, *service, *user;
+	const char *cmd, *p, *config, *host;
+
 	int i, flags, pam_err, matched;
 
 	duo_config_default(&cfg);
