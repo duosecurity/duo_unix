@@ -524,7 +524,15 @@ https_open(struct https_request **reqp, const char *host)
                 
                 while ((n = BIO_read(req->cbio, ctx->parse_buf,
                             sizeof(ctx->parse_buf))) <= 0) {
-                        _BIO_wait(req->cbio, 5000);
+                    if ((n = _BIO_wait(req->cbio, 5000)) != 1) {
+                        if (n == 0) {
+                            ctx->errstr = "Proxy connection timed out";
+                        } else {
+                            ctx->errstr = "Proxy connection error";
+                        }
+                        https_close(&req);
+                        return HTTPS_ERR_SERVER;
+                    }
                 }
                 /* Tolerate HTTP proxies that respond with an
                    incorrect HTTP version number */
