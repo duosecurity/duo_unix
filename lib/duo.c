@@ -259,7 +259,7 @@ _duo_bson_response(struct duo_ctx *ctx, bson *resp)
 }
 
 static duo_code_t
-duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs, int api_version)
+duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
 {
         int i, code, err, ret;
 
@@ -277,7 +277,7 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs, in
                         break;
                 }
                 if ((err = https_send(ctx->https, method, uri,
-                            ctx->argc, ctx->argv, api_version)) == HTTPS_OK &&
+                            ctx->argc, ctx->argv)) == HTTPS_OK &&
                     (err = https_recv(ctx->https, &code,
                         &ctx->body, &ctx->body_len, msecs)) == HTTPS_OK) {
                         break;
@@ -327,7 +327,7 @@ _duo_enroll(struct duo_ctx *ctx, bson *obj, const char *username)
         return (DUO_LIB_ERROR);
     }
 
-    if ((ret = duo_call(ctx, "POST", DUO_API_VERSION_2 "/enroll", ctx->https_timeout, 2)) != DUO_OK) {
+    if ((ret = duo_call(ctx, "POST", DUO_API_VERSION_2 "/enroll", ctx->https_timeout)) != DUO_OK) {
         return (ret);
     }
 
@@ -379,7 +379,7 @@ _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
         }
     }
 
-    if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/preauth.bson", ctx->https_timeout, 1)) != DUO_OK ||
+    if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/preauth.bson", ctx->https_timeout)) != DUO_OK ||
         (ret = _duo_bson_response(ctx, obj)) != DUO_OK) {
         return (ret);
     }
@@ -532,7 +532,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
      * immediately.
      */
     if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/auth.bson",
-                   flags & DUO_FLAG_SYNC ? DUO_NO_TIMEOUT : ctx->https_timeout, 1)) != DUO_OK ||
+                   flags & DUO_FLAG_SYNC ? DUO_NO_TIMEOUT : ctx->https_timeout)) != DUO_OK ||
         (ret = _duo_bson_response(ctx, &obj)) != DUO_OK) {
         return (ret);
     }
@@ -571,7 +571,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
     for (i = 0; i < 20; i++) {
         if ((ret = duo_add_param(ctx, "txid", buf)) != DUO_OK ||
             (ret = duo_call(ctx, "GET",
-            DUO_API_VERSION "/status.bson", DUO_NO_TIMEOUT, 1)) != DUO_OK ||
+            DUO_API_VERSION "/status.bson", DUO_NO_TIMEOUT)) != DUO_OK ||
             (ret = _duo_bson_response(ctx, &obj)) != DUO_OK) {
             break;
         }

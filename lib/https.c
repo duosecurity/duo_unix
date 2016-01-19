@@ -39,19 +39,19 @@ extern void X509_TEA_set_state(int change);
 
 struct https_ctx {
         SSL_CTX              *ssl_ctx;
-        char                 *ikey;
-        char                 *skey;
-        char                 *useragent;
+        char	             *ikey;
+        char	             *skey;
+        char	             *useragent;
 
-        char                 *proxy;
-        char                 *proxy_port;
-        char                 *proxy_auth;
+        char		     *proxy;
+        char		     *proxy_port;
+        char		     *proxy_auth;
         
         const char           *errstr;
-        char                 errbuf[512];
+        char	              errbuf[512];
         
-        http_parser_settings parse_settings;
-        char                 parse_buf[4096];
+        http_parser_settings  parse_settings;
+        char	              parse_buf[4096];
 } *ctx;
 
 struct https_request {
@@ -59,11 +59,11 @@ struct https_request {
         BIO                  *body;
         SSL                  *ssl;
         
-        char                 *host;
-        const char           *port;
+        char                 *host;	/* host */
+        const char           *port;	/* port */
         
         http_parser          *parser;
-        int                  done;
+        int	              done;
 };
 
 static int
@@ -613,38 +613,28 @@ _argv_to_qs(int argc, char *argv[])
 
 HTTPScode
 https_send(struct https_request *req, const char *method, const char *uri,
-    int argc, char *argv[], int api_version)
+    int argc, char *argv[])
 {
         BIO *b64;
-        HMAC_CTX hmac;
-        unsigned char MD[SHA_DIGEST_LENGTH];
+	HMAC_CTX hmac;
+	unsigned char MD[SHA_DIGEST_LENGTH];
         char *qs, *p;
         int i, n, is_get;
             
         req->done = 0;
 
-        size_t now_s = 100;
-        char nowstr[now_s];
-        time_t now = time (0);
-        strftime (nowstr, now_s, "%a, %d %b %Y %T %z", localtime (&now));
-
+    size_t now_s = 100;
+    char nowstr[now_s];
+    time_t now = time (0);
+    strftime (nowstr, now_s, "%a, %d %b %Y %T %z", localtime (&now));
+        
         /* Generate query string and canonical request to sign */
-        int qs_success = -1;
-        if ((qs = _argv_to_qs(argc, argv)) != NULL) {
-            if (api_version == 2) {
-                qs_success = asprintf(&p, "%s\n%s\n%s\n%s\n%s", nowstr, method, req->host, uri, qs);
-            } else {
-                qs_success = asprintf(&p, "%s\n%s\n%s\n%s", method, req->host, uri, qs);
-            }
-
+	if ((qs = _argv_to_qs(argc, argv)) == NULL ||
+            (asprintf(&p, "%s\n%s\n%s\n%s\n%s", nowstr, method, req->host, uri, qs)) < 0) {
+                free(qs);
+                ctx->errstr = strerror(errno);
+                return (HTTPS_ERR_LIB);
         }
-
-        if (qs_success < 0) {
-            free(qs);
-            ctx->errstr = strerror(errno);
-            return (HTTPS_ERR_LIB);
-        }
-
         /* Format request */
         if ((is_get = (strcmp(method, "GET") == 0))) {
                 BIO_printf(req->cbio, "GET %s?%s HTTP/1.1\r\n", uri, qs);
@@ -661,19 +651,17 @@ https_send(struct https_request *req, const char *method, const char *uri,
                    "User-Agent: %s\r\n",
                    ctx->useragent);
         /* Add Date header */
-        if (api_version == 2) {
-            BIO_printf(req->cbio,
-                       "Date: %s\r\n",
-                       nowstr);
-        }
+        BIO_printf(req->cbio,
+                   "Date: %s\r\n",
+                   nowstr);
         /* Add signature */
         BIO_puts(req->cbio, "Authorization: Basic ");
 
-        HMAC_CTX_init(&hmac);
-        HMAC_Init(&hmac, ctx->skey, strlen(ctx->skey), EVP_sha1());
-        HMAC_Update(&hmac, (unsigned char *)p, strlen(p));
-        HMAC_Final(&hmac, MD, NULL);
-        HMAC_CTX_cleanup(&hmac);
+	HMAC_CTX_init(&hmac);
+	HMAC_Init(&hmac, ctx->skey, strlen(ctx->skey), EVP_sha1());
+	HMAC_Update(&hmac, (unsigned char *)p, strlen(p));
+	HMAC_Final(&hmac, MD, NULL);
+	HMAC_CTX_cleanup(&hmac);
         free(p);
         
         b64 = _BIO_new_base64();
