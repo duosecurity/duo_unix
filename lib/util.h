@@ -41,7 +41,6 @@ struct duo_config {
     int  local_ip_fallback;
     int  https_timeout;
     int  send_gecos;
-    int  qr_enroll;
 };
 
 void duo_config_default(struct duo_config *cfg);
@@ -64,12 +63,5 @@ duo_resolve_name(const char *hostname);
 const char *
 duo_local_ip();
 
-#ifdef HAVE_LIBQRENCODE
 
-#include <qrencode.h>
-
-int duo_print_qrcode(void (*)(void *, const char *), void *, QRcode *, int);
-
-#endif /* HAVE_LIBQRENCODE */
-
-#endif /* DUO_UTIL_H */
+#endif

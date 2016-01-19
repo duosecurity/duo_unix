@@ -17,13 +17,11 @@ typedef enum {
 	DUO_CONN_ERROR,			/* problem connecting */
 	DUO_CLIENT_ERROR,		/* you screwed up */
 	DUO_SERVER_ERROR,		/* we screwed up */
-	DUO_JSON_ERROR,		    /* error parsing JSON */
 } duo_code_t;
 
-#define DUO_FLAG_SYNC	    (1 << 0)	/* no incremental status reporting */
-#define DUO_FLAG_AUTO	    (1 << 1)	/* use default factor without prompt */
-#define DUO_FLAG_ENV        (1 << 2)    /* Get factor from environment variable */
-#define DUO_FLAG_QR_ENROLL  (1 << 3)    /* print qr code for enrollment */
+#define DUO_FLAG_SYNC	(1 << 0)	/* no incremental status reporting */
+#define DUO_FLAG_AUTO	(1 << 1)	/* use default factor without prompt */
+#define DUO_FLAG_ENV    (1 << 2)    /* Get factor from environment variable */
 
 #define DUO_ENV_VAR_NAME "DUO_PASSCODE"
 

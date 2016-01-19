@@ -113,8 +113,6 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         }
     } else if (strcmp(name, "send_gecos") == 0) {
       cfg->send_gecos = duo_set_boolean_option(val);
-    } else if (strcmp(name, "qr_enroll") == 0) {
-      cfg->qr_enroll = duo_set_boolean_option(val);
     } else {
         /* Couldn't handle the option, maybe it's target specific? */
         return (0);
@@ -213,100 +211,4 @@ duo_local_ip()
     }
     return (ip);
 }
-
-#ifdef HAVE_LIBQRENCODE
-
-#define DUO_QR_MARGIN    2
-#define DUO_ANSI_RESET   "\x1B[0m"
-#define DUO_ANSI_WHITE   "\x1B[27m"
-#define DUO_ANSI_BLACK   "\x1B[7m"
-#define DUO_ANSI_MAIZE   "\x1B[43m"
-#define DUO_ANSI_BLUE    "\x1B[44m"
-
-#define DUO_PRINT_BLACK  DUO_ANSI_BLACK "  "
-#define DUO_PRINT_WHITE  DUO_ANSI_WHITE "  "
-#define DUO_PRINT_RESET  DUO_ANSI_RESET "\n"
-
-int
-duo_print_qrcode(void (*status_fn)(void *arg, const char *msg), void *arg,
-    QRcode *qrcode, int invert)
-{
-    unsigned int real_width = (qrcode->width + DUO_QR_MARGIN * 2);
-    unsigned char *row;
-    int x, y;
-
-    const char *black = invert ? DUO_PRINT_WHITE : DUO_PRINT_BLACK;
-    const char *white = invert ? DUO_PRINT_BLACK : DUO_PRINT_WHITE;
-    const char *reset = DUO_PRINT_RESET;
-
-    /*
-     * White characters take up the most space, so we'll assume every
-     * character is white in order to allocate enough space.
-     */
-    unsigned int buffer_s = sizeof(DUO_PRINT_WHITE);
-
-    /*
-     * We have one newline reset at the end of each row.
-     */
-    buffer_s *= (real_width + 1);
-    buffer_s *= (real_width);
-
-    /*
-     * We have a newline reset at the beginning and end of the buffer.
-     */
-    buffer_s += (sizeof(DUO_PRINT_RESET) * 2);
-
-    char buffer[buffer_s];
-
-    strcat(buffer, reset);
-
-    /* top margin */
-    for (x = 0; x < DUO_QR_MARGIN; x++) {
-        for (y = 0; y < real_width; y++) {
-            strcat(buffer, black);
-        }
-        strcat(buffer, reset);
-    }
-
-    for (x = 0; x < qrcode->width; x++) {
-        /* left margin */
-        for (y = 0; y < DUO_QR_MARGIN; y++) {
-            strcat(buffer, black);
-        }
-
-        /* qrcode */
-        row = qrcode->data + (x * qrcode->width);
-        for (y = 0; y < qrcode->width; y++) {
-            if (row[y] & 0x1) {
-                strcat(buffer, white);
-            } else {
-                strcat(buffer, black);
-            }
-        }
-
-        /* right margin */
-        for (y = 0; y < DUO_QR_MARGIN; y++) {
-            strcat(buffer, black);
-        }
-
-        strcat(buffer, reset);
-
-    }
-
-    /* bottom margin */
-    for (x = 0; x < DUO_QR_MARGIN; x++) {
-        for (y = 0; y < real_width; y++) {
-            strcat(buffer, black);
-        }
-        strcat(buffer, reset);
-    }
-
-    strcat(buffer, reset);
-
-    status_fn(arg, buffer);
-
-    return 0;
-}
-
-#endif /* HAVE_LIBQRENCODE */
 

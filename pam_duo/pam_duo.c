@@ -261,10 +261,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 			duo_log(LOG_WARNING, "Aborted Duo login",
 			    pw->pw_name, host, duo_geterr(duo));
 			pam_err = PAM_ABORT;
-		} else if (code == DUO_JSON_ERROR) {
-			duo_log(LOG_WARNING, "Erroring parsing JSON response",
-				pw->pw_name, host, duo_geterr(duo));
-			pam_err = EXIT_FAILURE;
 		} else if (cfg.failmode == DUO_FAIL_SAFE &&
                     (code == DUO_CONN_ERROR ||
                      code == DUO_CLIENT_ERROR || code == DUO_SERVER_ERROR)) {
