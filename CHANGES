@@ -1,3 +1,8 @@
+duo_unix-1.9.18:
+
+- Added HTTP proxy connection error handling
+- Improved compatibility with Solaris and AIX
+
 duo_unix-1.9.17:
 
 - Fixed PAM return code issue
