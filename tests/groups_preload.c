@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-static struct passwd _passwd[5] = {
+static struct passwd _passwd[6] = {
         { "user1", "*", 1000, 1000, .pw_gecos = "gecos", .pw_dir = "/",
           .pw_shell = "/bin/sh" },
         { "user2", "*", 1001, 100, .pw_gecos = "gecos", .pw_dir = "/",
@@ -22,6 +22,8 @@ static struct passwd _passwd[5] = {
           .pw_shell = "/bin/sh" },
         { "weirdo", "*", 1004, 1004, .pw_gecos = "gecos", .pw_dir = "/",
           .pw_shell = "/bin/sh" },
+        { "noshell", "*", 1005, 1005, .pw_gecos = "gecos", .pw_dir = "/",
+          .pw_shell = NULL },
 };
 
 /* Supplemental groups */
