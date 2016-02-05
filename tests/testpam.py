@@ -57,7 +57,7 @@ def main():
         env['DYLD_FORCE_FLAT_NAMESPACE'] = '1'
     elif sys.platform == 'sunos5':
         architecture = {'32bit': '32', '64bit': '64'}[platform.architecture()[0]]
-        env['LD_PRELOAD_' + architecture] = paths.build + '/.libs/libgroups_preload.so'
+        env['LD_PRELOAD_' + architecture] = paths.build + '/.libs/libtestpam_preload.so'
     else:
         env['LD_PRELOAD'] = paths.build + '/.libs/libtestpam_preload.so'
         
