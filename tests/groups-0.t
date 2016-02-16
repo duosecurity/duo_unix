@@ -51,3 +51,7 @@ admins and not users: skip users
   SKIP
   $ env UID=1004 ./groups.py -d -c confs/mockduo_admins_no_users.conf -f preauth-allow echo SKIP
   SKIP
+
+non-existent shell
+  $ env UID=1005 ./groups.py -d -c confs/mockduo_users.conf -f noshell echo SKIP
+  SKIP

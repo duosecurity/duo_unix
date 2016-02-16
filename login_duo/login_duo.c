@@ -27,6 +27,7 @@
 
 #include "util.h"
 #include "duo.h"
+#include "shell.h"
 
 #ifndef DUO_PRIVSEP_USER
 #define DUO_PRIVSEP_USER    "duo"
@@ -296,26 +297,34 @@ do_exec(struct login_ctx *ctx, const char *cmd)
         struct passwd *pw;
     const char *shell0;
     char argv0[256];
+    const char *user_shell;
     int n;
 
         if ((pw = getpwuid(ctx->uid)) == NULL)
                 die("Who are you?");
-        
-    if ((shell0 = strrchr(pw->pw_shell, '/')) != NULL) {
+
+    /* Check to see if we have a shell from getpwuid() */
+    if (NULL == pw->pw_shell) {
+      user_shell = _DEFAULT_SHELL; /* No shell so use the default. */
+    }
+    else {
+      user_shell = pw->pw_shell; /* Use the shell provided by getpwuid() */
+    }
+    if ((shell0 = strrchr(user_shell, '/')) != NULL) {
         shell0++;
     } else {
-        shell0 = pw->pw_shell;
+        shell0 = user_shell;
     }
     if (cmd != NULL) {
-        execl(pw->pw_shell, shell0, "-c", cmd, (char *)NULL);
+        execl(user_shell, shell0, "-c", cmd, (char *)NULL);
     } else {
         n = snprintf(argv0, sizeof(argv0), "-%s", shell0);
         if (n == -1 || n >= sizeof(argv0)) {
-            die("%s: Invalid argument", pw->pw_shell);
+            die("%s: Invalid argument", user_shell);
         }
-        execl(pw->pw_shell, argv0, (char *)NULL);
+        execl(user_shell, argv0, (char *)NULL);
     }
-    die("%s: %s", pw->pw_shell, strerror(errno));
+    die("%s: %s", user_shell, strerror(errno));
 }
 
 static char *
