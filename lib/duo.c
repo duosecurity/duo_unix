@@ -265,7 +265,8 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
                 if (ctx->https == NULL &&
                     (err = https_open(&ctx->https, ctx->host)) != HTTPS_OK) {
                         if (err == HTTPS_ERR_SERVER) {
-                                sleep(1 << i);
+                                /* disable backoff */
+                                /* sleep(1 << i); */
                                 continue;
                         }
                         break;
