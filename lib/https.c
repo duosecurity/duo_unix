@@ -259,7 +259,7 @@ _establish_connection(struct https_request * const req,
     BIO_set_nbio(req->cbio, 1);
 
     while (BIO_do_connect(req->cbio) <= 0) {
-        if ((n = _BIO_wait(req->cbio, 10000)) != 1) {
+        if ((n = _BIO_wait(req->cbio, 1000)) != 1) {    /* reduce connection timeout to 1s */
             ctx->errstr = n ? _SSL_strerror() :
                 "Connection timed out";
             return (n ? HTTPS_ERR_SYSTEM : HTTPS_ERR_SERVER);
@@ -298,7 +298,7 @@ _establish_connection(struct https_request * const req,
 
     /* Connect */
     for (cur_res = res; cur_res; cur_res = cur_res->ai_next) {
-        int connretries = 3;
+        int connretries = 1;    /* reduce retry to 1 since duo_call already retries 3 times */
         while (connected_socket == -1 && connretries--) {
             int sock_flags;
 
@@ -317,7 +317,7 @@ _establish_connection(struct https_request * const req,
                 connected_socket = -1;
                 break;
             }
-            socket_error = _fd_wait(connected_socket, 10000);
+            socket_error = _fd_wait(connected_socket, 1000);    /* reduce connection timeout to 1s */
             if (socket_error != 1) {
                 close(connected_socket);
                 connected_socket = -1;
