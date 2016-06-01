@@ -552,9 +552,19 @@ https_open(struct https_request **reqp, const char *host)
                 https_close(&req);
                 return (HTTPS_ERR_LIB);
         }
+
         req->cbio = BIO_push(sbio, req->cbio);
         BIO_get_ssl(req->cbio, &req->ssl);
-        
+
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+        /* Enable SNI support */
+        if ((n = SSL_set_tlsext_host_name(req->ssl, api_host)) != 1) {
+            ctx->errstr = "Setting SNI failed";
+            https_close(&req);
+            return (HTTPS_ERR_LIB);
+        }
+#endif
+
         while (BIO_do_handshake(req->cbio) <= 0) {
                 if ((n = _BIO_wait(req->cbio, 5000)) != 1) {
                         ctx->errstr = n ? _SSL_strerror() :
