@@ -121,7 +121,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     const char *config, *p, *duouser;
     const char *ip, *host = NULL;
     char buf[64];
-    int i, flags, ret, prompts, matched;
+    int i, flags, ret, prompts, matched, trusted;
     int headless = 0;
 
         if ((pw = getpwuid(ctx->uid)) == NULL)
@@ -169,7 +169,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     } else if (matched == 0) {
         return (EXIT_SUCCESS);
     }
-
+    
 
     /* Check for remote login host */
     if ((host = ip = getenv("SSH_CONNECTION")) != NULL ||
@@ -180,6 +180,19 @@ do_auth(struct login_ctx *ctx, const char *cmd)
             host = ip;
         } else {
             ip = (cfg.local_ip_fallback ? duo_local_ip() : NULL);
+        }
+    }
+
+    /* Check for trusted access configuration */
+    if (cfg.ta_expire > 0) {
+        /* Check for recent login/trusted access */
+        trusted = duo_check_trusted_access(pw, &cfg, host);
+        if (trusted == -1) {
+            return (EXIT_FAILURE);
+        } else if (trusted == 1) {
+            duo_log(LOG_INFO, "Successful Duo cached access login",
+                pw->pw_name, host, NULL);
+            return (EXIT_SUCCESS);
         }
     }
 
@@ -243,6 +256,11 @@ do_auth(struct login_ctx *ctx, const char *cmd)
             } else {
                 duo_log(LOG_INFO, "Successful Duo login",
                     duouser, host, NULL);
+                if (cfg.ta_expire > 0) {
+                    duo_touch_trusted_access_file(duo_trusted_access_filename(pw, &cfg, host));
+                    duo_log(LOG_INFO, "Duo cached access initiated",
+                        pw->pw_name, host, NULL);
+                }
             }
             if (cfg.motd && !headless) {
                 _print_motd();

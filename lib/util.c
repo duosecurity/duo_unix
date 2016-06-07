@@ -13,8 +13,11 @@
 #include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <time.h>
+#include <utime.h>
 #include <unistd.h>
 
 #include "util.h"
@@ -30,6 +33,8 @@ duo_config_default(struct duo_config *cfg)
     cfg->prompts = MAX_PROMPTS;
     cfg->local_ip_fallback = 0;
     cfg->https_timeout = -1;
+    cfg->ta_expire = 0;
+    cfg->ta_prefix = "";
 }
 
 int
@@ -111,6 +116,18 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
             /* Make timeout milliseconds */
             cfg->https_timeout *= 1000;
         }
+    } else if (strcmp(name, "taexpire") == 0) {
+        int_val = atoi(val);
+        /* Clamp the value into acceptable range */
+        if (int_val <= 0) {
+            cfg->ta_expire = 0;
+        } else if (int_val > MAX_TA_EXPIRE) {
+            cfg->ta_expire = MAX_TA_EXPIRE;
+        } else {
+            cfg->ta_expire = int_val;
+        }
+    } else if (strcmp(name, "taprefix") == 0) {
+        cfg->ta_prefix = strdup(val);
     } else if (strcmp(name, "send_gecos") == 0) {
       cfg->send_gecos = duo_set_boolean_option(val);
     } else {
@@ -118,6 +135,91 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         return (0);
     }
     return (1);
+}
+
+int 
+duo_check_trusted_access(struct passwd *pw, struct duo_config *cfg, const char *ip)
+{
+    int trusted = 0;
+    struct stat sb;
+    time_t now;
+    const char * filename;
+
+    /* Get current time */
+    time(&now);
+    
+    /* Get filename */
+    filename = duo_trusted_access_filename(pw, cfg, ip);
+
+    /* Check if a trusted access file exists (can be stat'ed) */
+    if (stat(filename, &sb) == -1) {
+        /* No trusted file exists, untrusted */
+        trusted = 0;
+    } else if (difftime(now,sb.st_mtime)<(double)(cfg->ta_expire*60.0)) {
+        /* Trusted file exists and is within expiration */
+        trusted = 1;
+        /* Reset file modified time */
+        duo_touch_trusted_access_file(filename);
+    } else {
+        /* Trusted file exists but has expired */
+        trusted = 0;
+    }
+
+    return trusted;
+}
+
+char *
+duo_trusted_access_filename(struct passwd *pw, struct duo_config *cfg, const char *ip)
+{
+    int ret;
+    char * ta_filename;
+    char * ta_prefix;
+
+    /* Handle test cases where there is no ip */
+    if (ip == NULL) {
+        ip = "localhost";
+    }
+    
+    /* Honor trusted access file prefix or use home as a default */
+    if (strlen(cfg->ta_prefix) > 0) {
+        ta_prefix = strdup(cfg->ta_prefix);
+    } else {
+        ta_prefix = strdup(pw->pw_dir);
+   }
+    
+    /* Construct filename */
+    ret = asprintf(&ta_filename, "%s/.ds-%s-%s", ta_prefix, pw->pw_name, ip);
+    
+    if (ret>=0) {
+        return ta_filename;
+    } else {
+        return NULL;
+    }
+}
+
+void
+duo_touch_trusted_access_file(const char *ta_filename)
+{
+    FILE * fd;
+    struct utimbuf ubuf;
+
+    /* Set access and mod time to current time */
+    time(&ubuf.actime);
+    time(&ubuf.modtime);
+
+    /* "Touch" the file */
+    if ((fd = fopen(ta_filename,"w")) != NULL) {
+        fclose(fd);
+        if (utime(ta_filename, &ubuf) != 0) {
+            duo_log(LOG_ERR, "Couldn't write cached access file mod time",
+                ta_filename, NULL, NULL);
+        }
+    } else {
+        duo_log(LOG_ERR, "Couldn't write cached access file",
+            ta_filename, NULL, NULL);
+    }
+
+    return;
 }
 
 int 

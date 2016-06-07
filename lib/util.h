@@ -10,6 +10,7 @@
 
 #define MAX_GROUPS 256
 #define MAX_PROMPTS 3
+#define MAX_TA_EXPIRE 1440
 
 #include <pwd.h>
 #include <syslog.h>
@@ -40,6 +41,8 @@ struct duo_config {
     int  accept_env;
     int  local_ip_fallback;
     int  https_timeout;
+    int  ta_expire;
+    char *ta_prefix;
     int  send_gecos;
 };
 
@@ -51,6 +54,13 @@ int duo_common_ini_handler(struct duo_config *cfg, const char *section,
     const char *name, const char*val);
 
 int duo_check_groups(struct passwd *pw, char **groups, int groups_cnt);
+
+int duo_check_trusted_access(struct passwd *pw, struct duo_config *cfg, const char *ip);
+
+char *
+duo_trusted_access_filename(struct passwd *pw, struct duo_config *cfg, const char *ip);
+
+void duo_touch_trusted_access_file(const char *ta_filename);
 
 void duo_log(int priority, const char*msg, const char *user, const char *ip,
              const char *err);
