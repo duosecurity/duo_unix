@@ -169,7 +169,6 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     } else if (matched == 0) {
         return (EXIT_SUCCESS);
     }
-    
 
     /* Check for remote login host */
     if ((host = ip = getenv("SSH_CONNECTION")) != NULL ||
