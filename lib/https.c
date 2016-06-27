@@ -298,33 +298,28 @@ _establish_connection(struct https_request * const req,
 
     /* Connect */
     for (cur_res = res; cur_res; cur_res = cur_res->ai_next) {
-        int connretries = 3;
-        while (connected_socket == -1 && connretries--) {
-            int sock_flags;
+        int sock_flags;
 
-            connected_socket = socket(cur_res->ai_family,
-                    cur_res->ai_socktype,
-                    cur_res->ai_protocol);
-            if (connected_socket == -1) {
-                continue;
-            }
-            sock_flags = fcntl(connected_socket, F_GETFL, 0);
-            fcntl(connected_socket, F_SETFL, sock_flags|O_NONBLOCK);
+        connected_socket = socket(cur_res->ai_family,
+                cur_res->ai_socktype,
+                cur_res->ai_protocol);
+        if (connected_socket == -1) {
+            continue;
+        }
+        sock_flags = fcntl(connected_socket, F_GETFL, 0);
+        fcntl(connected_socket, F_SETFL, sock_flags|O_NONBLOCK);
 
-            if (connect(connected_socket, cur_res->ai_addr, cur_res->ai_addrlen) != 0 &&
-                    errno != EINPROGRESS) {
-                close(connected_socket);
-                connected_socket = -1;
-                break;
-            }
-            socket_error = _fd_wait(connected_socket, 10000);
-            if (socket_error != 1) {
-                close(connected_socket);
-                connected_socket = -1;
-                continue;
-            }
-            /* Connected! */
-            break;
+        if (connect(connected_socket, cur_res->ai_addr, cur_res->ai_addrlen) != 0 &&
+                errno != EINPROGRESS) {
+            close(connected_socket);
+            connected_socket = -1;
+            continue;
+        }
+        socket_error = _fd_wait(connected_socket, 10000);
+        if (socket_error != 1) {
+            close(connected_socket);
+            connected_socket = -1;
+            continue;
         }
     }
     cur_res = NULL;
