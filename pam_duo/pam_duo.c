@@ -212,7 +212,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	}
 	if (!inet_aton(ip, &addr)) {
 		/* We have a hostname, don't try to resolve, check fallback */
-		ip = (cfg.local_ip_fallback ? duo_local_ip() : NULL);
+		if (cfg.local_ip_fallback) {
+			host = duo_local_ip();
+		}
 	}
 
 	/* Honor configured http_proxy */

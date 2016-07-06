@@ -17,6 +17,7 @@
 int (*_sys_poll)(struct pollfd *fds, nfds_t nfds, int timeout);
 int (*_sys_connect)(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int (*_sys_getaddrinfo)(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res);
+const char* (*_sys_duo_local_ip)();
 
 static struct passwd _passwd[1] = {
         { "user1", "*", 1001, 100, .pw_gecos = "gecos", .pw_dir = "/",
@@ -27,6 +28,13 @@ int
 _istimeout(void)
 {
         char *t = getenv("TIMEOUT");
+        return (t ? atoi(t) : 0);
+}
+
+int
+_isfallback(void)
+{
+        char *t = getenv("FALLBACK");
         return (t ? atoi(t) : 0);
 }
 
@@ -66,6 +74,18 @@ getaddrinfo(const char *node, const char *service, const struct addrinfo *hints,
             (*res)->ai_next = NULL;
         }
         return retval;
+}
+
+const char*
+duo_local_ip()
+{
+    if (_isfallback()) {
+       return "1.2.3.4";
+    }
+    else {
+        _sys_duo_local_ip = dlsym(RTLD_NEXT, "duo_local_ip");
+        return (*_sys_duo_local_ip)();
+    }
 }
 
 uid_t

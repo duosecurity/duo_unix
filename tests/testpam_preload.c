@@ -30,6 +30,7 @@ int (*_sys_open)(const char *pathname, int flags, ...);
 int (*_sys_open64)(const char *pathname, int flags, ...);
 FILE *(*_sys_fopen)(const char *filename, const char *mode);
 FILE *(*_sys_fopen64)(const char *filename, const char *mode);
+const char* (*_sys_duo_local_ip)();
 
 static void
 _fatal(const char *msg)
@@ -70,6 +71,13 @@ _replace(const char *filename)
 }
 
 int
+_isfallback(void)
+{
+        char *t = getenv("FALLBACK");
+        return (t ? atoi(t) : 0);
+}
+
+int
 open(const char *filename, int flags, ...)
 {
 	return ((*_sys_open)(_replace(filename), flags));
@@ -91,6 +99,18 @@ FILE *
 fopen64(const char *filename, const char *mode)
 {
 	return ((*_sys_fopen64)(_replace(filename), mode));
+}
+
+const char*
+duo_local_ip()
+{
+    if (_isfallback()) {
+       return "1.2.3.4";
+    }
+    else {
+        _sys_duo_local_ip = dlsym(RTLD_NEXT, "duo_local_ip");
+        return (*_sys_duo_local_ip)();
+    }
 }
 
 struct passwd *

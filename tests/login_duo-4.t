@@ -77,6 +77,9 @@ Test manually-set hosts
   [4] Skipped Duo login for 'preauth-allow' from %s: you rock
   [4] Skipped Duo login for 'preauth-allow' from !@#$%^&*()_+<>{}|;': you rock
 
+  $ env FALLBACK=1 UID=1001 ${TESTDIR}/login_duo.py -d -c confs/mockduo_fallback.conf -f whatever -h BADHOST true
+  [6] Successful Duo login for 'whatever' from 1.2.3.4
+
 Test SSH-set host
   $ env SSH_CONNECTION="1.2.3.4 64903 127.0.0.1 22" ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f preauth-allow true
   [4] Skipped Duo login for 'preauth-allow' from 1.2.3.4: you rock

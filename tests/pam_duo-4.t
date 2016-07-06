@@ -65,3 +65,5 @@ Test manually-set hosts
   [4] Skipped Duo login for 'preauth-allow' from %s: you rock
   [4] Skipped Duo login for 'preauth-allow' from !@#$%^&*()_+<>{}|;': you rock
 
+  $ env FALLBACK=1 ./testpam.py -d -c confs/mockduo_fallback.conf -f preauth-allow -h BADHOST true
+  [4] Skipped Duo login for 'preauth-allow' from 1.2.3.4: you rock

@@ -179,7 +179,9 @@ do_auth(struct login_ctx *ctx, const char *cmd)
             ip = strtok(buf, " ");
             host = ip;
         } else {
-            ip = (cfg.local_ip_fallback ? duo_local_ip() : NULL);
+            if (cfg.local_ip_fallback) {
+                host = duo_local_ip();
+            }
         }
     }
 
