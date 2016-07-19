@@ -110,6 +110,19 @@ _print_motd()
     return (0);
 }
 
+static void
+restore_http_proxy(const char* http_proxy)
+{
+    if (http_proxy != NULL)
+    {
+        setenv("http_proxy", http_proxy, 1);
+    }
+    else
+    {
+        unsetenv("http_proxy");
+    }
+}
+
 static int
 do_auth(struct login_ctx *ctx, const char *cmd)
 {
@@ -119,7 +132,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     duo_t *duo;
     duo_code_t code;
     const char *config, *p, *duouser;
-    const char *ip, *host = NULL;
+    const char *ip, *host, *orig_http_proxy = NULL;
     char buf[64];
     int i, flags, ret, prompts, matched;
     int headless = 0;
@@ -186,6 +199,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     }
 
     /* Honor configured http_proxy */
+    orig_http_proxy = getenv("http_proxy");
     if (cfg.http_proxy != NULL) {
         setenv("http_proxy", cfg.http_proxy, 1);
     }
@@ -197,6 +211,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
                     cfg.https_timeout)) == NULL) {
         duo_log(LOG_ERR, "Couldn't open Duo API handle",
             pw->pw_name, host, NULL);
+        restore_http_proxy(orig_http_proxy);
         return (EXIT_FAILURE);
     }
 
@@ -267,6 +282,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     }
     duo_close(duo);
 
+    restore_http_proxy(orig_http_proxy);
     return (ret);
 }
 

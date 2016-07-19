@@ -101,6 +101,19 @@ __duo_prompt(void *arg, const char *prompt, char *buf, size_t bufsz)
 	return (buf);
 }
 
+static void
+restore_http_proxy(const char* http_proxy)
+{
+	if (http_proxy != NULL)
+	{
+		setenv("http_proxy", http_proxy, 1);
+	}
+	else
+	{
+		unsetenv("http_proxy");
+	}
+}
+
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     int argc, const char *argv[])
@@ -119,7 +132,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	 * without.
 	 */
 	duopam_const char *ip, *service, *user;
-	const char *cmd, *p, *config, *host;
+	const char *cmd, *p, *config, *host, *orig_http_proxy;
 
 	int i, flags, pam_err, matched;
 
@@ -218,6 +231,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	}
 
 	/* Honor configured http_proxy */
+	orig_http_proxy = getenv("http_proxy");
 	if (cfg.http_proxy != NULL) {
 		setenv("http_proxy", cfg.http_proxy, 1);
 	}
@@ -227,6 +241,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
                     "pam_duo/" PACKAGE_VERSION,
                     cfg.noverify ? "" : cfg.cafile, cfg.https_timeout)) == NULL) {
 		duo_log(LOG_ERR, "Couldn't open Duo API handle", pw->pw_name, host, NULL);
+		restore_http_proxy(orig_http_proxy);
 		return (PAM_SERVICE_ERR);
 	}
 	duo_set_conv_funcs(duo, __duo_prompt, __duo_status, pamh);
@@ -281,6 +296,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	}
 	duo_close(duo);
 	
+	restore_http_proxy(orig_http_proxy);
 	return (pam_err);
 }
 
