@@ -1,3 +1,9 @@
+duo_unix-1.9.19:
+
+- Restore the http_proxy environment variable after Duo is done
+- Added https_timeout config option to pam_duo
+- Bug fixes for timeouts and fallback ip addresses
+
 duo_unix-1.9.18:
 
 - Added HTTP proxy connection error handling
