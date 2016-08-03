@@ -2,6 +2,8 @@ duo_unix-1.9.19:
 
 - Restore the http_proxy environment variable after Duo is done
 - Added https_timeout config option to pam_duo
+- Handles missing shell and adds default if not specified in getpwuid
+- Add SNI support and a guard for systems that don't support SNI
 - Bug fixes for timeouts and fallback ip addresses
 
 duo_unix-1.9.18:
