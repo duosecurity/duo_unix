@@ -321,6 +321,8 @@ _establish_connection(struct https_request * const req,
             connected_socket = -1;
             continue;
         }
+        /* Connected! */
+        break;
     }
     cur_res = NULL;
     freeaddrinfo(res);
