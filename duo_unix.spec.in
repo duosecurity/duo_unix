@@ -67,6 +67,7 @@ make %{?_smp_mflags}
 [ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
 make install DESTDIR=$RPM_BUILD_ROOT
 rm -f $RPM_BUILD_ROOT/%{_lib}/security/pam_duo.*a
+rm -f $RPM_BUILD_ROOT/%{_includedir}/duo/shell.h
 
 %post -n libduo -p /sbin/ldconfig
 
