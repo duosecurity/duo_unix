@@ -134,7 +134,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	duopam_const char *ip, *service, *user;
 	const char *cmd, *p, *config, *host, *orig_http_proxy;
 
-	int i, flags, pam_err, matched;
+	int i, flags, pam_err, matched, trusted;
 
 	duo_config_default(&cfg);
 
@@ -230,6 +230,19 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 		}
 	}
 
+	/* Check for trusted access configuration */
+	if (cfg.ta_expire > 0) {
+		/* Check for recent login/trusted access */
+		trusted = duo_check_trusted_access(pw, &cfg, host);
+		if (trusted == -1) {
+			return (PAM_SERVICE_ERR);
+		} else if (trusted == 1) {
+                        duo_log(LOG_INFO, "Successful Duo cached access login", 
+                            pw->pw_name, host, NULL);
+			return (PAM_SUCCESS);
+		}
+	} 
+
 	/* Honor configured http_proxy */
 	orig_http_proxy = getenv("http_proxy");
 	if (cfg.http_proxy != NULL) {
@@ -272,6 +285,11 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 			} else {
 				duo_log(LOG_INFO, "Successful Duo login",
 				    pw->pw_name, host, NULL);
+				if (cfg.ta_expire > 0) {
+				    duo_touch_trusted_access_file(duo_trusted_access_filename(pw, &cfg, host));
+				    duo_log(LOG_INFO, "Duo cached access initiated",
+				        pw->pw_name, host, NULL);
+				}
 			}
 			pam_err = PAM_SUCCESS;
 		} else if (code == DUO_ABORT) {
