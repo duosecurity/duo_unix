@@ -127,6 +127,16 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     int i, flags, ret, prompts, matched;
     int headless = 0;
 
+    /*
+     * Handle a delimited GECOS field. E.g.
+     *
+     *     username:x:0:0:code1/code2/code3//textField/usergecosparsed:/username:/bin/bash
+     *
+     * Parse the username from the appropriate position in the GECOS field.
+     */
+    const char delimiter = '/';
+    const unsigned int delimited_position = 5;
+
     if ((pw = getpwuid(ctx->uid)) == NULL) {
         die("Who are you?");
     }
@@ -174,6 +184,22 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         return (EXIT_SUCCESS);
     }
 
+    /* Use GECOS field if called for */
+    if (cfg.send_gecos || cfg.gecos_parsed && !ctx->duouser) {
+        if (strlen(pw->pw_gecos) > 0) {
+            if (cfg.gecos_parsed) {
+                duouser = duo_split_at(pw->pw_gecos, delimiter, delimited_position);
+                if (duouser == NULL || (strcmp(duouser, "") == 0)) {
+                    duo_log(LOG_DEBUG, "Could not parse GECOS field", pw->pw_name, NULL, NULL);
+                    duouser = pw->pw_name;
+                }
+            } else {
+                duouser = pw->pw_gecos;
+            }
+        } else {
+            duo_log(LOG_WARNING, "Empty GECOS field", pw->pw_name, NULL, NULL);
+        }
+    }
 
     /* Check for remote login host */
     if ((host = ip = getenv("SSH_CONNECTION")) != NULL ||

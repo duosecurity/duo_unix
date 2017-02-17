@@ -29,6 +29,7 @@
 /duo_unix-*.tar.*
 /duo_unix.spec
 /lib/testduo
+/lib/testutil_duo_split_at
 /libtool
 /login_duo/login_duo
 /stamp-h1

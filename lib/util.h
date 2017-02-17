@@ -41,6 +41,7 @@ struct duo_config {
     int  local_ip_fallback;
     int  https_timeout;
     int  send_gecos;
+    int  gecos_parsed;
 };
 
 void duo_config_default(struct duo_config *cfg);
@@ -69,5 +70,7 @@ void duo_syslog(int priority, const char *fmt, ...);
 const char *duo_resolve_name(const char *hostname);
 
 const char *duo_local_ip();
+
+char *duo_split_at(char *s, char delimiter, unsigned int position);
 
 #endif

@@ -17,9 +17,11 @@ notrans_dist_man3_MANS = duo.3
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libduo.pc
 
-noinst_PROGRAMS = testduo
+noinst_PROGRAMS = testduo testutil_duo_split_at
 
 testduo_LDADD = libduo.la $(top_builddir)/compat/libcompat.la
+
+testutil_duo_split_at_LDADD = libduo.la $(top_builddir)/compat/libcompat.la
 
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(sysconfdir)

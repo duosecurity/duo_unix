@@ -111,7 +111,9 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
             cfg->https_timeout *= 1000;
         }
     } else if (strcmp(name, "send_gecos") == 0) {
-      cfg->send_gecos = duo_set_boolean_option(val);
+        cfg->send_gecos = duo_set_boolean_option(val);
+    } else if (strcmp(name, "gecos_parsed") == 0) {
+        cfg->gecos_parsed = duo_set_boolean_option(val);
     } else {
         /* Couldn't handle the option, maybe it's target specific? */
         return (0);
@@ -211,3 +213,26 @@ duo_local_ip()
     return (ip);
 }
 
+char *
+duo_split_at(char *s, char delimiter, unsigned int position)
+{
+    unsigned int count = 0;
+    char *iter = NULL;
+    char *result = s;
+
+    for (iter = s; *iter; iter++) {
+        if (*iter == delimiter) {
+            if (count < position) {
+                result = iter + 1;
+                count++;
+            }
+            *iter = '\0';
+        }
+    }
+
+    if (count < position) {
+        return NULL;
+    }
+
+    return result;
+}
