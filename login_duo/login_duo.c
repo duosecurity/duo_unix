@@ -24,6 +24,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <stdbool.h>
 
 #include "util.h"
 #include "duo.h"
@@ -123,6 +124,54 @@ restore_http_proxy(const char* http_proxy)
     }
 }
 
+static bool
+check_interactive_command(const char* command, const struct duo_config *cfg)
+{
+    char ssh_orig_cmd[1024];
+    bool ret = false;
+    size_t size = sizeof(ssh_orig_cmd);
+    char *tmp;
+    int index = 0;
+    /*
+     * We use a fixed size buffer, in order to avoid
+     * assle of freeing memory, we also avoid alloca as we don't want someone
+     * to blow up the stack
+     */
+    strncpy(ssh_orig_cmd, command, size);
+    /*
+     * strncpy can leave the string without \0, let's fix this
+     */
+    ssh_orig_cmd[size - 1] = '\0';
+    tmp = ssh_orig_cmd;
+    while (true) {
+        tmp = strchr(tmp, ' ');
+        if (!tmp) {
+            /* no space found */
+            break;
+        }
+        if (tmp && *(tmp - 1) != '\\') {
+            *tmp = '\0';
+            break;
+        }
+        tmp++;
+    }
+    tmp = strrchr(ssh_orig_cmd, '/');
+    if (!tmp) {
+        tmp = ssh_orig_cmd;
+    } else {
+        tmp++;
+    }
+    for (index = 0; index < cfg->nb_interactives_cmds; index++) {
+        if (strncmp(cfg->interactives_cmds[index], tmp,
+                    strlen(cfg->interactives_cmds[index]) + 1) == 0) {
+            ret = true;
+            break;
+        }
+    }
+
+    return ret;
+}
+
 static int
 do_auth(struct login_ctx *ctx, const char *cmd)
 {
@@ -136,6 +185,12 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     char buf[64];
     int i, flags, ret, prompts, matched;
     int headless = 0;
+    /*
+     * Will be true if the original ssh command was defined and can't read
+     * stdin
+     */
+    bool ssh_cmd_needstdin = false;
+
     if ((pw = getpwuid(ctx->uid)) == NULL)
             die("Who are you?");
 
@@ -214,9 +269,12 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         return (EXIT_FAILURE);
     }
 
+    p = getenv("SSH_ORIGINAL_COMMAND");
+    if (p != NULL) {
+        ssh_cmd_needstdin = check_interactive_command(p, &cfg);
+    }
     /* Special handling for non-interactive sessions */
-    if ((p = getenv("SSH_ORIGINAL_COMMAND")) != NULL ||
-        !isatty(STDIN_FILENO)) {
+    if (!ssh_cmd_needstdin && (p != NULL || !isatty(STDIN_FILENO))) {
         /* Try to support automatic one-shot login */
         duo_set_conv_funcs(duo, NULL, NULL, NULL);
         flags = (DUO_FLAG_SYNC|DUO_FLAG_AUTO);
