@@ -29,6 +29,7 @@ struct duo_config {
     char *cafile;
     char *http_proxy;
     char *groups[MAX_GROUPS];
+    const char **interactives_cmds;
     int  groups_cnt;
     int  groups_mode;
     int  failmode;  /* Duo failure handling: DUO_FAIL_* */
@@ -41,6 +42,7 @@ struct duo_config {
     int  local_ip_fallback;
     int  https_timeout;
     int  send_gecos;
+    int  nb_interactives_cmds;
 };
 
 void duo_config_default(struct duo_config *cfg);

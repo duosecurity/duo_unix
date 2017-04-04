@@ -16,6 +16,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #include "util.h"
 #include "groupaccess.h"
@@ -30,6 +31,11 @@ duo_config_default(struct duo_config *cfg)
     cfg->prompts = MAX_PROMPTS;
     cfg->local_ip_fallback = 0;
     cfg->https_timeout = -1;
+    cfg->nb_interactives_cmds = 1;
+    cfg->interactives_cmds = calloc(sizeof(cfg->interactives_cmds[0]), cfg->nb_interactives_cmds);
+    if (cfg->interactives_cmds) {
+         cfg->interactives_cmds[0] = strdup("mosh-server");
+    }
 }
 
 int
@@ -113,6 +119,50 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         }
     } else if (strcmp(name, "send_gecos") == 0) {
       cfg->send_gecos = duo_set_boolean_option(val);
+    } else if (strcmp(name, "interactives") == 0 || strcmp(name, "interactive") == 0) {
+        int index = 0;
+        int delta = 0;
+        bool need_strdup = false;
+
+        if ((buf = strdup(val)) == NULL) {
+            fprintf(stderr, "Out of memory parsing interactives commands\n");
+            return (0);
+        }
+        cfg->nb_interactives_cmds = 0;
+        for (p = strtok(buf, " "); p != NULL; p = strtok(NULL, " ")) {
+            if (p[strlen(p) -1] != '\\') {
+                cfg->nb_interactives_cmds++;
+            }
+        }
+        free(buf);
+        cfg->interactives_cmds = calloc(sizeof(cfg->interactives_cmds[0]),
+                                        cfg->nb_interactives_cmds);
+        if ((cfg->interactives_cmds == NULL) && (cfg->nb_interactives_cmds > 0)) {
+            fprintf(stderr, "Out of memory parsing interactives commands\n");
+            return (0);
+        }
+        /* Keep the old buf for temporary storage */
+        if ((buf = strdup(val)) == NULL) {
+            fprintf(stderr, "Out of memory parsing interactives commands\n");
+            free(buf);
+            return (0);
+        }
+        for (p = strtok(buf, " "); p != NULL; p = strtok(NULL, " ")) {
+            if (p[strlen(p) -1] == '\\' && !need_strdup) {
+                delta = p - buf;
+                need_strdup = true;
+                continue;
+            }
+            if (p[strlen(p) -1] != '\\') {
+                if (need_strdup) {
+                    cfg->interactives_cmds[index++] = strndup(val + delta, (p + strlen(p) - buf) - delta);
+                } else {
+                    cfg->interactives_cmds[index++] = p;
+                }
+                need_strdup = false;
+                delta = 0;
+            }
+        }
     } else {
         /* Couldn't handle the option, maybe it's target specific? */
         return (0);
