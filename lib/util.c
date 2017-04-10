@@ -44,12 +44,12 @@ duo_set_boolean_option(const char *val)
 }
 
 int
-duo_common_ini_handler(struct duo_config *cfg, const char *section, 
-    const char *name, const char*val) 
+duo_common_ini_handler(struct duo_config *cfg, const char *section,
+    const char *name, const char*val)
 {
     char *buf, *p;
     int int_val;
-    
+
     if (strcmp(name, "ikey") == 0) {
         cfg->ikey = strdup(val);
     } else if (strcmp(name, "skey") == 0) {
@@ -106,8 +106,7 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         cfg->https_timeout = atoi(val);
         if (cfg->https_timeout <= 0) {
             cfg->https_timeout = -1; /* no timeout */
-        }
-        else {
+        } else {
             /* Make timeout milliseconds */
             cfg->https_timeout *= 1000;
         }
@@ -120,14 +119,14 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
     return (1);
 }
 
-int 
+int
 duo_check_groups(struct passwd *pw, char **groups, int groups_cnt)
 {
     int i;
 
     if (groups_cnt > 0) {
         int matched = 0;
-        
+
         if (ga_init(pw->pw_name, pw->pw_gid) < 0) {
             duo_log(LOG_ERR, "Couldn't get groups",
                 pw->pw_name, NULL, strerror(errno));
@@ -140,7 +139,7 @@ duo_check_groups(struct passwd *pw, char **groups, int groups_cnt)
             }
         }
         ga_free();
-        
+
         /* User in configured groups for Duo auth? */
         return matched;
     } else {
@@ -150,7 +149,7 @@ duo_check_groups(struct passwd *pw, char **groups, int groups_cnt)
 
 void
 duo_log(int priority, const char*msg, const char *user, const char *ip,
-        const char *err) 
+        const char *err)
 {
     char buf[512];
     int i, n;
@@ -203,11 +202,11 @@ duo_local_ip()
     slen = sizeof(sin);
 
     if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) != -1) {
-            if (connect(fd, (struct sockaddr *)&sin, slen) != -1 &&
-                getsockname(fd, (struct sockaddr *)&sin, &slen) != -1) {
-                    ip = inet_ntoa(sin.sin_addr); /* XXX statically allocated */
-            }
-            close(fd);
+        if (connect(fd, (struct sockaddr *)&sin, slen) != -1 &&
+            getsockname(fd, (struct sockaddr *)&sin, &slen) != -1) {
+            ip = inet_ntoa(sin.sin_addr); /* XXX statically allocated */
+        }
+        close(fd);
     }
     return (ip);
 }

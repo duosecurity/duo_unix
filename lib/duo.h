@@ -30,34 +30,46 @@ typedef enum {
 typedef struct duo_ctx duo_t;
 
 /* Parse INI config file */
-int	    duo_parse_config(const char *filename, 
-	    	int (*callback)(void *arg, const char *section,
-		    const char *name, const char *val),
-	    	void *arg);
+int duo_parse_config(
+    const char *filename,
+    int (*callback)(void *arg, const char *section, const char *name, const char *val),
+    void *arg
+);
 
 /* Open Duo API handle */
-duo_t	   *duo_open(const char *host, const char *ikey, const char *skey,
-                     const char *progname, const char *cafile, int https_timeout);
+duo_t *duo_open(
+    const char *host,
+    const char *ikey,
+    const char *skey,
+    const char *progname,
+    const char *cafile,
+    int https_timeout
+);
 
 /* Override conversation prompt/status functions */
-void	    duo_set_conv_funcs(duo_t *d,
-	    	char *(*conv_prompt)(void *conv_arg, const char *prompt,
-		    char *buf, size_t bufsz),
-	    	void (*conv_status)(void *conv_arg, const char *msg),
-	    	void *conv_arg);
+void duo_set_conv_funcs(
+    duo_t *d,
+    char *(*conv_prompt)(void *conv_arg, const char *prompt, char *buf, size_t bufsz),
+    void (*conv_status)(void *conv_arg, const char *msg),
+    void *conv_arg
+);
 
 /* Reset the conversation prompt/status functions back to default */
-void		duo_reset_conv_funcs(duo_t *d);
+void duo_reset_conv_funcs(duo_t *d);
 
 /* Perform Duo authentication */
-duo_code_t  duo_login(duo_t *d, const char *username,
-    		const char *client_ip, int flags, const char *command);
+duo_code_t duo_login(
+    duo_t *d,
+    const char *username,
+    const char *client_ip,
+    int flags,
+    const char *command
+);
 
 /* Return error message from last API call */
 const char *duo_geterr(duo_t *d);
 
 /* Close API handle. */
-duo_t	   *duo_close(duo_t *d);
-
+duo_t *duo_close(duo_t *d);
 
 #endif /* DUO_H */

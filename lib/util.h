@@ -47,21 +47,27 @@ void duo_config_default(struct duo_config *cfg);
 
 int duo_set_boolean_option(const char *val);
 
-int duo_common_ini_handler(struct duo_config *cfg, const char *section, 
-    const char *name, const char*val);
+int duo_common_ini_handler(
+    struct duo_config *cfg,
+    const char *section,
+    const char *name,
+    const char *val
+);
 
 int duo_check_groups(struct passwd *pw, char **groups, int groups_cnt);
 
-void duo_log(int priority, const char*msg, const char *user, const char *ip,
-             const char *err);
+void duo_log(
+    int priority,
+    const char *msg,
+    const char *user,
+    const char *ip,
+    const char *err
+);
 
 void duo_syslog(int priority, const char *fmt, ...);
 
-const char *
-duo_resolve_name(const char *hostname);
+const char *duo_resolve_name(const char *hostname);
 
-const char *
-duo_local_ip();
-
+const char *duo_local_ip();
 
 #endif

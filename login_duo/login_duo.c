@@ -80,12 +80,15 @@ __autopush_status_fn(void *arg, const char*msg)
 static int
 drop_privs(uid_t uid, gid_t gid)
 {
-    if (setgid(gid) < 0)
+    if (setgid(gid) < 0) {
         return (-1);
-    if (setuid(uid) < 0)
+    }
+    if (setuid(uid) < 0) {
         return (-1);
-    if (getgid() != gid || getuid() != uid)
+    }
+    if (getgid() != gid || getuid() != uid) {
         return (-1);
+    }
     return (0);
 }
 
@@ -113,12 +116,9 @@ _print_motd()
 static void
 restore_http_proxy(const char* http_proxy)
 {
-    if (http_proxy != NULL)
-    {
+    if (http_proxy != NULL) {
         setenv("http_proxy", http_proxy, 1);
-    }
-    else
-    {
+    } else {
         unsetenv("http_proxy");
     }
 }
@@ -137,42 +137,43 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     int i, flags, ret, prompts, matched;
     int headless = 0;
 
-        if ((pw = getpwuid(ctx->uid)) == NULL)
-                die("Who are you?");
-        
+    if ((pw = getpwuid(ctx->uid)) == NULL) {
+        die("Who are you?");
+    }
+
     duouser = ctx->duouser ? ctx->duouser : pw->pw_name;
     config = ctx->config ? ctx->config : DUO_CONF;
     flags = 0;
-    
+
     duo_config_default(&cfg);
-        
+
     /* Load our private config. */
     if ((i = duo_parse_config(config, __ini_handler, &cfg)) != 0 ||
             (!cfg.apihost || !cfg.apihost[0] || !cfg.skey || !cfg.skey[0] ||
                 !cfg.ikey || !cfg.ikey[0])) {
-                switch (i) {
-                case -2:
-                        fprintf(stderr, "%s must be readable only by "
-                            "user '%s'\n", config, pw->pw_name);
-                        break;
-                case -1:
-                        fprintf(stderr, "Couldn't open %s: %s\n",
-                            config, strerror(errno));
-                        break;
-                case 0:
-                        fprintf(stderr, "Missing host, ikey, or skey in %s\n",
-                            config);
-                        break;
-                default:
-                        fprintf(stderr, "Parse error in %s, line %d\n",
-                            config, i);
-                        break;
-                }
-                /* Implicit "safe" failmode for local configuration errors */
-                if (cfg.failmode == DUO_FAIL_SAFE) {
-                        return (EXIT_SUCCESS);
-                }
-                return (EXIT_FAILURE);
+        switch (i) {
+        case -2:
+            fprintf(stderr, "%s must be readable only by "
+                "user '%s'\n", config, pw->pw_name);
+            break;
+        case -1:
+            fprintf(stderr, "Couldn't open %s: %s\n",
+                config, strerror(errno));
+            break;
+        case 0:
+            fprintf(stderr, "Missing host, ikey, or skey in %s\n",
+                config);
+            break;
+        default:
+            fprintf(stderr, "Parse error in %s, line %d\n",
+                config, i);
+            break;
+        }
+        /* Implicit "safe" failmode for local configuration errors */
+        if (cfg.failmode == DUO_FAIL_SAFE) {
+            return (EXIT_SUCCESS);
+        }
+        return (EXIT_FAILURE);
     }
     prompts = cfg.prompts;
     /* Check group membership. */
@@ -224,8 +225,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         prompts = 1;
         headless = 1;
     } else if (cfg.autopush) { /* Special handling for autopush */
-        duo_set_conv_funcs(duo, NULL, __autopush_status_fn, 
-                NULL);
+        duo_set_conv_funcs(duo, NULL, __autopush_status_fn, NULL);
         flags = (DUO_FLAG_SYNC|DUO_FLAG_AUTO);
     }
 
@@ -234,7 +234,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     }
 
     ret = EXIT_FAILURE;
-    
+
     for (i = 0; i < prompts; i++) {
         code = duo_login(duo, duouser, host, flags,
                     cfg.pushinfo ? cmd : NULL);
@@ -291,7 +291,7 @@ _argv_to_string(int argc, char *argv[])
 {
     char *s;
     int i, j, n;
-    
+
     for (n = i = 0; i < argc; i++) {
         n += strlen(argv[i]) + 1;
     }
@@ -305,27 +305,27 @@ _argv_to_string(int argc, char *argv[])
         s[n++] = ' ';
     }
     s[--n] = '\0';
-    
+
     return (s);
 }
 
 static void
 do_exec(struct login_ctx *ctx, const char *cmd)
 {
-        struct passwd *pw;
+    struct passwd *pw;
     const char *shell0;
     char argv0[256];
     const char *user_shell;
     int n;
 
-        if ((pw = getpwuid(ctx->uid)) == NULL)
-                die("Who are you?");
+    if ((pw = getpwuid(ctx->uid)) == NULL) {
+        die("Who are you?");
+    }
 
     /* Check to see if we have a shell from getpwuid() */
     if (NULL == pw->pw_shell) {
       user_shell = _DEFAULT_SHELL; /* No shell so use the default. */
-    }
-    else {
+    } else {
       user_shell = pw->pw_shell; /* Use the shell provided by getpwuid() */
     }
     if ((shell0 = strrchr(user_shell, '/')) != NULL) {
@@ -348,15 +348,16 @@ do_exec(struct login_ctx *ctx, const char *cmd)
 static char *
 get_command(int argc, char *argv[])
 {
-        char *cmd;
-        
-        if (argc > 0) {
-                if ((cmd = _argv_to_string(argc, argv)) == NULL)
-                        die("error converting arguments to command");
-        } else {
-                cmd = getenv("SSH_ORIGINAL_COMMAND");
+    char *cmd;
+
+    if (argc > 0) {
+        if ((cmd = _argv_to_string(argc, argv)) == NULL) {
+            die("error converting arguments to command");
         }
-        return (cmd);
+    } else {
+        cmd = getenv("SSH_ORIGINAL_COMMAND");
+    }
+    return (cmd);
 }
 
 static void
@@ -379,9 +380,9 @@ main(int argc, char *argv[])
     pid_t pid;
     int c, stat;
     pid_t wait_res;
-    
+
     memset(ctx, 0, sizeof(ctx));
-    
+
     while ((c = getopt(argc, argv, "vc:df:h:?")) != -1) {
         switch (c) {
         case 'v':
@@ -406,8 +407,8 @@ main(int argc, char *argv[])
     argc -= optind;
     argv += optind;
 
-        ctx->uid = getuid();
-        
+    ctx->uid = getuid();
+
     if (geteuid() != ctx->uid) {
         /* Setuid-root operation protecting private config. */
         if (ctx->config != NULL || ctx->duouser != NULL) {
@@ -442,8 +443,8 @@ main(int argc, char *argv[])
             }
         }
     } else {
-                char *cmd = get_command(argc, argv);
-                
+        char *cmd = get_command(argc, argv);
+
         /* Non-setuid root operation or running as root. */
         if (do_auth(ctx, cmd) == EXIT_SUCCESS) {
             do_exec(ctx, cmd);

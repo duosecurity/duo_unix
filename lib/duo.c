@@ -49,7 +49,7 @@ struct duo_ctx {
     https_t *https;    /* HTTPS handle */
     char    *host;     /* host[:port] */
     char    err[512];  /* error message */
-     
+
     char    *argv[16]; /* request arguments */
     int     argc;
 
@@ -82,8 +82,8 @@ duo_open(const char *host, const char *ikey, const char *skey,
     const char *progname, const char *cafile, int https_timeout)
 {
     struct duo_ctx *ctx;
-        char *useragent;
-    
+    char *useragent;
+
     if ((ctx = calloc(1, sizeof(*ctx))) == NULL ||
             (ctx->host = strdup(host)) == NULL) {
         return (duo_close(ctx));
@@ -93,14 +93,14 @@ duo_open(const char *host, const char *ikey, const char *skey,
         return (duo_close(ctx));
     }
     if (https_init(ikey, skey, useragent, cafile) != HTTPS_OK) {
-                ctx = duo_close(ctx);
+        ctx = duo_close(ctx);
     } else {
-            ctx->conv_prompt = __prompt_fn;
-            ctx->conv_status = __status_fn;
-            ctx->https_timeout = https_timeout;
+        ctx->conv_prompt = __prompt_fn;
+        ctx->conv_status = __status_fn;
+        ctx->https_timeout = https_timeout;
     }
     free(useragent);
-        
+
     return (ctx);
 }
 
@@ -112,7 +112,7 @@ duo_parse_config(const char *filename,
     FILE *fp;
     struct stat st;
     int fd, ret;
-    
+
     if ((fd = open(filename, O_RDONLY)) < 0) {
         return (-1);
     }
@@ -135,12 +135,12 @@ duo_reset(struct duo_ctx *ctx)
     int i;
 
     for (i = 0; i < ctx->argc; i++) {
-            free(ctx->argv[i]);
-            ctx->argv[i] = NULL;
+        free(ctx->argv[i]);
+        ctx->argv[i] = NULL;
     }
     ctx->argc = 0;
     *ctx->err = '\0';
-        
+
     return (DUO_OK);
 }
 
@@ -148,13 +148,14 @@ struct duo_ctx *
 duo_close(struct duo_ctx *ctx)
 {
     if (ctx != NULL) {
-                if (ctx->https != NULL)
-                        https_close(&ctx->https);
-                duo_reset(ctx);
-                free(ctx->host);
+        if (ctx->https != NULL) {
+            https_close(&ctx->https);
+        }
+        duo_reset(ctx);
+        free(ctx->host);
         free(ctx);
     }
-        return (NULL);
+    return (NULL);
 }
 
 void
@@ -191,7 +192,7 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
 
     if (k && v && asprintf(&p, "%s=%s", k, v) > 2 &&
             ctx->argc + 1 < (sizeof(ctx->argv) / sizeof(ctx->argv[0]))) {
-                ctx->argv[ctx->argc++] = p;
+        ctx->argv[ctx->argc++] = p;
         ret = DUO_OK;
     }
     free(k);
@@ -225,22 +226,23 @@ _duo_bson_response(struct duo_ctx *ctx, bson *resp)
     duo_code_t ret;
     const char *p;
     int code;
-    
+
     bson_init(&obj, (char *)ctx->body, 0);
-    
+
     ret = DUO_SERVER_ERROR;
-    
+
     if (ctx->body_len <= 0 || bson_size(&obj) > ctx->body_len) {
         _duo_seterr(ctx, "invalid BSON response");
         return (ret);
     }
     _BSON_FIND(ctx, &it, &obj, "stat", bson_string);
     p = bson_iterator_string(&it);
-    
+
     if (strcasecmp(p, "OK") == 0) {
         _BSON_FIND(ctx, &it, &obj, "response", bson_object);
-        if (resp)
+        if (resp) {
             bson_iterator_subobject(&it, resp);
+        }
         ret = DUO_OK;
     } else if (strcasecmp(p, "FAIL") == 0) {
         _BSON_FIND(ctx, &it, &obj, "code", bson_int);
@@ -255,52 +257,52 @@ _duo_bson_response(struct duo_ctx *ctx, bson *resp)
 static duo_code_t
 duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
 {
-        int i, code, err, ret;
+    int i, code, err, ret;
 
-        code = 0;
-        ctx->body = NULL;
-        ctx->body_len = 0;
-        
-        for (i = 0; i < 3; i++) {
-                if (ctx->https == NULL &&
-                    (err = https_open(&ctx->https, ctx->host)) != HTTPS_OK) {
-                        if (err == HTTPS_ERR_SERVER) {
-                                sleep(1 << i);
-                                continue;
-                        }
-                        break;
-                }
-                if ((err = https_send(ctx->https, method, uri,
-                            ctx->argc, ctx->argv)) == HTTPS_OK &&
-                    (err = https_recv(ctx->https, &code,
-                        &ctx->body, &ctx->body_len, msecs)) == HTTPS_OK) {
-                        break;
-                }
-                https_close(&ctx->https);
-        }
-        duo_reset(ctx);
+    code = 0;
+    ctx->body = NULL;
+    ctx->body_len = 0;
 
-        if (code == 0) {
-                ret = DUO_CONN_ERROR;
-                _duo_seterr(ctx, "Couldn't connect to %s: %s\n",
-                    ctx->host, https_geterr());
-        } else if (code / 100 == 2) {
-                /* 2xx indicates DUO_OK */
-                ret = DUO_OK;
-        } else if (code == 401) {
-                /* 401 indicates an invalid ikey or skey */
-                ret = DUO_CLIENT_ERROR;
-                _duo_seterr(ctx, "Invalid ikey or skey");
-        } else if (code / 100 == 5) {
-                /* 5xx indicates an internal server error */
-                ret = DUO_SERVER_ERROR;
-                _duo_seterr(ctx, "HTTP %d", code);
-        } else {
-                /* abort on any other HTTP codes */
-                ret = DUO_ABORT;
-                _duo_seterr(ctx, "HTTP %d", code);
+    for (i = 0; i < 3; i++) {
+        if (ctx->https == NULL &&
+            (err = https_open(&ctx->https, ctx->host)) != HTTPS_OK) {
+            if (err == HTTPS_ERR_SERVER) {
+                sleep(1 << i);
+                continue;
+            }
+            break;
         }
-        return (ret);
+        if ((err = https_send(ctx->https, method, uri,
+                    ctx->argc, ctx->argv)) == HTTPS_OK &&
+            (err = https_recv(ctx->https, &code,
+                &ctx->body, &ctx->body_len, msecs)) == HTTPS_OK) {
+            break;
+        }
+        https_close(&ctx->https);
+    }
+    duo_reset(ctx);
+
+    if (code == 0) {
+        ret = DUO_CONN_ERROR;
+        _duo_seterr(ctx, "Couldn't connect to %s: %s\n",
+            ctx->host, https_geterr());
+    } else if (code / 100 == 2) {
+        /* 2xx indicates DUO_OK */
+        ret = DUO_OK;
+    } else if (code == 401) {
+        /* 401 indicates an invalid ikey or skey */
+        ret = DUO_CLIENT_ERROR;
+        _duo_seterr(ctx, "Invalid ikey or skey");
+    } else if (code / 100 == 5) {
+        /* 5xx indicates an internal server error */
+        ret = DUO_SERVER_ERROR;
+        _duo_seterr(ctx, "HTTP %d", code);
+    } else {
+        /* abort on any other HTTP codes */
+        ret = DUO_ABORT;
+        _duo_seterr(ctx, "HTTP %d", code);
+    }
+    return (ret);
 }
 
 const char *
@@ -344,9 +346,10 @@ _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
             _duo_seterr(ctx, "%s", bson_iterator_string(&it));
             ret = DUO_ABORT;
         } else if (strcasecmp(p, "enroll") == 0) {
-            if (ctx->conv_status != NULL)
+            if (ctx->conv_status != NULL) {
                 ctx->conv_status(ctx->conv_arg,
                     bson_iterator_string(&it));
+            }
             _duo_seterr(ctx, "User enrollment required");
             ret = DUO_ABORT;
         } else {
@@ -376,7 +379,7 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
         /* Find default OOB factor for automatic login */
         _BSON_FIND(ctx, &it, obj, "factors", bson_object);
         bson_iterator_subobject(&it, obj);
-        
+
         if (bson_find(&it, obj, "default") != bson_string) {
             _duo_seterr(ctx, "No default factor found for automatic login");
             return (DUO_ABORT);
@@ -399,7 +402,7 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
         }
         _BSON_FIND(ctx, &it, obj, "prompt", bson_string);
         *p = bson_iterator_string(&it);
-        
+
         if (ctx->conv_prompt(ctx->conv_arg, *p, buf, sz) == NULL) {
             _duo_seterr(ctx, "Error gathering user response");
             return (DUO_ABORT);
@@ -408,7 +411,7 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
 
         _BSON_FIND(ctx, &it, obj, "factors", bson_object);
         bson_iterator_subobject(&it, obj);
-        
+
         if (bson_find(&it, obj, buf) == bson_string) {
             *p = bson_iterator_string(&it);
         } else {
@@ -490,7 +493,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
         }
         _BSON_FIND(ctx, &it, &obj, "result", bson_string);
         p = bson_iterator_string(&it);
-        
+
         if (strcasecmp(p, "allow") == 0) {
             ret = DUO_OK;
         } else if (strcasecmp(p, "deny") == 0) {
@@ -508,10 +511,11 @@ duo_login(struct duo_ctx *ctx, const char *username,
         return (DUO_LIB_ERROR);
     }
     /* XXX newline between prompt and async status lines */
-    if (ctx->conv_status != NULL)
+    if (ctx->conv_status != NULL) {
         ctx->conv_status(ctx->conv_arg, "");
+    }
     ret = DUO_SERVER_ERROR;
-    
+
     for (i = 0; i < 20; i++) {
         if ((ret = duo_add_param(ctx, "txid", buf)) != DUO_OK ||
             (ret = duo_call(ctx, "GET",
@@ -520,13 +524,14 @@ duo_login(struct duo_ctx *ctx, const char *username,
             break;
         }
         if (bson_find(&it, &obj, "status") == bson_string) {
-            if (ctx->conv_status != NULL)
+            if (ctx->conv_status != NULL) {
                 ctx->conv_status(ctx->conv_arg,
                     bson_iterator_string(&it));
+            }
         }
         if (bson_find(&it, &obj, "result") == bson_string) {
             p = bson_iterator_string(&it);
-            
+
             if (strcasecmp(p, "allow") == 0) {
                 ret = DUO_OK;
             } else if (strcasecmp(p, "deny") == 0) {
