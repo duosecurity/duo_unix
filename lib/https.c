@@ -560,7 +560,7 @@ https_open(struct https_request **reqp, const char *host)
 
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     /* Enable SNI support */
-    if ((n = SSL_set_tlsext_host_name(req->ssl, api_host)) != 1) {
+    if ((n = SSL_set_tlsext_host_name(req->ssl, req->host)) != 1) {
         ctx->errstr = "Setting SNI failed";
         https_close(&req);
         return (HTTPS_ERR_LIB);
