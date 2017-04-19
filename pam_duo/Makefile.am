@@ -44,5 +44,9 @@ install-data-local:
 		echo "Found existing ${DESTDIR}$(sysconfdir)/pam_duo.conf - updating permissions"; \
 	fi
 	-chmod 600 $(DESTDIR)$(sysconfdir)/pam_duo.conf
+	-@if [ -f $(PAMDIR)/pam_duo.a ]; then \
+		ar x $(PAMDIR)/pam_duo.a $(PAMDIR)/pam_duo.so; \
+		echo "Extracting shared object ${PAMDIR}/pam_duo.so from ${PAMDIR}/pam_duo.a"; \
+	fi
 
 EXTRA_DIST = pam_duo.conf $(semodule_name).te
