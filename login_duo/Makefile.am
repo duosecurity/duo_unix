@@ -4,7 +4,6 @@ sbin_PROGRAMS = login_duo
 
 login_duo_SOURCES = login_duo.c
 login_duo_LDADD = $(top_builddir)/lib/libduo.la $(top_builddir)/compat/libcompat.la @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
-login_duo_LDFLAGS = -Wl,-rpath -Wl,$(libdir)
 
 notrans_dist_man8_MANS = login_duo.8
 
