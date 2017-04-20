@@ -1,11 +1,11 @@
 AM_CPPFLAGS = -I$(top_srcdir)/compat @OPENSSL_INCLUDES@
 
-lib_LTLIBRARIES = libduo.la
+noinst_LTLIBRARIES = libduo.la
 
 libduo_la_SOURCES = bson.h bson.c cacert.h duo.c \
 		    http_parser.h http_parser.c https.h https.c ini.h ini.c \
 		    urlenc.h urlenc.c util.c
-libduo_la_LIBADD = $(top_builddir)/compat/libcompat.la @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
+libduo_la_LIBADD = @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
 # http://sourceware.org/autobook/autobook/autobook_91.html
 libduo_la_LDFLAGS = -no-undefined -version-info 3:0:0 -export-symbols-regex '^duo_'
 
@@ -19,7 +19,7 @@ pkgconfig_DATA = libduo.pc
 
 noinst_PROGRAMS = testduo
 
-testduo_LDADD = libduo.la
+testduo_LDADD = libduo.la $(top_builddir)/compat/libcompat.la
 
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(sysconfdir)

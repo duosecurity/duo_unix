@@ -7,6 +7,8 @@
 #include "config.h"
 
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 #include <dlfcn.h>
 #include <pwd.h>
@@ -30,7 +32,7 @@ int (*_sys_open)(const char *pathname, int flags, ...);
 int (*_sys_open64)(const char *pathname, int flags, ...);
 FILE *(*_sys_fopen)(const char *filename, const char *mode);
 FILE *(*_sys_fopen64)(const char *filename, const char *mode);
-const char* (*_sys_duo_local_ip)();
+int (*_sys_inet_ntoa)(struct in_addr in);
 
 static void
 _fatal(const char *msg)
@@ -101,15 +103,15 @@ fopen64(const char *filename, const char *mode)
 	return ((*_sys_fopen64)(_replace(filename), mode));
 }
 
-const char*
-duo_local_ip()
+char*
+inet_ntoa(struct in_addr in)
 {
     if (_isfallback()) {
        return "1.2.3.4";
     }
     else {
-        _sys_duo_local_ip = dlsym(RTLD_NEXT, "duo_local_ip");
-        return (*_sys_duo_local_ip)();
+        _sys_inet_ntoa = dlsym(RTLD_NEXT, "inet_ntoa");
+        return (*_sys_inet_ntoa)(in);
     }
 }
 
