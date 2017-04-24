@@ -24,6 +24,7 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/opensslv.h>
 #include <openssl/rand.h>
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
@@ -349,6 +350,30 @@ _establish_connection(struct https_request * const req,
 #endif /* HAVE_GETADDRINFO */
 }
 
+/* Provide implementations for HMAC_CTX_new and HMAC_CTX_free when
+ * building for OpenSSL versions older than 1.1.0
+ */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static HMAC_CTX *
+HMAC_CTX_new(void)
+{
+    HMAC_CTX *ctx = OPENSSL_malloc(sizeof(*ctx));
+    if (ctx != NULL) {
+        HMAC_CTX_init(ctx);
+    }
+    return ctx;
+}
+
+static void
+HMAC_CTX_free(HMAC_CTX *ctx)
+{
+    if (ctx != NULL) {
+        HMAC_CTX_cleanup(ctx);
+        OPENSSL_free(ctx);
+    }
+}
+#endif
+
 HTTPScode
 https_init(const char *ikey, const char *skey,
     const char *useragent, const char *cafile)
@@ -627,7 +652,7 @@ https_send(struct https_request *req, const char *method, const char *uri,
     int argc, char *argv[])
 {
     BIO *b64;
-    HMAC_CTX hmac;
+    HMAC_CTX *hmac;
     unsigned char MD[SHA_DIGEST_LENGTH];
     char *qs, *p;
     int i, n, is_get;
@@ -659,11 +684,16 @@ https_send(struct https_request *req, const char *method, const char *uri,
     /* Add signature */
     BIO_puts(req->cbio, "Authorization: Basic ");
 
-    HMAC_CTX_init(&hmac);
-    HMAC_Init(&hmac, ctx->skey, strlen(ctx->skey), EVP_sha1());
-    HMAC_Update(&hmac, (unsigned char *)p, strlen(p));
-    HMAC_Final(&hmac, MD, NULL);
-    HMAC_CTX_cleanup(&hmac);
+    if ((hmac = HMAC_CTX_new()) == NULL) {
+        free(qs);
+        free(p);
+        ctx->errstr = strerror(errno);
+        return (HTTPS_ERR_LIB);
+    }
+    HMAC_Init(hmac, ctx->skey, strlen(ctx->skey), EVP_sha1());
+    HMAC_Update(hmac, (unsigned char *)p, strlen(p));
+    HMAC_Final(hmac, MD, NULL);
+    HMAC_CTX_free(hmac);
     free(p);
 
     b64 = _BIO_new_base64();
