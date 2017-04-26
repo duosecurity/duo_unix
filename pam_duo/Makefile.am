@@ -44,9 +44,16 @@ install-data-local:
 		echo "Found existing ${DESTDIR}$(sysconfdir)/pam_duo.conf - updating permissions"; \
 	fi
 	-chmod 600 $(DESTDIR)$(sysconfdir)/pam_duo.conf
-	-@if [ -f $(PAMDIR)/pam_duo.a ]; then \
-		ar x $(PAMDIR)/pam_duo.a $(PAMDIR)/pam_duo.so; \
-		echo "Extracting shared object ${PAMDIR}/pam_duo.so from ${PAMDIR}/pam_duo.a"; \
+	-@if test "x$(IS_AIX)" = "xyes"; then \
+		rm -f $(PAMDIR)/pam_duo.so; \
+		ar x $(top_builddir)/pam_duo/.libs/pam_duo.a $(PAMDIR)/pam_duo.so; \
+		echo "Extracting shared object ${PAMDIR}/pam_duo.so from $(top_builddir)/pam_duo/.libs/pam_duo.a"; \
+	fi
+
+uninstall-local:
+	-@if test "x$(IS_AIX)" = "xyes"; then \
+		rm -f $(PAMDIR)/pam_duo.so; \
+		echo "Removing shared object ${PAMDIR}/pam_duo.so"; \
 	fi
 
 EXTRA_DIST = pam_duo.conf $(semodule_name).te

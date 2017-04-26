@@ -45,25 +45,29 @@ if test "x$GCC" = "xyes"; then
    AC_MSG_NOTICE([Adding gcc options: $CFLAGS])
 fi
 GGL_CHECK_STACK_PROTECTOR([has_stack_protector=yes], [has_stack_protector=no])
+IS_AIX=no
 # XXX - disable -fstack-protector due to missing libssp_nonshared
 case "$host_os" in
-     *aix*)
-	AC_MSG_NOTICE([-fstack-protector disabled on AIX])
-	has_stack_protector=no
-	;;
-     *sunos*)
-	AC_MSG_NOTICE([-fstack-protector disabled on SunOS])
-	has_stack_protector=no
-	;;
-     *solaris*)
-	AC_MSG_NOTICE([-fstack-protector disabled on Solaris])
-	has_stack_protector=no
-	;;
+    *aix*)
+        AC_MSG_NOTICE([-fstack-protector disabled on AIX])
+        has_stack_protector=no
+        IS_AIX=yes
+        ;;
+    *sunos*)
+        AC_MSG_NOTICE([-fstack-protector disabled on SunOS])
+        has_stack_protector=no
+        ;;
+    *solaris*)
+        AC_MSG_NOTICE([-fstack-protector disabled on Solaris])
+        has_stack_protector=no
+        ;;
 esac
 if test x$has_stack_protector = xyes; then
    CFLAGS="$CFLAGS -fstack-protector"
    AC_MSG_NOTICE([-fstack-protector enabled in CFLAGS])
 fi
+
+AC_SUBST(IS_AIX, "$IS_AIX")
 
 # Check for platform features
 AC_C_BIGENDIAN
