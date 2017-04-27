@@ -1,3 +1,10 @@
+duo_unix-1.9.20:
+
+- Fix installation on AIX systems
+- Add support for using OpenSSL 1.1.0
+- Link libduo statically to address issues with the ldconfig cache and incompatibilities between versions
+- Fixed a bug that produced incorrect SNI when using a proxy
+
 duo_unix-1.9.19:
 
 - Restore the http_proxy environment variable after Duo is done
