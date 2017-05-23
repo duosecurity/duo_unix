@@ -250,8 +250,17 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     pam_err = PAM_SERVICE_ERR;
 
     for (i = 0; i < cfg.prompts; i++) {
-        code = duo_login(duo, user, host, flags,
-                    cfg.pushinfo ? cmd : NULL);
+        if (!cfg.domain || !cfg.domain[0]) {
+            code = duo_login(duo, user, host, flags,
+                cfg.pushinfo ? cmd : NULL);
+        } else {
+            char *duo_auth_user=(char*)malloc(strlen(user)+strlen(cfg.domain)+2);
+            memset(duo_auth_user,0,strlen(user)+strlen(cfg.domain)+2);
+            strcpy(duo_auth_user,user);
+            code = duo_login(duo, strcat(strcat(duo_auth_user, "@"), cfg.domain), host, flags,
+                cfg.pushinfo ? cmd : NULL);
+        }
+
         if (code == DUO_FAIL) {
             duo_log(LOG_WARNING, "Failed Duo login",
                 pw->pw_name, host, duo_geterr(duo));
