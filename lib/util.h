@@ -55,6 +55,9 @@ int duo_common_ini_handler(
     const char *val
 );
 
+/* Clean up config memory. */
+void close_config(struct duo_config *cfg);
+
 int duo_check_groups(struct passwd *pw, char **groups, int groups_cnt);
 
 void duo_log(
@@ -72,5 +75,8 @@ const char *duo_resolve_name(const char *hostname);
 const char *duo_local_ip();
 
 char *duo_split_at(char *s, char delimiter, unsigned int position);
+
+/* Free and zero out memory */
+void duo_zero_free(void *ptr, size_t size);
 
 #endif

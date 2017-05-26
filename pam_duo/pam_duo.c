@@ -169,6 +169,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     /* Check user */
     if (pam_get_user(pamh, &user, NULL) != PAM_SUCCESS ||
         (pw = getpwnam(user)) == NULL) {
+        close_config(&cfg);
         return (PAM_USER_UNKNOWN);
     }
     /* XXX - Service-specific behavior */
@@ -176,6 +177,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     cmd = NULL;
     if (pam_get_item(pamh, PAM_SERVICE, (duopam_const void **)
         (duopam_const void *)&service) != PAM_SUCCESS) {
+        close_config(&cfg);
         return (PAM_SERVICE_ERR);
     }
     if (strcmp(service, "sshd") == 0) {
@@ -190,6 +192,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     } else if (strcmp(service, "su") == 0 || strcmp(service, "su-l") == 0) {
         /* Check calling user for Duo auth, just like sudo */
         if ((pw = getpwuid(getuid())) == NULL) {
+            close_config(&cfg);
             return (PAM_USER_UNKNOWN);
         }
         user = pw->pw_name;
@@ -197,8 +200,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     /* Check group membership */
     matched = duo_check_groups(pw, cfg.groups, cfg.groups_cnt);
     if (matched == -1) {
+        close_config(&cfg);
         return (PAM_SERVICE_ERR);
     } else if (matched == 0) {
+        close_config(&cfg);
         return (PAM_SUCCESS);
     }
 
@@ -240,6 +245,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
                     "pam_duo/" PACKAGE_VERSION,
                     cfg.noverify ? "" : cfg.cafile, cfg.https_timeout, cfg.http_proxy)) == NULL) {
         duo_log(LOG_ERR, "Couldn't open Duo API handle", pw->pw_name, host, NULL);
+        close_config(&cfg);
         return (PAM_SERVICE_ERR);
     }
     duo_set_conv_funcs(duo, __duo_prompt, __duo_status, pamh);
@@ -293,6 +299,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         pam_err = PAM_MAXTRIES;
     }
     duo_close(duo);
+    close_config(&cfg);
 
     return (pam_err);
 }

@@ -58,6 +58,10 @@ struct duo_ctx {
 
     int     https_timeout; /* milliseconds */
 
+    char *ikey;
+    char *skey;
+    char *useragent;
+
     char *(*conv_prompt)(void *arg, const char *pr, char *buf, size_t sz);
     void  (*conv_status)(void *arg, const char *msg);
     void   *conv_arg;
@@ -82,24 +86,24 @@ duo_open(const char *host, const char *ikey, const char *skey,
     const char *progname, const char *cafile, int https_timeout, const char* http_proxy)
 {
     struct duo_ctx *ctx;
-    char *useragent;
 
     if ((ctx = calloc(1, sizeof(*ctx))) == NULL ||
-            (ctx->host = strdup(host)) == NULL) {
+            (ctx->host = strdup(host)) == NULL ||
+            (ctx->ikey = strdup(ikey)) == NULL ||
+            (ctx->skey = strdup(skey)) == NULL) {
         return (duo_close(ctx));
     }
-    if (asprintf(&useragent, "%s (%s) libduo/%s",
-                progname, CANONICAL_HOST, PACKAGE_VERSION) == -1) {
+    if (asprintf(&ctx->useragent, "%s (%s) libduo/%s",
+            progname, CANONICAL_HOST, PACKAGE_VERSION) == -1) {
         return (duo_close(ctx));
     }
-    if (https_init(ikey, skey, useragent, cafile, http_proxy) != HTTPS_OK) {
+    if (https_init(cafile, http_proxy) != HTTPS_OK) {
         ctx = duo_close(ctx);
     } else {
         ctx->conv_prompt = __prompt_fn;
         ctx->conv_status = __status_fn;
         ctx->https_timeout = https_timeout;
     }
-    free(useragent);
 
     return (ctx);
 }
@@ -153,6 +157,20 @@ duo_close(struct duo_ctx *ctx)
         }
         duo_reset(ctx);
         free(ctx->host);
+
+        if (ctx->ikey != NULL) {
+            duo_zero_free(ctx->ikey, strlen(ctx->ikey));
+            ctx->ikey = NULL;
+        }
+        if (ctx->skey != NULL) {
+            duo_zero_free(ctx->skey, strlen(ctx->skey));
+            ctx->skey = NULL;
+        }
+        if (ctx->useragent != NULL) {
+            duo_zero_free(ctx->useragent, strlen(ctx->useragent));
+            ctx->useragent = NULL;
+        }
+
         free(ctx);
     }
     return (NULL);
@@ -265,7 +283,7 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
 
     for (i = 0; i < 3; i++) {
         if (ctx->https == NULL &&
-            (err = https_open(&ctx->https, ctx->host)) != HTTPS_OK) {
+            (err = https_open(&ctx->https, ctx->host, ctx->useragent)) != HTTPS_OK) {
             if (err == HTTPS_ERR_SERVER) {
                 sleep(1 << i);
                 continue;
@@ -273,7 +291,7 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
             break;
         }
         if ((err = https_send(ctx->https, method, uri,
-                    ctx->argc, ctx->argv)) == HTTPS_OK &&
+                    ctx->argc, ctx->argv, ctx->ikey, ctx->skey, ctx->useragent)) == HTTPS_OK &&
             (err = https_recv(ctx->https, &code,
                 &ctx->body, &ctx->body_len, msecs)) == HTTPS_OK) {
             break;

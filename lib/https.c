@@ -40,9 +40,6 @@ extern void X509_TEA_set_state(int change);
 
 struct https_ctx {
     SSL_CTX *ssl_ctx;
-    char *ikey;
-    char *skey;
-    char *useragent;
 
     char *proxy;
     char *proxy_port;
@@ -378,20 +375,13 @@ HMAC_CTX_free(HMAC_CTX *ctx)
 #endif
 
 HTTPScode
-https_init(const char *ikey, const char *skey,
-    const char *useragent, const char *cafile, const char *http_proxy)
+https_init(const char *cafile, const char *http_proxy)
 {
     X509_STORE *store;
     X509 *cert;
     BIO *bio;
     char *p;
 
-    if ((ctx.ikey = strdup(ikey)) == NULL ||
-        (ctx.skey = strdup(skey)) == NULL ||
-        (ctx.useragent = strdup(useragent)) == NULL) {
-        ctx.errstr = strerror(errno);
-        return (HTTPS_ERR_SYSTEM);
-    }
     /* Initialize SSL context */
 #ifdef HAVE_X509_TEA_SET_STATE
     /* If applicable, disable use of Apple's Trust Evaluation Agent for certificate
@@ -479,7 +469,7 @@ https_init(const char *ikey, const char *skey,
 }
 
 HTTPScode
-https_open(struct https_request **reqp, const char *host)
+https_open(struct https_request **reqp, const char *host, const char *useragent)
 {
     struct https_request *req;
     BIO *b64, *sbio;
@@ -532,7 +522,7 @@ https_open(struct https_request **reqp, const char *host)
         BIO_printf(req->cbio,
             "CONNECT %s:%s HTTP/1.0\r\n"
             "User-Agent: %s\r\n",
-            req->host, req->port, ctx.useragent
+            req->host, req->port, useragent
         );
 
         if (ctx.proxy_auth != NULL) {
@@ -651,7 +641,7 @@ _argv_to_qs(int argc, char *argv[])
 
 HTTPScode
 https_send(struct https_request *req, const char *method, const char *uri,
-    int argc, char *argv[])
+    int argc, char *argv[], const char *ikey, const char *skey, const char *useragent)
 {
     BIO *b64;
     HMAC_CTX *hmac;
@@ -682,7 +672,7 @@ https_send(struct https_request *req, const char *method, const char *uri,
     /* Add User-Agent header */
     BIO_printf(req->cbio,
                "User-Agent: %s\r\n",
-               ctx.useragent);
+               useragent);
     /* Add signature */
     BIO_puts(req->cbio, "Authorization: Basic ");
 
@@ -692,14 +682,14 @@ https_send(struct https_request *req, const char *method, const char *uri,
         ctx.errstr = strerror(errno);
         return (HTTPS_ERR_LIB);
     }
-    HMAC_Init(hmac, ctx.skey, strlen(ctx.skey), EVP_sha1());
+    HMAC_Init(hmac, skey, strlen(skey), EVP_sha1());
     HMAC_Update(hmac, (unsigned char *)p, strlen(p));
     HMAC_Final(hmac, MD, NULL);
     HMAC_CTX_free(hmac);
     free(p);
 
     b64 = _BIO_new_base64();
-    BIO_printf(b64, "%s:", ctx.ikey);
+    BIO_printf(b64, "%s:", ikey);
     for (i = 0; i < sizeof(MD); i++) {
         BIO_printf(b64, "%02x", MD[i]);
     }

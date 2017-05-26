@@ -121,6 +121,34 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
     return (1);
 }
 
+void
+close_config(struct duo_config *cfg)
+{
+    if (cfg == NULL) {
+        return;
+    }
+    if (cfg->ikey != NULL) {
+        duo_zero_free(cfg->ikey, strlen(cfg->ikey));
+        cfg->ikey = NULL;
+    }
+    if (cfg->skey != NULL) {
+        duo_zero_free(cfg->skey, strlen(cfg->skey));
+        cfg->skey = NULL;
+    }
+    if (cfg->apihost != NULL) {
+        duo_zero_free(cfg->apihost, strlen(cfg->apihost));
+        cfg->apihost = NULL;
+    }
+    if (cfg->cafile != NULL) {
+        duo_zero_free(cfg->cafile, strlen(cfg->cafile));
+        cfg->cafile = NULL;
+    }
+    if (cfg->http_proxy != NULL) {
+        duo_zero_free(cfg->http_proxy, strlen(cfg->http_proxy));
+        cfg->http_proxy = NULL;
+    }
+}
+
 int
 duo_check_groups(struct passwd *pw, char **groups, int groups_cnt)
 {
@@ -235,4 +263,28 @@ duo_split_at(char *s, char delimiter, unsigned int position)
     }
 
     return result;
+}
+
+void
+duo_zero_free(void *ptr, size_t size)
+{
+    /*
+     * A compiler's usage of dead store optimization may skip the memory
+     * zeroing if it doesn't detect futher usage. Different systems use explicit
+     * zeroing functions to prevent this. If none of those are available we fall back
+     * on volatile pointers to prevent optimization. There is no guarantee in the standard
+     * that this will work, but gcc and other major compilers will respect it.
+     * Idea and technique borrowed from https://github.com/openssh/openssh-portable
+     */
+    if (ptr != NULL) {
+#ifdef HAVE_EXPLICIT_BZERO
+        explicit_bzero(ptr, size);
+#elif HAVE_MEMSET_S
+        (void)memset_s(ptr, size, 0, size);
+#else
+        static void* (* volatile duo_memset)(void *, int, size_t) = memset;
+        duo_memset(ptr, 0, size);
+#endif
+        free(ptr);
+    }
 }
