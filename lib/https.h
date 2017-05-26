@@ -23,7 +23,8 @@ HTTPScode https_init(
     const char *ikey,
     const char *skey,
     const char *useragent,
-    const char *cafile
+    const char *cafile,
+    const char *http_proxy
 );
 
 /* Open HTTPS connection to host[:port] */
