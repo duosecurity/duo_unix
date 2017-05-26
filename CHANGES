@@ -1,3 +1,7 @@
+duo_unix-1.9.21:
+
+- Only allow http_proxy to be defined in configuration file instead of environment
+
 duo_unix-1.9.20:
 
 - Fix installation on AIX systems
