@@ -57,12 +57,16 @@ ga_init(const char *user, gid_t base)
 	if (ngroups > 0)
 		ga_free();
 
+#ifdef __APPLE__
+	ngroups = 1024;
+#else
 	ngroups = NGROUPS_MAX;
-#if defined(HAVE_SYSCONF) && defined(_SC_NGROUPS_MAX)
-#ifndef MAX
-# define MAX(a,b) (((a)>(b))?(a):(b))
-#endif        
+#  if defined(HAVE_SYSCONF) && defined(_SC_NGROUPS_MAX)
+#    ifndef MAX
+#      define MAX(a,b) (((a)>(b))?(a):(b))
+#    endif
 	ngroups = MAX(NGROUPS_MAX, sysconf(_SC_NGROUPS_MAX));
+#  endif
 #endif
 
 	if (!(groups_bygid = calloc(ngroups, sizeof(*groups_bygid))) ||
