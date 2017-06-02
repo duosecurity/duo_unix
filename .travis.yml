@@ -1,0 +1,14 @@
+language: c
+dist: trusty
+compiler:
+    - clang
+    - gcc
+before_install:
+    - sudo apt-get -qq update
+    - sudo apt-get install -y libpam-dev
+    - sudo apt-get install -y automake
+script:
+    - ./bootstrap
+    - ./configure --with-pam --prefix=/usr
+    - make
+    - make check
