@@ -34,7 +34,7 @@ main(int argc, char *argv[])
                     "DUO_SKEY environment\n");
 		exit(1);
 	}
-	if ((duo = duo_open(host, ikey, skey, "testduo", NULL, DUO_NO_TIMEOUT)) == NULL) {
+	if ((duo = duo_open(host, ikey, skey, "testduo", NULL, DUO_NO_TIMEOUT, NULL)) == NULL) {
 		fprintf(stderr, "duo_open failed\n");
 		exit(1);
 	}

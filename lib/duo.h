@@ -43,7 +43,8 @@ duo_t *duo_open(
     const char *skey,
     const char *progname,
     const char *cafile,
-    int https_timeout
+    int https_timeout,
+    const char *http_proxy
 );
 
 /* Override conversation prompt/status functions */

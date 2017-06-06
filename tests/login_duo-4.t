@@ -84,21 +84,16 @@ Test SSH-set host
   $ env SSH_CONNECTION="1.2.3.4 64903 127.0.0.1 22" ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f preauth-allow true
   [4] Skipped Duo login for 'preauth-allow' from 1.2.3.4: you rock
 
-Test resetting http_proxy variable
+Test using configured http_proxy variable
   $ orig_http_proxy=$http_proxy
-
-  $ export http_proxy=FAKE_PROXY_NAME
-  $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo_proxy.conf -f preauth-allow true
-  [4] Failsafe Duo login for 'preauth-allow': Couldn't connect to localhost:4443: Failed to connect
-  
-  $ echo $http_proxy
-  FAKE_PROXY_NAME
-
   $ unset http_proxy
-  $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo_proxy.conf -f preauth-allow true
-  [4] Failsafe Duo login for 'preauth-allow': Couldn't connect to localhost:4443: Failed to connect
-  
-  $ if [ -z "${http_proxy+set}" ]; then echo Good; else echo Bad; fi
-  Good
 
+  $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f whatever true
+  [6] Successful Duo login for 'whatever'
+  $ export http_proxy=0.0.0.0
+  $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f whatever true
+  [6] Successful Duo login for 'whatever'
+  $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo_proxy.conf -f whatever true
+  [4] Failsafe Duo login for 'whatever': Couldn't connect to localhost:4443: Failed to connect
+  
   $ export http_proxy=$orig_http_proxy
