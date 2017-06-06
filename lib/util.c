@@ -75,6 +75,8 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
             }
             cfg->groups[cfg->groups_cnt++] = p;
         }
+    } else if (strcmp(name, "domain") == 0) {
+        cfg->domain = strdup(val);
     } else if (strcmp(name, "failmode") == 0) {
         if (strcmp(val, "secure") == 0) {
             cfg->failmode = DUO_FAIL_SECURE;
