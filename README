@@ -5,13 +5,17 @@ duo_unix - Duo two-factor authentication for Unix systems
 
 duo_unix documentation is available here:
 
-	http://www.duosecurity.com/docs/duounix
+	https://duo.com/docs/duounix
+
+Build status:
+
+    https://travis-ci.org/duosecurity/duo_unix
 
 Report any bugs, feature requests, etc. here:
 
-	support@duosecurity.com
+	support@duo.com
 
 Have fun!
 
 ---
-http://www.duosecurity.com
+https://duo.com
