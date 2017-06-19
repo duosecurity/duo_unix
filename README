@@ -5,7 +5,7 @@ duo_unix - Duo two-factor authentication for Unix systems
 
 duo_unix documentation is available here:
 
-	https://duo.com/docs/duounix
+    https://duo.com/docs/duounix
 
 Build status:
 
@@ -13,7 +13,7 @@ Build status:
 
 Report any bugs, feature requests, etc. here:
 
-	support@duo.com
+    support@duo.com
 
 Have fun!
 
