@@ -1,3 +1,9 @@
+duo_unix-1.10.0:
+
+- Added LibreSSL support
+- Added additional GECOS parsing support
+- Increased OSX group count
+
 duo_unix-1.9.21:
 
 - Only allow http_proxy to be defined in configuration file instead of environment
