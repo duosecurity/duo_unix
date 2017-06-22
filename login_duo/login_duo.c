@@ -185,7 +185,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     }
 
     /* Use GECOS field if called for */
-    if (cfg.send_gecos || cfg.gecos_parsed && !ctx->duouser) {
+    if ((cfg.send_gecos || cfg.gecos_parsed) && !ctx->duouser) {
         if (strlen(pw->pw_gecos) > 0) {
             if (cfg.gecos_parsed) {
                 duouser = duo_split_at(pw->pw_gecos, delimiter, delimited_position);
