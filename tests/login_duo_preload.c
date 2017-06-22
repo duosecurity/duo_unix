@@ -17,7 +17,7 @@
 int (*_sys_poll)(struct pollfd *fds, nfds_t nfds, int timeout);
 int (*_sys_connect)(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int (*_sys_getaddrinfo)(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res);
-int (*_sys_inet_ntoa)(struct in_addr in);
+char *(*_sys_inet_ntoa)(struct in_addr in);
 
 static struct passwd _passwd[1] = {
         { "user1", "*", 1001, 100, .pw_gecos = "gecos", .pw_dir = "/",
@@ -76,7 +76,7 @@ getaddrinfo(const char *node, const char *service, const struct addrinfo *hints,
         return retval;
 }
 
-char*
+char *
 inet_ntoa(struct in_addr in)
 {
     if (_isfallback()) {

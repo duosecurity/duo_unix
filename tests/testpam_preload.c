@@ -32,7 +32,7 @@ int (*_sys_open)(const char *pathname, int flags, ...);
 int (*_sys_open64)(const char *pathname, int flags, ...);
 FILE *(*_sys_fopen)(const char *filename, const char *mode);
 FILE *(*_sys_fopen64)(const char *filename, const char *mode);
-int (*_sys_inet_ntoa)(struct in_addr in);
+char *(*_sys_inet_ntoa)(struct in_addr in);
 
 static void
 _fatal(const char *msg)
@@ -103,7 +103,7 @@ fopen64(const char *filename, const char *mode)
 	return ((*_sys_fopen64)(_replace(filename), mode));
 }
 
-char*
+char *
 inet_ntoa(struct in_addr in)
 {
     if (_isfallback()) {
