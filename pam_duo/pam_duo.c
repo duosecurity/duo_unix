@@ -290,7 +290,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         break;
     }
     if (i == MAX_PROMPTS) {
-        pam_err = PAM_MAXTRIES;
+        pam_err = cfg.prompts;
     }
     duo_close(duo);
 
