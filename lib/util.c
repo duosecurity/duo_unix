@@ -114,7 +114,31 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
     } else if (strcmp(name, "send_gecos") == 0) {
         cfg->send_gecos = duo_set_boolean_option(val);
     } else if (strcmp(name, "gecos_parsed") == 0) {
+        /* Handle a delimited GECOS field. E.g.
+        *
+        *     username:x:0:0:code1/code2/code3//textField/usergecosparsed:/username:/bin/bash
+        *
+        * Parse the username from the appropriate position in the GECOS field.
+        *
+        * Default delimeter: "/"
+        * Default position:  5
+        */
         cfg->gecos_parsed = duo_set_boolean_option(val);
+        if (strcmp(name, "gecos_delim") == 0) {
+            if (strcmp(val, ":") == 0) {
+                fprintf(stderr, "Invalid gecos_delim '%s'\n", val);
+                return (0);
+            }
+            cfg->gecos_delim = strdup(val);
+        } else {
+            cfg->gecos_delim = "/";
+        }
+        if (strcmp(name, "gecos_pos") == 0) {
+            cfg->gecos_pos = atoi(val);
+            if (cfg->gecos_pos <= 0) {
+                cfg->gecos_pos = 5;
+            }
+        }
     } else if (strcmp(name, "dev_fips_mode") == 0) {
         /* This flag is for development */
         cfg->fips_mode = duo_set_boolean_option(val);
