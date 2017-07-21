@@ -53,12 +53,16 @@ _preload_init(void)
 		_fatal("couldn't dlopen " _PATH_LIBC);
 	} else if (!(_sys_open = dlsym(libc, "open"))) {
 		_fatal("couldn't dlsym 'open'");
+#ifdef HAVE_OPEN64
 	} else if (!(_sys_open = dlsym(libc, "open64"))) {
 		_fatal("couldn't dlsym 'open64'");
+#endif
 	} else if (!(_sys_fopen = dlsym(libc, "fopen"))) {
 		_fatal("couldn't dlsym 'fopen'");
+#ifdef HAVE_FOPEN64
 	} else if (!(_sys_fopen64 = dlsym(libc, "fopen64"))) {
 		_fatal("couldn't dlsym 'fopen64'");
+#endif
 	}
 }
 

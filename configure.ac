@@ -173,7 +173,7 @@ AC_MSG_NOTICE([Using libdir "$libdir"])
 
 # Check for functions
 AC_CONFIG_LIBOBJ_DIR([compat])
-AC_CHECK_FUNCS([memcpy memset sysconf getaddrinfo])
+AC_CHECK_FUNCS([memcpy memset sysconf getaddrinfo open64 fopen64])
 AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy vsyslog])
 AC_SEARCH_LIBS(inet_ntoa, nsl)
 AC_SEARCH_LIBS(socket, socket)
