@@ -53,7 +53,9 @@ struct https_ctx {
 
     http_parser_settings parse_settings;
     char parse_buf[4096];
-} *ctx;
+};
+
+struct https_ctx ctx;
 
 struct https_request {
     BIO *cbio;
@@ -252,7 +254,7 @@ _establish_connection(struct https_request * const req,
     int n;
 
     if ((req->cbio = BIO_new(BIO_s_connect())) == NULL) {
-        ctx->errstr = _SSL_strerror();
+        ctx.errstr = _SSL_strerror();
         return HTTPS_ERR_LIB;
     }
     BIO_set_conn_hostname(req->cbio, api_host);
@@ -261,7 +263,7 @@ _establish_connection(struct https_request * const req,
 
     while (BIO_do_connect(req->cbio) <= 0) {
         if ((n = _BIO_wait(req->cbio, 10000)) != 1) {
-            ctx->errstr = n ? _SSL_strerror() : "Connection timed out";
+            ctx.errstr = n ? _SSL_strerror() : "Connection timed out";
             return (n ? HTTPS_ERR_SYSTEM : HTTPS_ERR_SERVER);
         }
     }
@@ -294,7 +296,7 @@ _establish_connection(struct https_request * const req,
         &res
     );
     if (error) {
-        ctx->errstr = gai_strerror(error);
+        ctx.errstr = gai_strerror(error);
         return HTTPS_ERR_SYSTEM;
     }
 
@@ -333,12 +335,12 @@ _establish_connection(struct https_request * const req,
     res = NULL;
 
     if (connected_socket == -1) {
-        ctx->errstr = "Failed to connect";
+        ctx.errstr = "Failed to connect";
         return socket_error ? HTTPS_ERR_SYSTEM : HTTPS_ERR_SERVER;
     }
 
     if ((req->cbio = BIO_new_socket(connected_socket, BIO_CLOSE)) == NULL) {
-        ctx->errstr = _SSL_strerror();
+        ctx.errstr = _SSL_strerror();
         return (HTTPS_ERR_LIB);
     }
     BIO_set_conn_hostname(req->cbio, api_host);
@@ -384,11 +386,10 @@ https_init(const char *ikey, const char *skey,
     BIO *bio;
     char *p;
 
-    if ((ctx = calloc(1, sizeof(*ctx))) == NULL ||
-        (ctx->ikey = strdup(ikey)) == NULL ||
-        (ctx->skey = strdup(skey)) == NULL ||
-        (ctx->useragent = strdup(useragent)) == NULL) {
-        ctx->errstr = strerror(errno);
+    if ((ctx.ikey = strdup(ikey)) == NULL ||
+        (ctx.skey = strdup(skey)) == NULL ||
+        (ctx.useragent = strdup(useragent)) == NULL) {
+        ctx.errstr = strerror(errno);
         return (HTTPS_ERR_SYSTEM);
     }
     /* Initialize SSL context */
@@ -408,20 +409,20 @@ https_init(const char *ikey, const char *skey,
         if ((p = getenv("RANDFILE")) != NULL) {
             RAND_load_file(p, 8192);
         } else {
-            ctx->errstr = "No /dev/random, EGD, or $RANDFILE";
+            ctx.errstr = "No /dev/random, EGD, or $RANDFILE";
             return (HTTPS_ERR_LIB);
         }
     }
-    if ((ctx->ssl_ctx = SSL_CTX_new(TLSv1_client_method())) == NULL) {
-        ctx->errstr = _SSL_strerror();
+    if ((ctx.ssl_ctx = SSL_CTX_new(TLSv1_client_method())) == NULL) {
+        ctx.errstr = _SSL_strerror();
         return (HTTPS_ERR_LIB);
     }
     /* Set up our CA cert */
     if (cafile == NULL) {
         /* Load default CA cert from memory */
         if ((bio = BIO_new_mem_buf((void *)CACERT_PEM, -1)) == NULL ||
-            (store = SSL_CTX_get_cert_store(ctx->ssl_ctx)) == NULL) {
-            ctx->errstr = _SSL_strerror();
+            (store = SSL_CTX_get_cert_store(ctx.ssl_ctx)) == NULL) {
+            ctx.errstr = _SSL_strerror();
             return (HTTPS_ERR_LIB);
         }
         while ((cert = PEM_read_bio_X509(bio, NULL, 0, NULL)) != NULL) {
@@ -429,48 +430,48 @@ https_init(const char *ikey, const char *skey,
             X509_free(cert);
         }
         BIO_free_all(bio);
-        SSL_CTX_set_verify(ctx->ssl_ctx, SSL_VERIFY_PEER, NULL);
+        SSL_CTX_set_verify(ctx.ssl_ctx, SSL_VERIFY_PEER, NULL);
     } else if (cafile[0] == '\0') {
         /* Skip verification */
-        SSL_CTX_set_verify(ctx->ssl_ctx, SSL_VERIFY_NONE, NULL);
+        SSL_CTX_set_verify(ctx.ssl_ctx, SSL_VERIFY_NONE, NULL);
     } else {
         /* Load CA cert from file */
-        if (!SSL_CTX_load_verify_locations(ctx->ssl_ctx,
+        if (!SSL_CTX_load_verify_locations(ctx.ssl_ctx,
                 cafile, NULL)) {
-            SSL_CTX_free(ctx->ssl_ctx);
-            ctx->errstr = _SSL_strerror();
+            SSL_CTX_free(ctx.ssl_ctx);
+            ctx.errstr = _SSL_strerror();
             return (HTTPS_ERR_CLIENT);
         }
-        SSL_CTX_set_verify(ctx->ssl_ctx, SSL_VERIFY_PEER, NULL);
+        SSL_CTX_set_verify(ctx.ssl_ctx, SSL_VERIFY_PEER, NULL);
     }
     /* Save our proxy config if any */
     if (http_proxy != NULL) {
         if (strstr(http_proxy, "://") != NULL) {
             if (strncmp(http_proxy, "http://", 7) != 0) {
-                ctx->errstr = "http_proxy must be HTTP";
+                ctx.errstr = "http_proxy must be HTTP";
                 return (HTTPS_ERR_CLIENT);
             }
             http_proxy += 7;
         }
         p = strdup(http_proxy);
 
-        if ((ctx->proxy = strchr(p, '@')) != NULL) {
-            *ctx->proxy++ = '\0';
-            ctx->proxy_auth = p;
+        if ((ctx.proxy = strchr(p, '@')) != NULL) {
+            *ctx.proxy++ = '\0';
+            ctx.proxy_auth = p;
         } else {
-            ctx->proxy = p;
+            ctx.proxy = p;
         }
-        strtok(ctx->proxy, "/");
+        strtok(ctx.proxy, "/");
 
-        if ((ctx->proxy_port = strchr(ctx->proxy, ':')) != NULL) {
-            *ctx->proxy_port++ = '\0';
+        if ((ctx.proxy_port = strchr(ctx.proxy, ':')) != NULL) {
+            *ctx.proxy_port++ = '\0';
         } else {
-            ctx->proxy_port = "80";
+            ctx.proxy_port = "80";
         }
     }
     /* Set HTTP parser callbacks */
-    ctx->parse_settings.on_body = __on_body;
-    ctx->parse_settings.on_message_complete = __on_message_complete;
+    ctx.parse_settings.on_body = __on_body;
+    ctx.parse_settings.on_message_complete = __on_message_complete;
 
     signal(SIGPIPE, SIG_IGN);
 
@@ -493,7 +494,7 @@ https_open(struct https_request **reqp, const char *host)
     if ((req = calloc(1, sizeof(*req))) == NULL ||
         (req->host = strdup(host)) == NULL ||
         (req->parser = malloc(sizeof(http_parser))) == NULL) {
-        ctx->errstr = strerror(errno);
+        ctx.errstr = strerror(errno);
         https_close(&req);
         return (HTTPS_ERR_SYSTEM);
     }
@@ -504,7 +505,7 @@ https_open(struct https_request **reqp, const char *host)
         req->port = "443";
     }
     if ((req->body = BIO_new(BIO_s_mem())) == NULL) {
-        ctx->errstr = _SSL_strerror();
+        ctx.errstr = _SSL_strerror();
         https_close(&req);
         return (HTTPS_ERR_LIB);
     }
@@ -512,9 +513,9 @@ https_open(struct https_request **reqp, const char *host)
     req->parser->data = req;
 
     /* Connect to server */
-    if (ctx->proxy) {
-        api_host = ctx->proxy;
-        api_port = ctx->proxy_port;
+    if (ctx.proxy) {
+        api_host = ctx.proxy;
+        api_port = ctx.proxy_port;
     } else {
         api_host = req->host;
         api_port = req->port;
@@ -527,17 +528,17 @@ https_open(struct https_request **reqp, const char *host)
     }
 
     /* Tunnel through proxy, if specified */
-    if (ctx->proxy != NULL) {
+    if (ctx.proxy != NULL) {
         BIO_printf(req->cbio,
             "CONNECT %s:%s HTTP/1.0\r\n"
             "User-Agent: %s\r\n",
-            req->host, req->port, ctx->useragent
+            req->host, req->port, ctx.useragent
         );
 
-        if (ctx->proxy_auth != NULL) {
+        if (ctx.proxy_auth != NULL) {
             b64 = _BIO_new_base64();
-            BIO_write(b64, ctx->proxy_auth,
-                strlen(ctx->proxy_auth));
+            BIO_write(b64, ctx.proxy_auth,
+                strlen(ctx.proxy_auth));
             (void)BIO_flush(b64);
             n = BIO_get_mem_data(b64, &p);
 
@@ -549,13 +550,13 @@ https_open(struct https_request **reqp, const char *host)
         BIO_puts(req->cbio, "\r\n");
         (void)BIO_flush(req->cbio);
 
-        while ((n = BIO_read(req->cbio, ctx->parse_buf,
-                    sizeof(ctx->parse_buf))) <= 0) {
+        while ((n = BIO_read(req->cbio, ctx.parse_buf,
+                    sizeof(ctx.parse_buf))) <= 0) {
             if ((n = _BIO_wait(req->cbio, 5000)) != 1) {
                 if (n == 0) {
-                    ctx->errstr = "Proxy connection timed out";
+                    ctx.errstr = "Proxy connection timed out";
                 } else {
-                    ctx->errstr = "Proxy connection error";
+                    ctx.errstr = "Proxy connection error";
                 }
                 https_close(&req);
                 return HTTPS_ERR_SERVER;
@@ -563,20 +564,20 @@ https_open(struct https_request **reqp, const char *host)
         }
         /* Tolerate HTTP proxies that respond with an
            incorrect HTTP version number */
-        if ((strncmp("HTTP/1.0 200", ctx->parse_buf, 12) != 0)
-            && (strncmp("HTTP/1.1 200", ctx->parse_buf, 12) != 0)) {
-            snprintf(ctx->errbuf, sizeof(ctx->errbuf),
-                "Proxy error: %s", ctx->parse_buf);
-            ctx->errstr = strtok(ctx->errbuf, "\r\n");
+        if ((strncmp("HTTP/1.0 200", ctx.parse_buf, 12) != 0)
+            && (strncmp("HTTP/1.1 200", ctx.parse_buf, 12) != 0)) {
+            snprintf(ctx.errbuf, sizeof(ctx.errbuf),
+                "Proxy error: %s", ctx.parse_buf);
+            ctx.errstr = strtok(ctx.errbuf, "\r\n");
             https_close(&req);
-            if (n < 12 || atoi(ctx->parse_buf + 9) < 500) {
+            if (n < 12 || atoi(ctx.parse_buf + 9) < 500) {
                 return (HTTPS_ERR_CLIENT);
             }
             return (HTTPS_ERR_SERVER);
         }
     }
     /* Establish SSL connection */
-    if ((sbio = BIO_new_ssl(ctx->ssl_ctx, 1)) == NULL) {
+    if ((sbio = BIO_new_ssl(ctx.ssl_ctx, 1)) == NULL) {
         https_close(&req);
         return (HTTPS_ERR_LIB);
     }
@@ -587,7 +588,7 @@ https_open(struct https_request **reqp, const char *host)
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     /* Enable SNI support */
     if ((n = SSL_set_tlsext_host_name(req->ssl, req->host)) != 1) {
-        ctx->errstr = "Setting SNI failed";
+        ctx.errstr = "Setting SNI failed";
         https_close(&req);
         return (HTTPS_ERR_LIB);
     }
@@ -595,14 +596,14 @@ https_open(struct https_request **reqp, const char *host)
 
     while (BIO_do_handshake(req->cbio) <= 0) {
         if ((n = _BIO_wait(req->cbio, 5000)) != 1) {
-            ctx->errstr = n ? _SSL_strerror() : "SSL handshake timed out";
+            ctx.errstr = n ? _SSL_strerror() : "SSL handshake timed out";
             https_close(&req);
             return (n ? HTTPS_ERR_SYSTEM : HTTPS_ERR_SERVER);
         }
     }
     /* Validate server certificate name */
     if (_SSL_check_server_cert(req->ssl, req->host) != 1) {
-        ctx->errstr = "Certificate name validation failed";
+        ctx.errstr = "Certificate name validation failed";
         https_close(&req);
         return (HTTPS_ERR_LIB);
     }
@@ -664,7 +665,7 @@ https_send(struct https_request *req, const char *method, const char *uri,
     if ((qs = _argv_to_qs(argc, argv)) == NULL ||
         (asprintf(&p, "%s\n%s\n%s\n%s", method, req->host, uri, qs)) < 0) {
         free(qs);
-        ctx->errstr = strerror(errno);
+        ctx.errstr = strerror(errno);
         return (HTTPS_ERR_LIB);
     }
     /* Format request */
@@ -681,24 +682,24 @@ https_send(struct https_request *req, const char *method, const char *uri,
     /* Add User-Agent header */
     BIO_printf(req->cbio,
                "User-Agent: %s\r\n",
-               ctx->useragent);
+               ctx.useragent);
     /* Add signature */
     BIO_puts(req->cbio, "Authorization: Basic ");
 
     if ((hmac = HMAC_CTX_new()) == NULL) {
         free(qs);
         free(p);
-        ctx->errstr = strerror(errno);
+        ctx.errstr = strerror(errno);
         return (HTTPS_ERR_LIB);
     }
-    HMAC_Init(hmac, ctx->skey, strlen(ctx->skey), EVP_sha1());
+    HMAC_Init(hmac, ctx.skey, strlen(ctx.skey), EVP_sha1());
     HMAC_Update(hmac, (unsigned char *)p, strlen(p));
     HMAC_Final(hmac, MD, NULL);
     HMAC_CTX_free(hmac);
     free(p);
 
     b64 = _BIO_new_base64();
-    BIO_printf(b64, "%s:", ctx->ikey);
+    BIO_printf(b64, "%s:", ctx.ikey);
     for (i = 0; i < sizeof(MD); i++) {
         BIO_printf(b64, "%02x", MD[i]);
     }
@@ -719,7 +720,7 @@ https_send(struct https_request *req, const char *method, const char *uri,
     /* Send request */
     while (BIO_flush(req->cbio) != 1) {
         if ((n = _BIO_wait(req->cbio, -1)) != 1) {
-            ctx->errstr = n ? _SSL_strerror() : "Write timed out";
+            ctx.errstr = n ? _SSL_strerror() : "Write timed out";
             return (HTTPS_ERR_SERVER);
         }
     }
@@ -733,21 +734,21 @@ https_recv(struct https_request *req, int *code, const char **body, int *len,
     int n, err;
 
     if (BIO_reset(req->body) != 1) {
-        ctx->errstr = _SSL_strerror();
+        ctx.errstr = _SSL_strerror();
         return (HTTPS_ERR_LIB);
     }
     /* Read loop sentinel set by parser in __on_message_done() */
     while (!req->done) {
-        while ((n = BIO_read(req->cbio, ctx->parse_buf,
-                    sizeof(ctx->parse_buf))) <= 0) {
+        while ((n = BIO_read(req->cbio, ctx.parse_buf,
+                    sizeof(ctx.parse_buf))) <= 0) {
             if ((n = _BIO_wait(req->cbio, msecs)) != 1) {
-                ctx->errstr = n ? _SSL_strerror() : "Connection closed";
+                ctx.errstr = n ? _SSL_strerror() : "Connection closed";
                 return (HTTPS_ERR_SERVER);
             }
         }
         if ((err = http_parser_execute(req->parser,
-                    &ctx->parse_settings, ctx->parse_buf, n)) != n) {
-            ctx->errstr = http_errno_description(err);
+                    &ctx.parse_settings, ctx.parse_buf, n)) != n) {
+            ctx.errstr = http_errno_description(err);
             return (HTTPS_ERR_SERVER);
         }
     }
@@ -760,8 +761,8 @@ https_recv(struct https_request *req, int *code, const char **body, int *len,
 const char *
 https_geterr(void)
 {
-    const char *p = ctx->errstr;
-    ctx->errstr = NULL;
+    const char *p = ctx.errstr;
+    ctx.errstr = NULL;
     return (p);
 }
 
