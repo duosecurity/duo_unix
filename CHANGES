@@ -1,3 +1,8 @@
+duo_unix-1.10.1:
+
+- Fixed bug causing automated tests to fail on OSX
+- Addressed an issue which kept configuration secrets in memory for longer than necessary
+
 duo_unix-1.10.0:
 
 - Added LibreSSL support
@@ -6,7 +11,7 @@ duo_unix-1.10.0:
 
 duo_unix-1.9.21:
 
-- Only allow http_proxy to be defined in configuration file instead of environment
+- PSA-2017-002: Only allow http_proxy to be defined in configuration file instead of environment
 
 duo_unix-1.9.20:
 
