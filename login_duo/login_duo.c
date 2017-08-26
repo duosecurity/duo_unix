@@ -182,11 +182,6 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         }
     }
 
-    /* Check if IP is whitelisted. */
-    if (duo_check_ip_whitelist(host, cfg.ip_whitelist, cfg.ip_whitelist_cnt) == 1) {
-        return (EXIT_SUCCESS);
-    }
-
     /* Honor configured http_proxy */
     if (cfg.http_proxy != NULL) {
         setenv("http_proxy", cfg.http_proxy, 1);
