@@ -1,3 +1,7 @@
+duo_unix-1.10.2:
+
+- Added default failmode values in config files
+
 duo_unix-1.10.1:
 
 - Fixed bug causing automated tests to fail on OSX
