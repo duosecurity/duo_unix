@@ -33,12 +33,6 @@
 # you generate in order to build.  On all other systems, it will just run
 # autoreconf.
 #
-# Note that as per the Fedora packaging guidelines, the resulting SRPM package
-# unconditionally includes all patches, even ones that are conditionally
-# applied.  So even if you are building exclusively on RHEL7, you will still
-# need to perform the above procedure to generate the patch file, because the
-# SRPM unconditionally includes it.
-#
 
 # RHEL5 doesn't have the rhel macro, so set it manually on RHEL5 systems.
 %if 0%(grep -q Tikanga /etc/redhat-release 2>/dev/null && echo 1 || echo 0) > 0
@@ -63,7 +57,9 @@ Group: Applications/System
 License: GPLv2
 URL: https://www.duo.com/
 Source0: https://github.com/duosecurity/duo_unix/archive/duo_unix-%{version}.tar.gz
+%if 0%{?rhel} > 0 && 0%{?rhel} < 7
 Patch0: duo_unix-1.10.2-include-autotools-files.patch
+%endif
 %if 0%{?rhel} > 0 && 0%{?rhel} < 6
 Buildroot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 %endif
