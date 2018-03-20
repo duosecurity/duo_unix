@@ -10,7 +10,7 @@ PROMPT = '.* or option \(1-4\): $'
 def _login_duo():
     p = pexpect.spawn(paths.login_duo + ' -d -c confs/mockduo.conf ' + \
                       '-f foobar echo SUCCESS')
-    p.expect(PROMPT, timeout=2)
+    p.expect(PROMPT, timeout=10)
     print '===> %r' % p.match.group(0)
     return p
 
