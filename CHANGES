@@ -1,3 +1,7 @@
+duo_unix-1.10.3:
+
+- Added support for http_proxy with SELinux enabled
+
 duo_unix-1.10.2:
 
 - Added default failmode values in config files
