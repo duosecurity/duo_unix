@@ -132,6 +132,19 @@ AS_IF([test "x$with_pam" != "xno"], [
 ])
 AC_SUBST(PAMDIR, "$PAMDIR")
 
+# Check for SELinux support.
+AC_CHECK_FILE([/usr/share/selinux/devel/Makefile], [selinux_makefile=yes], [selinux_makefile=no])
+AC_CHECK_PROG([have_checkmodule], [checkmodule], [yes], [no])
+AC_CHECK_PROG([have_semodule], [semodule], [yes], [no])
+AC_CHECK_PROG([have_semodule_package], [semodule_package], [yes], [no])
+if test "x${selinux_makefile}" = "xyes" && test "x${have_checkmodule}" = "xyes" && test "x${have_semodule}" = "xyes" && test "x${have_semodule_package}" = "xyes"; then
+  AC_MSG_NOTICE([Will build/install authlogin_duo SELinux policy module])
+  have_selinux=yes
+else
+  AC_MSG_NOTICE([Will not build/install authlogin_duo SELinux policy module])
+fi
+AM_CONDITIONAL([SELINUX], [test "x${have_selinux}" = "xyes"])
+
 # Check for Duo privsep user
 case "$host" in
      *darwin*)		DUO_PRIVSEP_USER="_sshd" ;;
@@ -178,6 +191,6 @@ AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy vsyslog])
 AC_SEARCH_LIBS(inet_ntoa, nsl)
 AC_SEARCH_LIBS(socket, socket)
 
-AC_CONFIG_FILES(Makefile compat/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile tests/Makefile)
+AC_CONFIG_FILES(Makefile compat/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile selinux/Makefile tests/Makefile)
 
 AC_OUTPUT
