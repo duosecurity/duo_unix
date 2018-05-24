@@ -363,6 +363,10 @@ _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
             ret = DUO_OK;
         } else if (strcasecmp(p, "deny") == 0) {
             _duo_seterr(ctx, "%s", bson_iterator_string(&it));
+            if (ctx->conv_status != NULL) {
+                ctx->conv_status(ctx->conv_arg,
+                    bson_iterator_string(&it));
+            }
             ret = DUO_ABORT;
         } else if (strcasecmp(p, "enroll") == 0) {
             if (ctx->conv_status != NULL) {
