@@ -200,7 +200,7 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
     duo_code_t ret;
     char *k, *v, *p;
 
-    if (name == NULL || value == NULL) {
+    if (name == NULL || value == NULL || strlen(name) == 0 || strlen(value) == 0) {
         return (DUO_CLIENT_ERROR);
     }
     ret = DUO_LIB_ERROR;
@@ -208,11 +208,12 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
     k = urlenc_encode(name);
     v = urlenc_encode(value);
 
-    if (k && v && asprintf(&p, "%s=%s", k, v) > 2 &&
-            ctx->argc + 1 < (sizeof(ctx->argv) / sizeof(ctx->argv[0]))) {
+    if (k && v && ctx->argc + 1 < (sizeof(ctx->argv) / sizeof(ctx->argv[0]))
+            && (asprintf(&p, "%s=%s", k, v) > 2)) {
         ctx->argv[ctx->argc++] = p;
         ret = DUO_OK;
     }
+    
     free(k);
     free(v);
 
