@@ -45,6 +45,7 @@ Preauth states
   [4] Failsafe Duo login for 'preauth-bad-stat'
   [4] Failsafe Duo login for 'preauth-fail': BSON missing valid 'response'
   [4] Aborted Duo login for 'preauth-deny': you suck
+  you suck
   [4] Skipped Duo login for 'preauth-allow': you rock
   [4] Failsafe Duo login for 'preauth-allow-bad_response': BSON missing valid 'status'
   $ for user in preauth-ok-missing_response preauth-fail-missing_response preauth-bad-stat preauth-fail preauth-deny preauth-allow preauth-allow-bad_response; do ./testpam.py -d -c confs/mockduo_failsecure.conf -f $user true; done
@@ -53,6 +54,7 @@ Preauth states
   [3] Error in Duo login for 'preauth-bad-stat'
   [3] Error in Duo login for 'preauth-fail': BSON missing valid 'response'
   [4] Aborted Duo login for 'preauth-deny': you suck
+  you suck
   [4] Skipped Duo login for 'preauth-allow': you rock
   [3] Error in Duo login for 'preauth-allow-bad_response': BSON missing valid 'status'
   [1]
