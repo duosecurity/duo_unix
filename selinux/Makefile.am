@@ -15,6 +15,6 @@ semodule-deactivate:
 	semodule -r $(semodule_name)
 
 clean-local:
-	rm -f $(semodule_name).fc $(semodule_name).if
+	rm -rf $(semodule_name).fc $(semodule_name).if $(semodule_name).pp tmp
 
 EXTRA_DIST = $(semodule_name).te
