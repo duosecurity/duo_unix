@@ -127,7 +127,7 @@ echo -e "===================================\n"
 
 for cipher in ${CIPHER_LIST[@]} ; do
     echo "Scanning for cipher function: ${cipher}"
-    if grep -R ${cipher} ${DIR} ; then
+    if grep -R ${cipher} ${DIR} --exclude={fips_scanner.sh,test_crypto-0*} ; then
       echo -e "\e[92mFound potential calls for ${cipher}\e[0m"
     fi
 done
@@ -151,10 +151,9 @@ DIGEST_LIST=("SHA1_Init"
 
 echo -e "\nChecking for low-level digest calls"
 echo -e "===================================\n"
-
 for digest in ${DIGEST_LIST[@]} ; do
-    echo "Scanning for digest function: ${digest}"
-    if grep -R ${digest} ${DIR} ; then
+    echo "Scanning for cipher function: ${digest}"
+    if grep -R ${digest} ${DIR} --exclude={fips_scanner.sh,test_crypto-0*} ; then
       echo -e "\e[92mFound potential calls for ${digest}\e[0m"
-    fi
+    fi    
 done
