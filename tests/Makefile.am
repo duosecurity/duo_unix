@@ -25,4 +25,4 @@ check_PROGRAMS = testpam
 testpam_LDADD = -lpam
 endif
 
-EXTRA_DIST = bson/codec.py bson/__init__.py certs confs cram.py groups.py login_duo.py mockduo.py mocklogin_duo.py paths.py pexpect.py testpam.py $(TESTS) $(PAM_TESTS)
+EXTRA_DIST = bson/codec.py bson/__init__.py certs confs cram.py fips_scanner.sh groups.py login_duo.py mockduo.py mocklogin_duo.py paths.py pexpect.py testpam.py $(TESTS) $(PAM_TESTS)

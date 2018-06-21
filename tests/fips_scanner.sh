@@ -125,9 +125,13 @@ CIPHER_LIST=("AES_set_encrypt_key"
 echo -e "Checking for low-level cipher calls"
 echo -e "===================================\n"
 
+#Exclude files that are being used to search for anything not fips compliant 
+#Unless excluded, these files will also be scanned and trigger false positives
+fipsScanner="fips_scanner.sh"
+testCrypto="test_crypto-0*"
 for cipher in ${CIPHER_LIST[@]} ; do
     echo "Scanning for cipher function: ${cipher}"
-    if grep -R ${cipher} ${DIR} --exclude={fips_scanner.sh,test_crypto-0*} ; then
+    if grep -R ${cipher} ${DIR} --exclude={$fipsScanner,$testCrypto} ; then
       echo -e "\e[92mFound potential calls for ${cipher}\e[0m"
     fi
 done
@@ -153,7 +157,7 @@ echo -e "\nChecking for low-level digest calls"
 echo -e "===================================\n"
 for digest in ${DIGEST_LIST[@]} ; do
     echo "Scanning for cipher function: ${digest}"
-    if grep -R ${digest} ${DIR} --exclude={fips_scanner.sh,test_crypto-0*} ; then
+    if grep -R ${digest} ${DIR} --exclude={$fipsScanner,$testCrypto} ; then
       echo -e "\e[92mFound potential calls for ${digest}\e[0m"
     fi    
 done
