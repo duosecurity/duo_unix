@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <stdarg.h>
@@ -44,6 +45,23 @@
 #define AUTODEFAULT_MSG     "Using default second-factor authentication."
 #define ENV_VAR_MSG         "Reading $DUO_PASSCODE..."
 
+/*
+ * Finding the maximum length for the machine's hostname
+ * Idea and technique originated from https://github.com/openssh/openssh-portable 
+ */
+#ifndef HOST_NAME_MAX
+# include "netdb.h" /* for MAXHOSTNAMELEN */
+# if defined(_POSIX_HOST_NAME_MAX)
+#  define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
+# elif defined(MAXHOSTNAMELEN)
+#  define HOST_NAME_MAX MAXHOSTNAMELEN
+# else
+#  define HOST_NAME_MAX 255
+# endif
+#endif /* HOST_NAME_MAX */
+
+/* For sizing buffers; sufficient to cover the longest possible DNS FQDN */
+#define DNS_MAXNAMELEN 256
 
 struct duo_ctx {
     https_t *https;    /* HTTPS handle */
@@ -230,6 +248,47 @@ _duo_seterr(struct duo_ctx *ctx, const char *fmt, ...)
     va_end(ap);
 }
 
+
+static void 
+_duo_get_hostname(struct duo_ctx *ctx, char *dns_fqdn, int dns_fqdn_size)
+{
+    struct addrinfo hints, *info, *p;
+    int error;
+
+    char hostname[HOST_NAME_MAX + 1];
+    /* gethostname may not insert a null terminator when it needs to truncate the hostname */
+    hostname[HOST_NAME_MAX] = '\0';
+    gethostname(hostname, HOST_NAME_MAX);
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_CANONNAME;
+    strlcpy(dns_fqdn, hostname, dns_fqdn_size);
+    if ((error = getaddrinfo(hostname, NULL, &hints, &info)) != 0) {
+        _duo_seterr(ctx, "%s", gai_strerror(error));
+    }
+    else {
+        if(info->ai_canonname != NULL && strlen(info->ai_canonname) > 0) {
+            strlcpy(dns_fqdn, info->ai_canonname, dns_fqdn_size);
+        }
+    } 
+    
+    freeaddrinfo(info);
+}
+
+int
+_duo_add_hostname_param(struct duo_ctx *ctx)
+{
+    char dns_fqdn[DNS_MAXNAMELEN];
+    _duo_get_hostname(ctx, dns_fqdn, sizeof(dns_fqdn));
+
+    if(duo_add_param(ctx, "hostname", dns_fqdn) != DUO_OK) {
+        return (DUO_LIB_ERROR);
+    }
+    return (DUO_OK);
+}
+
 #define _BSON_FIND(ctx, it, obj, name, type) do {           \
     if (bson_find(it, obj, name) != type) {             \
         _duo_seterr(ctx, "BSON missing valid '%s'", name);  \
@@ -348,7 +407,11 @@ _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
             return (DUO_LIB_ERROR);
         }
     }
-
+    
+    if(_duo_add_hostname_param(ctx) != DUO_OK) {
+        return (DUO_LIB_ERROR);
+    }
+ 
     if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/preauth.bson", ctx->https_timeout)) != DUO_OK ||
         (ret = _duo_bson_response(ctx, obj)) != DUO_OK) {
         return (ret);
@@ -486,6 +549,10 @@ duo_login(struct duo_ctx *ctx, const char *username,
         if (duo_add_param(ctx, "ipaddr", client_ip) != DUO_OK) {
             return (DUO_LIB_ERROR);
         }
+    }
+
+    if(_duo_add_hostname_param(ctx) != DUO_OK) {
+        return (DUO_LIB_ERROR);
     }
 
     /* Add pushinfo parameters */

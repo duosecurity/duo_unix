@@ -85,3 +85,10 @@ Test using configured http_proxy variable
   [4] Failsafe Duo login for 'preauth-allow': Couldn't connect to localhost:4443: Failed to connect
   
   $ export http_proxy=$orig_http_proxy
+
+Test getting hostname
+  $ ./testpam.py -d -c confs/mockduo.conf -f hostname true
+  [4] Aborted Duo login for 'hostname': correct hostname
+  correct hostname
+  [1]
+
