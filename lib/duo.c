@@ -220,6 +220,20 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
     return (ret);
 }
 
+int
+_duo_add_hostname_param(struct duo_ctx *ctx) {
+    char hostname[HOST_NAME_MAX + 1];
+    /* gethostname may not insert a null terminator when it truncates the hostname */
+    hostname[HOST_NAME_MAX + 1] = "\0";
+    if(gethostname(hostname, HOST_NAME_MAX) != -1) {
+        if(duo_add_param(ctx, "hostname", hostname) != DUO_OK) {
+            return (DUO_LIB_ERROR);
+        }
+        return (DUO_OK);
+     }
+    return (DUO_LIB_ERROR);
+}
+
 static void
 _duo_seterr(struct duo_ctx *ctx, const char *fmt, ...)
 {
@@ -348,7 +362,11 @@ _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
             return (DUO_LIB_ERROR);
         }
     }
-
+    
+    if(_duo_add_hostname_param(ctx) != DUO_OK) {
+        return (DUO_LIB_ERROR);
+    }
+ 
     if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/preauth.bson", ctx->https_timeout)) != DUO_OK ||
         (ret = _duo_bson_response(ctx, obj)) != DUO_OK) {
         return (ret);
@@ -486,6 +504,10 @@ duo_login(struct duo_ctx *ctx, const char *username,
         if (duo_add_param(ctx, "ipaddr", client_ip) != DUO_OK) {
             return (DUO_LIB_ERROR);
         }
+    }
+
+    if(_duo_add_hostname_param(ctx) != DUO_OK) {
+        return (DUO_LIB_ERROR);
     }
 
     /* Add pushinfo parameters */

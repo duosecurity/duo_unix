@@ -13,6 +13,7 @@ import ssl
 import sys
 import time
 import urllib
+import socket
 
 IKEY = 'DIXYZV6YM8IFYVWBINCA'
 SKEY = 'yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo'
@@ -51,7 +52,7 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         
         return sig == h.hexdigest()
 
-    def _get_args(self):
+    def _get_args(self): 
         if self.method == 'POST':
             env = { 'REQUEST_METHOD': 'POST',
                     'CONTENT_TYPE': self.headers['Content-Type'] }
@@ -138,6 +139,8 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 ret['response'] = { 'result': 'allow', 'status': 'you rock' }
             elif self.args['user'] == 'preauth-allow-bad_response':
                 ret['response'] = { 'result': 'allow', 'xxx': 'you rock' }
+            elif (self.args['user'] == 'hostname') and (self.args['hostname'] == socket.gethostname()):
+                ret['response'] = { 'result': 'allow', 'status': 'correct hostname' }
             else:
                 ret['response'] = {
                     'result': 'auth',

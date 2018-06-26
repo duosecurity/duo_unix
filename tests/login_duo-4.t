@@ -97,3 +97,8 @@ Test using configured http_proxy variable
   [4] Failsafe Duo login for 'whatever': Couldn't connect to localhost:4443: Failed to connect
   
   $ export http_proxy=$orig_http_proxy
+
+Test getting hostname
+  $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f hostname true
+  [4] Skipped Duo login for 'hostname': correct hostname
+ 
