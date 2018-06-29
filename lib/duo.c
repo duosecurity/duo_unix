@@ -222,10 +222,15 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
 
 int
 _duo_add_hostname_param(struct duo_ctx *ctx) {
-    char hostname[HOST_NAME_MAX + 1];
+    /* This is what HOST_NAME_MAX is defined with for Linux */
+    int max_host_name = 64;
+#ifdef HOST_NAME_MAX
+    max_host_name = HOST_NAME_MAX;
+#endif
+    char hostname[max_host_name + 1];
     /* gethostname may not insert a null terminator when it truncates the hostname */
-    hostname[HOST_NAME_MAX + 1] = "\0";
-    if(gethostname(hostname, HOST_NAME_MAX) != -1) {
+    hostname[max_host_name + 1] = '\0';
+    if(gethostname(hostname, max_host_name) != -1) {
         if(duo_add_param(ctx, "hostname", hostname) != DUO_OK) {
             return (DUO_LIB_ERROR);
         }
