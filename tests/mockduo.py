@@ -139,7 +139,7 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 ret['response'] = { 'result': 'allow', 'status': 'you rock' }
             elif self.args['user'] == 'preauth-allow-bad_response':
                 ret['response'] = { 'result': 'allow', 'xxx': 'you rock' }
-            elif (self.args['user'] == 'hostname') and (self.args['hostname'] == socket.gethostname()):
+            elif (self.args['user'] == 'hostname') and (self.args['hostname'] == socket.getfqdn()):
                 ret['response'] = { 'result': 'allow', 'status': 'correct hostname' }
             else:
                 ret['response'] = {

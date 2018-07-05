@@ -44,6 +44,16 @@
 #define AUTODEFAULT_MSG     "Using default second-factor authentication."
 #define ENV_VAR_MSG         "Reading $DUO_PASSCODE..."
 
+#ifndef HOST_NAME_MAX
+# include "netdb.h" /* for MAXHOSTNAMELEN */
+# if defined(_POSIX_HOST_NAME_MAX)
+#  define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
+# elif defined(MAXHOSTNAMELEN)
+#  define HOST_NAME_MAX MAXHOSTNAMELEN
+# else
+#  define HOST_NAME_MAX 255
+# endif
+#endif /* HOST_NAME_MAX */
 
 struct duo_ctx {
     https_t *https;    /* HTTPS handle */
@@ -222,21 +232,26 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
 
 int
 _duo_add_hostname_param(struct duo_ctx *ctx) {
-    /* This is what HOST_NAME_MAX is defined with for Linux */
-    int max_host_name = 64;
-#ifdef HOST_NAME_MAX
-    max_host_name = HOST_NAME_MAX;
-#endif
-    char hostname[max_host_name + 1];
-    /* gethostname may not insert a null terminator when it truncates the hostname */
-    hostname[max_host_name + 1] = '\0';
-    if(gethostname(hostname, max_host_name) != -1) {
-        if(duo_add_param(ctx, "hostname", hostname) != DUO_OK) {
+    char hostname[HOST_NAME_MAX + 1];
+    char domainname[HOST_NAME_MAX + 1];
+    char result[HOST_NAME_MAX + 1];
+    /* gethostname and getdomainname may not insert a null terminator when it truncates the hostname and domain name */
+    hostname[HOST_NAME_MAX] = '\0';
+    domainname[HOST_NAME_MAX] = '\0';
+    if(gethostname(hostname, HOST_NAME_MAX) != -1 
+                            && getdomainname(domainname, HOST_NAME_MAX) != -1) {
+        /* domainname will be "(none)" if there is no domain name */
+        if(!strncmp(domainname, "(none)", HOST_NAME_MAX) || !strncmp(domainname, "", HOST_NAME_MAX)) {
+            strncpy(result, hostname, HOST_NAME_MAX);
+        } else {
+            snprintf(result, HOST_NAME_MAX, "%s%s%s", hostname, ".", domainname);
+        }
+        if(duo_add_param(ctx, "hostname", result) != DUO_OK) {
             return (DUO_LIB_ERROR);
         }
         return (DUO_OK);
      }
-    return (DUO_LIB_ERROR);
+     return (DUO_LIB_ERROR);
 }
 
 static void
