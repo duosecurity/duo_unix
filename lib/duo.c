@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>
@@ -230,30 +231,6 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
     return (ret);
 }
 
-int
-_duo_add_hostname_param(struct duo_ctx *ctx) {
-    char hostname[HOST_NAME_MAX + 1];
-    char domainname[HOST_NAME_MAX + 1];
-    char result[HOST_NAME_MAX + 1];
-    /* gethostname and getdomainname may not insert a null terminator when it truncates the hostname and domain name */
-    hostname[HOST_NAME_MAX] = '\0';
-    domainname[HOST_NAME_MAX] = '\0';
-    if(gethostname(hostname, HOST_NAME_MAX) != -1 
-                            && getdomainname(domainname, HOST_NAME_MAX) != -1) {
-        /* domainname will be "(none)" if there is no domain name */
-        if(!strncmp(domainname, "(none)", HOST_NAME_MAX) || !strncmp(domainname, "", HOST_NAME_MAX)) {
-            strncpy(result, hostname, HOST_NAME_MAX);
-        } else {
-            snprintf(result, HOST_NAME_MAX, "%s%s%s", hostname, ".", domainname);
-        }
-        if(duo_add_param(ctx, "hostname", result) != DUO_OK) {
-            return (DUO_LIB_ERROR);
-        }
-        return (DUO_OK);
-     }
-     return (DUO_LIB_ERROR);
-}
-
 static void
 _duo_seterr(struct duo_ctx *ctx, const char *fmt, ...)
 {
@@ -262,6 +239,38 @@ _duo_seterr(struct duo_ctx *ctx, const char *fmt, ...)
     va_start(ap, fmt);
     vsnprintf(ctx->err, sizeof(ctx->err), fmt, ap);
     va_end(ap);
+}
+
+int
+_duo_add_hostname_param(struct duo_ctx *ctx) {
+    /* Need to fit the whole of hostname and domainname into result therefore it needs to be twice as large */
+    int result_size = HOST_NAME_MAX * 2;
+    int domainname_result = 0;
+    char hostname[HOST_NAME_MAX + 1];
+    char domainname[HOST_NAME_MAX + 1];
+    char result[result_size + 1];
+    
+    /* gethostname may not insert a null terminator when it needs to truncate the hostname */
+    hostname[HOST_NAME_MAX] = '\0';
+    if(gethostname(hostname, HOST_NAME_MAX) != -1) {
+        /* domainname will be "(none)" if there is no domain name */
+        if(domainname_result = getdomainname(domainname, HOST_NAME_MAX) == -1
+                        || !strncmp(domainname, "(none)", HOST_NAME_MAX) || !strncmp(domainname, "", HOST_NAME_MAX)) {
+            snprintf(result, HOST_NAME_MAX, "%s", hostname);
+        
+            if(domainname_result == -1) {
+                _duo_seterr(ctx, "%s", strerror(errno));
+            }
+        } else {
+            snprintf(result, result_size, "%s%s%s", hostname, ".", domainname);
+        }
+        
+        if(duo_add_param(ctx, "hostname", result) != DUO_OK) {
+            return (DUO_LIB_ERROR);
+        }
+        return (DUO_OK);
+    } 
+    return (DUO_LIB_ERROR);
 }
 
 #define _BSON_FIND(ctx, it, obj, name, type) do {           \
