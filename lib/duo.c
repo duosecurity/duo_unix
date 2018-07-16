@@ -241,22 +241,38 @@ _duo_seterr(struct duo_ctx *ctx, const char *fmt, ...)
     va_end(ap);
 }
 
-int
-_duo_add_hostname_param(struct duo_ctx *ctx) {
+
+void _duo_get_hostname(struct duo_ctx *ctx, char *final)
+{
+    struct addrinfo hints, *info, *p;
+    int error;
+
     char hostname[HOST_NAME_MAX + 1];
-    
     /* gethostname may not insert a null terminator when it needs to truncate the hostname */
     hostname[HOST_NAME_MAX] = '\0';
-    if(gethostname(hostname, HOST_NAME_MAX) != -1) {
-        struct hostent *hostentry = gethostbyname(hostname);
-        if(hostentry != NULL) {
-            if(duo_add_param(ctx, "hostname", hostentry->h_name) == DUO_OK) {
-                return (DUO_OK);
-            }
-            return (DUO_LIB_ERROR);
-        }
+    gethostname(hostname, HOST_NAME_MAX);
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_CANONNAME;
+
+    if ((error = getaddrinfo(hostname, "http", &hints, &info)) != 0) {
+        _duo_seterr(ctx, "%s", gai_strerror(error));
     }
-    _duo_seterr(ctx, "%s", strerror(errno));
+    
+    strncpy(final, info->ai_canonname, HOST_NAME_MAX);
+    freeaddrinfo(info);
+}
+
+int
+_duo_add_hostname_param(struct duo_ctx *ctx)
+{
+    char final[HOST_NAME_MAX];
+    _duo_get_hostname(ctx, final);
+    if(duo_add_param(ctx, "hostname", final) != DUO_OK) {
+        return (DUO_LIB_ERROR);
+    }
     return (DUO_OK);
 }
 
