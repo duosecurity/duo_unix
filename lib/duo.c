@@ -257,7 +257,7 @@ void _duo_get_hostname(struct duo_ctx *ctx, char *final)
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_CANONNAME;
 
-    if ((error = getaddrinfo(hostname, "http", &hints, &info)) != 0) {
+    if ((error = getaddrinfo(hostname, NULL, &hints, &info)) != 0) {
         _duo_seterr(ctx, "%s", gai_strerror(error));
     }
     
