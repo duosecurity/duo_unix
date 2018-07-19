@@ -408,8 +408,8 @@ https_init(const char *cafile, const char *http_proxy)
         return (HTTPS_ERR_LIB);
     }
     /* Blacklist SSLv23 */
-    SSL_CTX_set_options(ctx.ssl_ctx, SSL_OP_NO_SSLv3);
-    SSL_CTX_set_options(ctx.ssl_ctx, SSL_OP_NO_SSLv2);
+    const long blacklist = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+    SSL_CTX_set_options(ctx.ssl_ctx, blacklist);
     /* Set up our CA cert */
     if (cafile == NULL) {
         /* Load default CA cert from memory */
