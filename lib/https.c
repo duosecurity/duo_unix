@@ -407,8 +407,9 @@ https_init(const char *cafile, const char *http_proxy)
         ctx.errstr = _SSL_strerror();
         return (HTTPS_ERR_LIB);
     }
-    /* Blacklist SSLv3 */
+    /* Blacklist SSLv23 */
     SSL_CTX_set_options(ctx.ssl_ctx, SSL_OP_NO_SSLv3);
+    SSL_CTX_set_options(ctx.ssl_ctx, SSL_OP_NO_SSLv2);
     /* Set up our CA cert */
     if (cafile == NULL) {
         /* Load default CA cert from memory */
