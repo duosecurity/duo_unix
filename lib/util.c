@@ -47,7 +47,7 @@ int
 duo_common_ini_handler(struct duo_config *cfg, const char *section,
     const char *name, const char*val)
 {
-    char *buf, *p;
+    char *buf, *p, *q, *r;
     int int_val;
 
     if (strcmp(name, "ikey") == 0) {
@@ -72,6 +72,14 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
                 cfg->groups_cnt = 0;
                 free(buf);
                 return (0);
+            }
+            while (p[strlen(p) - 1] == '\\') {
+                p[strlen(p) - 1] = ' ';
+                q = strtok(NULL, " ");
+                r = (char *) malloc(strlen(p) + strlen(q));
+                strcpy(r,p);
+                strcat(r,q);
+                p = r;
             }
             cfg->groups[cfg->groups_cnt++] = p;
         }
