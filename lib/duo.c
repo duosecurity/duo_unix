@@ -45,7 +45,10 @@
 #define AUTODEFAULT_MSG     "Using default second-factor authentication."
 #define ENV_VAR_MSG         "Reading $DUO_PASSCODE..."
 
-/* Find the maximum length for a machine's hostname */
+/*
+ * Finding the maximum length for the machine's hostname
+ * Idea and technique originated from https://github.com/openssh/openssh-portable 
+ */
 #ifndef HOST_NAME_MAX
 # include "netdb.h" /* for MAXHOSTNAMELEN */
 # if defined(_POSIX_HOST_NAME_MAX)
@@ -57,6 +60,7 @@
 # endif
 #endif /* HOST_NAME_MAX */
 
+/* The maximum length for a DNS FQDN on Linux */
 #define DNS_MAXNAMELEN 256
 
 struct duo_ctx {
@@ -246,7 +250,7 @@ _duo_seterr(struct duo_ctx *ctx, const char *fmt, ...)
 
 
 static void 
-_duo_get_hostname(struct duo_ctx *ctx, char *final, int final_size)
+_duo_get_hostname(struct duo_ctx *ctx, char *dns_fqdn, int dns_fqdn_size)
 {
     struct addrinfo hints, *info, *p;
     int error;
@@ -260,13 +264,13 @@ _duo_get_hostname(struct duo_ctx *ctx, char *final, int final_size)
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_CANONNAME;
-    strlcpy(final, hostname, final_size);
+    strlcpy(dns_fqdn, hostname, dns_fqdn_size);
     if ((error = getaddrinfo(hostname, NULL, &hints, &info)) != 0) {
         _duo_seterr(ctx, "%s", gai_strerror(error));
     }
     else {
         if(info->ai_canonname != NULL && strlen(info->ai_canonname) > 0) {
-            strlcpy(final, info->ai_canonname, final_size);
+            strlcpy(dns_fqdn, info->ai_canonname, dns_fqdn_size);
         }
     } 
     
