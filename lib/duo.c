@@ -56,6 +56,8 @@
 # endif
 #endif /* HOST_NAME_MAX */
 
+#define DNS_MAXNAMELEN 256
+
 struct duo_ctx {
     https_t *https;    /* HTTPS handle */
     char    *host;     /* host[:port] */
@@ -242,7 +244,8 @@ _duo_seterr(struct duo_ctx *ctx, const char *fmt, ...)
 }
 
 
-void _duo_get_hostname(struct duo_ctx *ctx, char *final)
+static void 
+_duo_get_hostname(struct duo_ctx *ctx, char *final, int final_size)
 {
     struct addrinfo hints, *info, *p;
     int error;
@@ -256,20 +259,22 @@ void _duo_get_hostname(struct duo_ctx *ctx, char *final)
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_CANONNAME;
-
+    strlcpy(final, hostname, final_size);
     if ((error = getaddrinfo(hostname, NULL, &hints, &info)) != 0) {
         _duo_seterr(ctx, "%s", gai_strerror(error));
     }
+    else {
+        strlcpy(final, info->ai_canonname, final_size);
+    } 
     
-    strncpy(final, info->ai_canonname, HOST_NAME_MAX);
     freeaddrinfo(info);
 }
 
 int
 _duo_add_hostname_param(struct duo_ctx *ctx)
 {
-    char final[HOST_NAME_MAX];
-    _duo_get_hostname(ctx, final);
+    char final[DNS_MAXNAMELEN];
+    _duo_get_hostname(ctx, final, DNS_MAXNAMELEN);
     if(duo_add_param(ctx, "hostname", final) != DUO_OK) {
         return (DUO_LIB_ERROR);
     }
