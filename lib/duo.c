@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <stdarg.h>
@@ -23,7 +24,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>
@@ -45,6 +45,7 @@
 #define AUTODEFAULT_MSG     "Using default second-factor authentication."
 #define ENV_VAR_MSG         "Reading $DUO_PASSCODE..."
 
+/* Find the maximum length for a machine's hostname */
 #ifndef HOST_NAME_MAX
 # include "netdb.h" /* for MAXHOSTNAMELEN */
 # if defined(_POSIX_HOST_NAME_MAX)
@@ -264,7 +265,9 @@ _duo_get_hostname(struct duo_ctx *ctx, char *final, int final_size)
         _duo_seterr(ctx, "%s", gai_strerror(error));
     }
     else {
-        strlcpy(final, info->ai_canonname, final_size);
+        if(info->ai_canonname != NULL && strlen(info->ai_canonname) > 0) {
+            strlcpy(final, info->ai_canonname, final_size);
+        }
     } 
     
     freeaddrinfo(info);
@@ -273,9 +276,10 @@ _duo_get_hostname(struct duo_ctx *ctx, char *final, int final_size)
 int
 _duo_add_hostname_param(struct duo_ctx *ctx)
 {
-    char final[DNS_MAXNAMELEN];
-    _duo_get_hostname(ctx, final, DNS_MAXNAMELEN);
-    if(duo_add_param(ctx, "hostname", final) != DUO_OK) {
+    char dns_fqdn[DNS_MAXNAMELEN];
+    _duo_get_hostname(ctx, dns_fqdn, DNS_MAXNAMELEN);
+
+    if(duo_add_param(ctx, "hostname", dns_fqdn) != DUO_OK) {
         return (DUO_LIB_ERROR);
     }
     return (DUO_OK);
