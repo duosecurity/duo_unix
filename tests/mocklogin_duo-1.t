@@ -11,7 +11,7 @@ Sync
   [6] Successful Duo login for 'whatever'
 
 Fips Testing Variable Setup
-  $ check_fips_found="$(gcc -dM -include "openssl/crypto.h" -E - < /dev/null | grep '#define OPENSSL_FIPS')" && echo [1]
+  $ check_fips_found="$(gcc -dM -include "openssl/crypto.h" -E - < /dev/null 2>/dev/null | grep '#define OPENSSL_FIPS')" && echo [1]
   [1]
 
 mocklogin_duo
