@@ -42,6 +42,7 @@ struct duo_config {
     int  https_timeout;
     int  send_gecos;
     int  gecos_parsed;
+    int  fips_mode;
 };
 
 void duo_config_default(struct duo_config *cfg);
