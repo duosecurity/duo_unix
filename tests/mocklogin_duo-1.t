@@ -10,8 +10,17 @@ Sync
   $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f whatever true < /dev/null
   [6] Successful Duo login for 'whatever'
 
+Fips Testing Variable Setup
+  $ check_fips_found="$(gcc -dM -include "openssl/crypto.h" -E - < /dev/null 2>/dev/null | grep '#define OPENSSL_FIPS')" && echo [1]
+  [1]
+
 mocklogin_duo
-  $ python ./mocklogin_duo.py confs/mockduo.conf
+  $ if [ "$check_fips_found" ]; then
+  >    CONFS="mockduo_fips.conf";
+  > else
+  >    CONFS="mockduo.conf";
+  > fi
+  $ python ./mocklogin_duo.py confs/$CONFS
   ===> 'Duo login for foobar\r\n\r\nChoose or lose:\r\n\r\n  1. Push 1\r\n  2. Phone 1\r\n  3. SMS 1 (deny)\r\n  4. Phone 2 (deny)\r\n\r\nPasscode or option (1-4): '
   ===> "123456\r\n\r\nInvalid passcode, please try again.\r\n[4] Failed Duo login for 'foobar'\r\n\r\nDuo login for foobar\r\n\r\nChoose or lose:\r\n\r\n  1. Push 1\r\n  2. Phone 1\r\n  3. SMS 1 (deny)\r\n  4. Phone 2 (deny)\r\n\r\nPasscode or option (1-4): "
   ===> "wefawefgoiagj3rj\r\n\r\nInvalid passcode, please try again.\r\n[4] Failed Duo login for 'foobar'\r\n\r\nDuo login for foobar\r\n\r\nChoose or lose:\r\n\r\n  1. Push 1\r\n  2. Phone 1\r\n  3. SMS 1 (deny)\r\n  4. Phone 2 (deny)\r\n\r\nPasscode or option (1-4): "

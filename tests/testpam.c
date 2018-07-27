@@ -110,7 +110,7 @@ main(int argc, char *argv[])
 		if ((ret = pam_set_item(pamh, PAM_RHOST, host)) != PAM_SUCCESS)
                         die(pamh, ret);
 	}
-        if ((ret = pam_authenticate(pamh, 0)) != PAM_SUCCESS) {
+	if ((ret = pam_authenticate(pamh, 0)) != PAM_SUCCESS) {
                 die(pamh, ret);
 	}
 	if ((ret = pam_end(pamh, ret)) != PAM_SUCCESS) {
