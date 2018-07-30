@@ -13,9 +13,12 @@ import ssl
 import sys
 import time
 import urllib
+import socket
 
 IKEY = 'DIXYZV6YM8IFYVWBINCA'
 SKEY = 'yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo'
+# Used to check if the FQDN is set to the ip address
+IPV6_LOOPBACK_ADDR = '1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa'
 
 tx_msgs = {
     'txPUSH1': [ '0:Pushed a login request to your phone.',
@@ -51,7 +54,7 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         
         return sig == h.hexdigest()
 
-    def _get_args(self):
+    def _get_args(self): 
         if self.method == 'POST':
             env = { 'REQUEST_METHOD': 'POST',
                     'CONTENT_TYPE': self.headers['Content-Type'] }
@@ -110,7 +113,14 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             return self._send(200, buf)
 
         self._send(404)
-        
+
+    def hostname_check(self):
+        dns_fqdn = socket.getfqdn()
+        #Check to see if the getfqdn() uses the ip address instead of the hostname then return the human readable hostname
+        if dns_fqdn == IPV6_LOOPBACK_ADDR:
+            return socket.gethostbyaddr(socket.gethostname())[0]
+        return dns_fqdn 
+
     def do_POST(self):
         self.method = 'POST'
         self.args = self._get_args()
@@ -138,6 +148,8 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 ret['response'] = { 'result': 'allow', 'status': 'you rock' }
             elif self.args['user'] == 'preauth-allow-bad_response':
                 ret['response'] = { 'result': 'allow', 'xxx': 'you rock' }
+            elif (self.args['user'] == 'hostname') and self.args['hostname'] == self.hostname_check(): 
+                ret['response'] = { 'result': 'deny', 'status': 'correct hostname' }
             else:
                 ret['response'] = {
                     'result': 'auth',
