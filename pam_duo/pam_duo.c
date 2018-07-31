@@ -132,8 +132,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	 *
 	 * Parse the username from the appropriate position in the GECOS field.
 	 */
-	const char delimiter = '/';
-	const unsigned int delimited_position = 5;
+	char delimiter = '/';
+	unsigned int delimited_position = 5;
 
 	duo_config_default(&cfg);
 

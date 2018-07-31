@@ -115,6 +115,17 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         cfg->send_gecos = duo_set_boolean_option(val);
     } else if (strcmp(name, "gecos_parsed") == 0) {
         cfg->gecos_parsed = duo_set_boolean_option(val);
+    } else if (strcmp(name, "gecos_delim") == 0) {
+        /* Grab first character, use as delimiter */
+        cfg->gecos_delim = *val;
+    } else if (strcmp(name, "gecos_fieldnum") == 0) {
+        cfg->gecos_fieldnum = atoi(val);
+        /* Adjust GECOS field from human counting to program counting */
+        cfg->gecos_fieldnum -= 1;
+        /* Clamp values to valid GECOS field range */
+        if (cfg->gecos_fieldnum < 0 || cfg->gecos_fieldnum > MAX_GECOS_FIELDS) {
+            cfg->gecos_fieldnum = 1; /* Take first field if out of range */
+        }
     } else if (strcmp(name, "dev_fips_mode") == 0) {
         /* This flag is for development */
         cfg->fips_mode = duo_set_boolean_option(val);
