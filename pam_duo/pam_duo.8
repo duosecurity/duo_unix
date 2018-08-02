@@ -66,6 +66,14 @@ IP. Default is "no".
 .It Cm send_gecos
 Instead of using the unix username, send Duo the contents of the GECOS field
 from /etc/passwd.  Default is "no".
+.It Cm gecos_parsed
+Enables parsing of the GECOS field by a delimiter. Default is "no".
+.It Cm gecos_delim
+Set the delimiter by which to parse the GECOS field. Has no effect if gecos_parsed
+is not set. Default is '/'.
+.It Cm gecos_fieldnum
+Sets which field to select from a parsed GECOS field for sending to Duo. Has no
+effect if gecos_parsed is not set. Default is 5.
 .El
 .Pp
 An example configuration file:
