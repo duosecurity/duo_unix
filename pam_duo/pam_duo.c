@@ -243,9 +243,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     if (cfg.send_gecos || cfg.gecos_parsed) {
         if (strlen(pw->pw_gecos) > 0) {
             if (cfg.gecos_parsed) {
-					/* DEBUG STUFF */
-					duo_log(LOG_DEBUG, "GECOS delimiter", cfg.gecos_delim, NULL, NULL);
-					duo_log(LOG_DEBUG, "GECOS field number", cfg.gecos_fieldnum, NULL, NULL);
                 user = duo_split_at(pw->pw_gecos, cfg.gecos_delim, cfg.gecos_fieldnum);
                 if (user == NULL || (strcmp(user, "") == 0)) {
                     duo_log(LOG_DEBUG, "Could not parse GECOS field", pw->pw_name, NULL, NULL);
