@@ -129,11 +129,17 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 	 * Handle a delimited GECOS field. E.g.
 	 *
 	 *     username:x:0:0:code1/code2/code3//textField/usergecosparsed:/username:/bin/bash
+	 * [OR]
+	 *     username:x:0:0:Full Name,Office Number,Office Phone,Home Phone/More Data,usergecosparsed:/username:/bin/bash
 	 *
 	 * Parse the username from the appropriate position in the GECOS field.
 	 */
-	char delimiter = '/';
-	unsigned int delimited_position = 5;
+	/* 
+	 * Delimiters and GECOS field position now set in
+	 * cfg.gecos_delim and cfg.gecos_fieldnum respectively.
+	 * Default cfg.gecos_delim = '/'
+	 * Default cfg.gecos_fieldnum = '5'
+	 */
 
 	duo_config_default(&cfg);
 
@@ -237,7 +243,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     if (cfg.send_gecos || cfg.gecos_parsed) {
         if (strlen(pw->pw_gecos) > 0) {
             if (cfg.gecos_parsed) {
-                user = duo_split_at(pw->pw_gecos, delimiter, delimited_position);
+                user = duo_split_at(pw->pw_gecos, cfg.gecos_delim, cfg.gecos_fieldnum);
                 if (user == NULL || (strcmp(user, "") == 0)) {
                     duo_log(LOG_DEBUG, "Could not parse GECOS field", pw->pw_name, NULL, NULL);
                     user = pw->pw_name;

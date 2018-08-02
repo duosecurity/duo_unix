@@ -31,6 +31,9 @@ duo_config_default(struct duo_config *cfg)
     cfg->local_ip_fallback = 0;
     cfg->https_timeout = -1;
     cfg->fips_mode = 0;
+    cfg->gecos_parsed = 0;
+    cfg->gecos_delim = '/';
+    cfg->gecos_fieldnum = 5;
 }
 
 int
@@ -117,6 +120,9 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         cfg->gecos_parsed = duo_set_boolean_option(val);
     } else if (strcmp(name, "gecos_delim") == 0) {
         /* Grab first character, use as delimiter */
+        if (strlen(val) > 1) {
+            fprintf(stderr, "Multibyte GECOS field delimiter detected: '%s'\n", val);
+        }
         cfg->gecos_delim = *val;
     } else if (strcmp(name, "gecos_fieldnum") == 0) {
         cfg->gecos_fieldnum = atoi(val);
@@ -124,6 +130,7 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         cfg->gecos_fieldnum -= 1;
         /* Clamp values to valid GECOS field range */
         if (cfg->gecos_fieldnum < 0 || cfg->gecos_fieldnum > MAX_GECOS_FIELDS) {
+            fprintf(stderr, "GECOS field number out of range: '%s'\n", val);
             cfg->gecos_fieldnum = 1; /* Take first field if out of range */
         }
     } else if (strcmp(name, "dev_fips_mode") == 0) {
