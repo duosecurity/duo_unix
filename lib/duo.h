@@ -9,14 +9,16 @@
 #define DUO_H
 
 typedef enum {
-	DUO_CONTINUE = -1,		/* continue authentication */
-	DUO_OK = 0,			/* great success! */
-	DUO_FAIL,			/* nice try */
-	DUO_ABORT,			/* give up */
-	DUO_LIB_ERROR,			/* unexpected library error */
-	DUO_CONN_ERROR,			/* problem connecting */
-	DUO_CLIENT_ERROR,		/* you screwed up */
-	DUO_SERVER_ERROR,		/* we screwed up */
+    DUO_CONTINUE = -1,		/* continue authentication */
+    DUO_OK = 0,			/* great success! */
+    DUO_FAIL,			/* nice try */
+    DUO_ABORT,			/* give up */
+    DUO_LIB_ERROR,			/* unexpected library error */
+    DUO_CONN_ERROR,			/* problem connecting */
+    DUO_CLIENT_ERROR,		/* you screwed up */
+    DUO_SERVER_ERROR,		/* we screwed up */
+    DUO_FAIL_SAFE_ALLOW,    /* preauth fails in failsafe mode */
+    DUO_FAIL_SECURE_DENY,   /* preauth fails in failsecure mode */ 
 } duo_code_t;
 
 #define DUO_FLAG_SYNC	(1 << 0)	/* no incremental status reporting */
@@ -64,7 +66,8 @@ duo_code_t duo_login(
     const char *username,
     const char *client_ip,
     int flags,
-    const char *command
+    const char *command,
+    const int failmode
 );
 
 /* Return error message from last API call */

@@ -11,6 +11,8 @@
 
 #include "duo.h"
 
+#define DUO_FAIL_SAFE 0
+
 int
 main(int argc, char *argv[])
 {
@@ -46,7 +48,7 @@ main(int argc, char *argv[])
 		    retries = 1;
 	}
 	for (i = 0; i < retries; i++) {
-		code = duo_login(duo, username, NULL, flags, "test");
+		code = duo_login(duo, username, NULL, flags, "test", DUO_FAIL_SAFE);
 		
 		printf("\n");
 		

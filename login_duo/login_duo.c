@@ -278,7 +278,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 
     for (i = 0; i < prompts; i++) {
         code = duo_login(duo, duouser, host, flags,
-                    cfg.pushinfo ? cmd : NULL);
+                    cfg.pushinfo ? cmd : NULL, cfg.failmode);
         if (code == DUO_FAIL) {
             duo_log(LOG_WARNING, "Failed Duo login",
                 duouser, host, duo_geterr(duo));
@@ -309,12 +309,13 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         } else if (code == DUO_ABORT) {
             duo_log(LOG_WARNING, "Aborted Duo login",
                 duouser, host, duo_geterr(duo));
-        } else if (cfg.failmode == DUO_FAIL_SAFE &&
-                    (code == DUO_CONN_ERROR ||
-                     code == DUO_CLIENT_ERROR || code == DUO_SERVER_ERROR)) {
+        } else if (code == DUO_FAIL_SAFE_ALLOW) {
             duo_log(LOG_WARNING, "Failsafe Duo login",
                 duouser, host, duo_geterr(duo));
                         ret = EXIT_SUCCESS;
+        } else if (code == DUO_FAIL_SECURE_DENY) {
+            duo_log(LOG_WARNING, "Failsecure Duo login",
+                duouser, host, duo_geterr(duo));
         } else {
             duo_log(LOG_ERR, "Error in Duo login",
                 duouser, host, duo_geterr(duo));
