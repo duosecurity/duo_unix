@@ -19,7 +19,7 @@ IKEY = 'DIXYZV6YM8IFYVWBINCA'
 SKEY = 'yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo'
 # Used to check if the FQDN is set to either the ipv4 or ipv6 address
 IPV6_LOOPBACK_ADDR = '1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa'
-IP_REVERSE_ADDR = '1.0.0.127.in-addr.arpa'
+IPV4_LOOPBACK_ADDR = '1.0.0.127.in-addr.arpa'
 
 tx_msgs = {
     'txPUSH1': [ '0:Pushed a login request to your phone.',
@@ -118,13 +118,12 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def hostname_check(self, hostname):
         domain_fqdn = socket.getfqdn()
         if hostname == domain_fqdn or hostname == socket.gethostname():
-            return 1
-        #Check to see if socket.getfqdn() is either the loopback address for ipv4 or ipv6 
-        if domain_fqdn == IPV6_LOOPBACK_ADDR or domain_fqdn == IP_REVERSE_ADDR:
-            #If so check if hostname is the same as the hostname of the machine
+            return True 
+        #Check if socket.getfqdn() is the loopback address for ipv4 or ipv6 then check the hostname of the machine 
+        if domain_fqdn == IPV6_LOOPBACK_ADDR or domain_fqdn == IPV4_LOOPBACK_ADDR:
             if hostname == socket.gethostbyaddr(socket.gethostname())[0]:
-                return 1
-        return 0 
+                return True
+        return False 
 
     def do_POST(self):
         self.method = 'POST'
@@ -157,7 +156,7 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 if (self.hostname_check(self.args['hostname'])):
                     ret['response'] = { 'result': 'deny', 'status': 'correct hostname' }
                 else:
-                    ret['response'] = { 'result': 'deny', 'status': 'wrong hostname' }
+                    ret['response'] = { 'result': 'deny', 'status': self.args['hostname'] }
             else:
                 ret['response'] = {
                     'result': 'auth',
