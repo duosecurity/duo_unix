@@ -17,8 +17,9 @@ import socket
 
 IKEY = 'DIXYZV6YM8IFYVWBINCA'
 SKEY = 'yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo'
-# Used to check if the FQDN is set to the ip address
+# Used to check if the FQDN is set to either the ipv4 or ipv6 address
 IPV6_LOOPBACK_ADDR = '1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa'
+IPV4_LOOPBACK_ADDR = '1.0.0.127.in-addr.arpa'
 
 tx_msgs = {
     'txPUSH1': [ '0:Pushed a login request to your phone.',
@@ -114,12 +115,15 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         self._send(404)
 
-    def hostname_check(self):
-        dns_fqdn = socket.getfqdn()
-        #Check to see if the getfqdn() uses the ip address instead of the hostname then return the human readable hostname
-        if dns_fqdn == IPV6_LOOPBACK_ADDR:
-            return socket.gethostbyaddr(socket.gethostname())[0]
-        return dns_fqdn 
+    def hostname_check(self, hostname):
+        domain_fqdn = socket.getfqdn()
+        if hostname == domain_fqdn or hostname == socket.gethostname():
+            return True 
+        #Check if socket.getfqdn() is the loopback address for ipv4 or ipv6 then check the hostname of the machine 
+        if domain_fqdn == IPV6_LOOPBACK_ADDR or domain_fqdn == IPV4_LOOPBACK_ADDR:
+            if hostname == socket.gethostbyaddr(socket.gethostname())[0]:
+                return True
+        return False 
 
     def do_POST(self):
         self.method = 'POST'
@@ -148,8 +152,11 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 ret['response'] = { 'result': 'allow', 'status': 'you rock' }
             elif self.args['user'] == 'preauth-allow-bad_response':
                 ret['response'] = { 'result': 'allow', 'xxx': 'you rock' }
-            elif (self.args['user'] == 'hostname') and self.args['hostname'] == self.hostname_check(): 
-                ret['response'] = { 'result': 'deny', 'status': 'correct hostname' }
+            elif (self.args['user'] == 'hostname'):
+                if (self.hostname_check(self.args['hostname'])):
+                    ret['response'] = { 'result': 'deny', 'status': 'correct hostname' }
+                else:
+                    ret['response'] = { 'result': 'deny', 'status': self.args['hostname'] }
             else:
                 ret['response'] = {
                     'result': 'auth',
