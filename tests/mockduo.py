@@ -116,12 +116,12 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self._send(404)
 
     def hostname_check(self, hostname):
-        domain_fqdn = socket.getfqdn()
-        if hostname == domain_fqdn or hostname == socket.gethostname():
+        domain_fqdn = socket.getfqdn().lower()
+        if hostname == domain_fqdn.lower() or hostname == socket.gethostname().lower():
             return True 
         #Check if socket.getfqdn() is the loopback address for ipv4 or ipv6 then check the hostname of the machine 
         if domain_fqdn == IPV6_LOOPBACK_ADDR or domain_fqdn == IPV4_LOOPBACK_ADDR:
-            if hostname == socket.gethostbyaddr(socket.gethostname())[0]:
+            if hostname == socket.gethostbyaddr(socket.gethostname())[0].lower():
                 return True
         return False 
 
@@ -153,10 +153,11 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             elif self.args['user'] == 'preauth-allow-bad_response':
                 ret['response'] = { 'result': 'allow', 'xxx': 'you rock' }
             elif (self.args['user'] == 'hostname'):
-                if (self.hostname_check(self.args['hostname'])):
+                if (self.hostname_check(self.args['hostname'].lower())):
                     ret['response'] = { 'result': 'deny', 'status': 'correct hostname' }
                 else:
-                    ret['response'] = { 'result': 'deny', 'status': self.args['hostname'] }
+                    response = "hostname recieved: " + self.args['hostname'] + " found: " + socket.getfqdn()
+                    ret['response'] = { 'result': 'deny', 'status': response }
             else:
                 ret['response'] = {
                     'result': 'auth',
