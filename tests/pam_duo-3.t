@@ -11,7 +11,7 @@ Wrong hostname
   [4] Failsafe Duo login for 'whatever': Couldn't connect to localhost:4443: Certificate name validation failed
   
   $ ./testpam.py -d -c confs/mockduo_failsecure.conf -f whatever true
-  [3] Error in Duo login for 'whatever': Couldn't connect to localhost:4443: Certificate name validation failed
+  [4] Failsecure Duo login for 'whatever': Couldn't connect to localhost:4443: Certificate name validation failed
   
   [1]
 
