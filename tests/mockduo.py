@@ -183,6 +183,8 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             else:
                 ret['response'] = { 'result': 'deny',
                                     'status': 'no %s' % self.args['factor'] }
+            if (self.args['user'] == 'auth_timeout'):
+                return self._send(500)
         else:
             return self._send(404)
 

@@ -284,7 +284,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 
     for (i = 0; i < cfg.prompts; i++) {
         code = duo_login(duo, user, host, flags,
-                    cfg.pushinfo ? cmd : NULL);
+                    cfg.pushinfo ? cmd : NULL, cfg.failmode);
         if (code == DUO_FAIL) {
             duo_log(LOG_WARNING, "Failed Duo login",
                 pw->pw_name, host, duo_geterr(duo));
@@ -308,12 +308,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
             duo_log(LOG_WARNING, "Aborted Duo login",
                 pw->pw_name, host, duo_geterr(duo));
             pam_err = PAM_ABORT;
-        } else if (cfg.failmode == DUO_FAIL_SAFE &&
-                    (code == DUO_CONN_ERROR ||
-                     code == DUO_CLIENT_ERROR || code == DUO_SERVER_ERROR)) {
+        } else if (code == DUO_FAIL_SAFE_ALLOW) {
             duo_log(LOG_WARNING, "Failsafe Duo login",
                 pw->pw_name, host, duo_geterr(duo));
             pam_err = PAM_SUCCESS;
+        } else if (code == DUO_FAIL_SECURE_DENY) {
+            duo_log(LOG_WARNING, "Failsecure Duo login",
+                pw->pw_name, host, duo_geterr(duo));
+            pam_err = PAM_SERVICE_ERR;
         } else {
             duo_log(LOG_ERR, "Error in Duo login",
                 pw->pw_name, host, duo_geterr(duo));

@@ -259,12 +259,13 @@ _duo_get_hostname(struct duo_ctx *ctx, char *dns_fqdn, int dns_fqdn_size)
     /* gethostname may not insert a null terminator when it needs to truncate the hostname */
     hostname[HOST_NAME_MAX] = '\0';
     gethostname(hostname, HOST_NAME_MAX);
-
     memset(&hints, 0, sizeof(hints));
+    
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_CANONNAME;
     strlcpy(dns_fqdn, hostname, dns_fqdn_size);
+    
     if ((error = getaddrinfo(hostname, NULL, &hints, &info)) != 0) {
         _duo_seterr(ctx, "%s", gai_strerror(error));
     }
@@ -509,7 +510,7 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
 
 duo_code_t
 duo_login(struct duo_ctx *ctx, const char *username,
-    const char *client_ip, int flags, const char *command)
+    const char *client_ip, int flags, const char *command, const int failmode)
 {
     bson obj;
     bson_iterator it;
@@ -527,6 +528,9 @@ duo_login(struct duo_ctx *ctx, const char *username,
 
     /* Check preauth status */
     if ((ret = _duo_preauth(ctx, &obj, username, client_ip)) != DUO_CONTINUE) {
+        if(ret == DUO_SERVER_ERROR || ret == DUO_CONN_ERROR || ret == DUO_CLIENT_ERROR) {
+            return (failmode == DUO_FAIL_SAFE) ? (DUO_FAIL_SAFE_ALLOW) : (DUO_FAIL_SECURE_DENY);
+        }
         return (ret);
     }
 
