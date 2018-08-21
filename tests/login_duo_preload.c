@@ -14,6 +14,9 @@
 
 #include <poll.h>
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 int (*_sys_poll)(struct pollfd *fds, nfds_t nfds, int timeout);
 int (*_sys_connect)(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int (*_sys_getaddrinfo)(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res);
@@ -52,9 +55,13 @@ connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 {
         if (_istimeout())
         {
-            //Only print if address is IPV4 or IPV6. Prevents accidentally mocking for other connections
-            //such as AF_UNIX when communicating between local processes
-            if (addr->sa_family == AF_INET || addr->sa_family == AF_INET6)
+            /* Only print if address is IPV4 or IPV6 and the port connecting to is our mock_duo server.
+            This prevents accidentally mocking for other connections. */
+            int ipv4_or_ipv6 = (addr->sa_family == AF_INET || addr->sa_family == AF_INET6) ? 1 : 0;
+            struct sockaddr_in *addr_in = (struct sockaddr_in *)addr;
+            int server_port = (int) ntohs(addr_in->sin_port);
+
+            if (ipv4_or_ipv6 && server_port==4443)
             {
                 fprintf(stderr, "Attempting connection\n");
             }
