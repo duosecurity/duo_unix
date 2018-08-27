@@ -1,3 +1,11 @@
+duo_unix-1.10.4:
+
+- Removed failmode decision from auth endpoint and moved it to only preauth according to standards in our other integrations
+- Updated Duo Unix to speak up to TLS 1.2
+- Support for LibreSSL 2.7.0 and up
+- Minor memory leak fixes
+- Output message when user is locked out
+
 duo_unix-1.10.3:
 
 - Added support for http_proxy with SELinux enabled
