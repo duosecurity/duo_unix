@@ -2,20 +2,22 @@
 
 import os
 import pexpect
+import sys
 
 import paths
 
 PROMPT = '.* or option \(1-4\): $'
 
-def _login_duo():
-    p = pexpect.spawn(paths.login_duo + ' -d -c confs/mockduo.conf ' + \
-                      '-f foobar echo SUCCESS')
-    p.expect(PROMPT, timeout=2)
+def _login_duo(confs):
+    p = pexpect.spawn(paths.login_duo + ' -d -c' + confs + \
+                      ' -f foobar echo SUCCESS')
+    p.expect(PROMPT, timeout=10)
     print '===> %r' % p.match.group(0)
     return p
 
 def main():
-    p = _login_duo()
+    confs = sys.argv[1]
+    p = _login_duo(confs)
 
     # 3 failures in a row
     p.sendline('123456')
@@ -31,7 +33,7 @@ def main():
     print '===> %r' % p.before
 
     # menu options
-    p = _login_duo()
+    p = _login_duo(confs)
 
     p.sendline('3')
     p.expect(PROMPT)
@@ -45,7 +47,7 @@ def main():
     p.expect(pexpect.EOF)
     print '===> %r' % p.before
     
-    p = _login_duo()
+    p = _login_duo(confs)
     
     p.sendline('2')
     p.expect(pexpect.EOF)

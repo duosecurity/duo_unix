@@ -30,6 +30,7 @@ duo_config_default(struct duo_config *cfg)
     cfg->prompts = MAX_PROMPTS;
     cfg->local_ip_fallback = 0;
     cfg->https_timeout = -1;
+    cfg->fips_mode = 0;
 }
 
 int
@@ -138,11 +139,42 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
                 cfg->gecos_pos = 5;
             }
         }
+    } else if (strcmp(name, "dev_fips_mode") == 0) {
+        /* This flag is for development */
+        cfg->fips_mode = duo_set_boolean_option(val);
     } else {
         /* Couldn't handle the option, maybe it's target specific? */
         return (0);
     }
     return (1);
+}
+
+void
+close_config(struct duo_config *cfg)
+{
+    if (cfg == NULL) {
+        return;
+    }
+    if (cfg->ikey != NULL) {
+        duo_zero_free(cfg->ikey, strlen(cfg->ikey));
+        cfg->ikey = NULL;
+    }
+    if (cfg->skey != NULL) {
+        duo_zero_free(cfg->skey, strlen(cfg->skey));
+        cfg->skey = NULL;
+    }
+    if (cfg->apihost != NULL) {
+        duo_zero_free(cfg->apihost, strlen(cfg->apihost));
+        cfg->apihost = NULL;
+    }
+    if (cfg->cafile != NULL) {
+        duo_zero_free(cfg->cafile, strlen(cfg->cafile));
+        cfg->cafile = NULL;
+    }
+    if (cfg->http_proxy != NULL) {
+        duo_zero_free(cfg->http_proxy, strlen(cfg->http_proxy));
+        cfg->http_proxy = NULL;
+    }
 }
 
 int
@@ -259,4 +291,28 @@ duo_split_at(char *s, char delimiter, unsigned int position)
     }
 
     return result;
+}
+
+void
+duo_zero_free(void *ptr, size_t size)
+{
+    /*
+     * A compiler's usage of dead store optimization may skip the memory
+     * zeroing if it doesn't detect futher usage. Different systems use explicit
+     * zeroing functions to prevent this. If none of those are available we fall back
+     * on volatile pointers to prevent optimization. There is no guarantee in the standard
+     * that this will work, but gcc and other major compilers will respect it.
+     * Idea and technique borrowed from https://github.com/openssh/openssh-portable
+     */
+    if (ptr != NULL) {
+#ifdef HAVE_EXPLICIT_BZERO
+        explicit_bzero(ptr, size);
+#elif HAVE_MEMSET_S
+        (void)memset_s(ptr, size, 0, size);
+#else
+        static void* (* volatile duo_memset)(void *, int, size_t) = memset;
+        duo_memset(ptr, 0, size);
+#endif
+        free(ptr);
+    }
 }

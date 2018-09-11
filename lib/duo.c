@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <stdarg.h>
@@ -44,6 +45,23 @@
 #define AUTODEFAULT_MSG     "Using default second-factor authentication."
 #define ENV_VAR_MSG         "Reading $DUO_PASSCODE..."
 
+/*
+ * Finding the maximum length for the machine's hostname
+ * Idea and technique originated from https://github.com/openssh/openssh-portable 
+ */
+#ifndef HOST_NAME_MAX
+# include "netdb.h" /* for MAXHOSTNAMELEN */
+# if defined(_POSIX_HOST_NAME_MAX)
+#  define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
+# elif defined(MAXHOSTNAMELEN)
+#  define HOST_NAME_MAX MAXHOSTNAMELEN
+# else
+#  define HOST_NAME_MAX 255
+# endif
+#endif /* HOST_NAME_MAX */
+
+/* For sizing buffers; sufficient to cover the longest possible DNS FQDN */
+#define DNS_MAXNAMELEN 256
 
 struct duo_ctx {
     https_t *https;    /* HTTPS handle */
@@ -57,6 +75,10 @@ struct duo_ctx {
     int     body_len;
 
     int     https_timeout; /* milliseconds */
+
+    char *ikey;
+    char *skey;
+    char *useragent;
 
     char *(*conv_prompt)(void *arg, const char *pr, char *buf, size_t sz);
     void  (*conv_status)(void *arg, const char *msg);
@@ -82,24 +104,24 @@ duo_open(const char *host, const char *ikey, const char *skey,
     const char *progname, const char *cafile, int https_timeout, const char* http_proxy)
 {
     struct duo_ctx *ctx;
-    char *useragent;
 
     if ((ctx = calloc(1, sizeof(*ctx))) == NULL ||
-            (ctx->host = strdup(host)) == NULL) {
+            (ctx->host = strdup(host)) == NULL ||
+            (ctx->ikey = strdup(ikey)) == NULL ||
+            (ctx->skey = strdup(skey)) == NULL) {
         return (duo_close(ctx));
     }
-    if (asprintf(&useragent, "%s (%s) libduo/%s",
-                progname, CANONICAL_HOST, PACKAGE_VERSION) == -1) {
+    if (asprintf(&ctx->useragent, "%s (%s) libduo/%s",
+            progname, CANONICAL_HOST, PACKAGE_VERSION) == -1) {
         return (duo_close(ctx));
     }
-    if (https_init(ikey, skey, useragent, cafile, http_proxy) != HTTPS_OK) {
+    if (https_init(cafile, http_proxy) != HTTPS_OK) {
         ctx = duo_close(ctx);
     } else {
         ctx->conv_prompt = __prompt_fn;
         ctx->conv_status = __status_fn;
         ctx->https_timeout = https_timeout;
     }
-    free(useragent);
 
     return (ctx);
 }
@@ -153,6 +175,20 @@ duo_close(struct duo_ctx *ctx)
         }
         duo_reset(ctx);
         free(ctx->host);
+
+        if (ctx->ikey != NULL) {
+            duo_zero_free(ctx->ikey, strlen(ctx->ikey));
+            ctx->ikey = NULL;
+        }
+        if (ctx->skey != NULL) {
+            duo_zero_free(ctx->skey, strlen(ctx->skey));
+            ctx->skey = NULL;
+        }
+        if (ctx->useragent != NULL) {
+            duo_zero_free(ctx->useragent, strlen(ctx->useragent));
+            ctx->useragent = NULL;
+        }
+
         free(ctx);
     }
     return (NULL);
@@ -182,7 +218,7 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
     duo_code_t ret;
     char *k, *v, *p;
 
-    if (name == NULL || value == NULL) {
+    if (name == NULL || value == NULL || strlen(name) == 0 || strlen(value) == 0) {
         return (DUO_CLIENT_ERROR);
     }
     ret = DUO_LIB_ERROR;
@@ -190,11 +226,12 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
     k = urlenc_encode(name);
     v = urlenc_encode(value);
 
-    if (k && v && asprintf(&p, "%s=%s", k, v) > 2 &&
-            ctx->argc + 1 < (sizeof(ctx->argv) / sizeof(ctx->argv[0]))) {
+    if (k && v && ctx->argc + 1 < (sizeof(ctx->argv) / sizeof(ctx->argv[0]))
+            && (asprintf(&p, "%s=%s", k, v) > 2)) {
         ctx->argv[ctx->argc++] = p;
         ret = DUO_OK;
     }
+    
     free(k);
     free(v);
 
@@ -209,6 +246,48 @@ _duo_seterr(struct duo_ctx *ctx, const char *fmt, ...)
     va_start(ap, fmt);
     vsnprintf(ctx->err, sizeof(ctx->err), fmt, ap);
     va_end(ap);
+}
+
+
+static void 
+_duo_get_hostname(struct duo_ctx *ctx, char *dns_fqdn, int dns_fqdn_size)
+{
+    struct addrinfo hints, *info, *p;
+    int error;
+
+    char hostname[HOST_NAME_MAX + 1];
+    /* gethostname may not insert a null terminator when it needs to truncate the hostname */
+    hostname[HOST_NAME_MAX] = '\0';
+    gethostname(hostname, HOST_NAME_MAX);
+    memset(&hints, 0, sizeof(hints));
+    
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_CANONNAME;
+    strlcpy(dns_fqdn, hostname, dns_fqdn_size);
+    
+    if ((error = getaddrinfo(hostname, NULL, &hints, &info)) != 0) {
+        _duo_seterr(ctx, "%s", gai_strerror(error));
+    }
+    else {
+        if(info->ai_canonname != NULL && strlen(info->ai_canonname) > 0) {
+            strlcpy(dns_fqdn, info->ai_canonname, dns_fqdn_size);
+        }
+    } 
+    
+    freeaddrinfo(info);
+}
+
+int
+_duo_add_hostname_param(struct duo_ctx *ctx)
+{
+    char dns_fqdn[DNS_MAXNAMELEN];
+    _duo_get_hostname(ctx, dns_fqdn, sizeof(dns_fqdn));
+
+    if(duo_add_param(ctx, "hostname", dns_fqdn) != DUO_OK) {
+        return (DUO_LIB_ERROR);
+    }
+    return (DUO_OK);
 }
 
 #define _BSON_FIND(ctx, it, obj, name, type) do {           \
@@ -265,7 +344,7 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
 
     for (i = 0; i < 3; i++) {
         if (ctx->https == NULL &&
-            (err = https_open(&ctx->https, ctx->host)) != HTTPS_OK) {
+            (err = https_open(&ctx->https, ctx->host, ctx->useragent)) != HTTPS_OK) {
             if (err == HTTPS_ERR_SERVER) {
                 sleep(1 << i);
                 continue;
@@ -273,7 +352,7 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
             break;
         }
         if ((err = https_send(ctx->https, method, uri,
-                    ctx->argc, ctx->argv)) == HTTPS_OK &&
+                    ctx->argc, ctx->argv, ctx->ikey, ctx->skey, ctx->useragent)) == HTTPS_OK &&
             (err = https_recv(ctx->https, &code,
                 &ctx->body, &ctx->body_len, msecs)) == HTTPS_OK) {
             break;
@@ -329,7 +408,11 @@ _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
             return (DUO_LIB_ERROR);
         }
     }
-
+    
+    if(_duo_add_hostname_param(ctx) != DUO_OK) {
+        return (DUO_LIB_ERROR);
+    }
+ 
     if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/preauth.bson", ctx->https_timeout)) != DUO_OK ||
         (ret = _duo_bson_response(ctx, obj)) != DUO_OK) {
         return (ret);
@@ -344,6 +427,10 @@ _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
             ret = DUO_OK;
         } else if (strcasecmp(p, "deny") == 0) {
             _duo_seterr(ctx, "%s", bson_iterator_string(&it));
+            if (ctx->conv_status != NULL) {
+                ctx->conv_status(ctx->conv_arg,
+                    bson_iterator_string(&it));
+            }
             ret = DUO_ABORT;
         } else if (strcasecmp(p, "enroll") == 0) {
             if (ctx->conv_status != NULL) {
@@ -423,7 +510,7 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
 
 duo_code_t
 duo_login(struct duo_ctx *ctx, const char *username,
-    const char *client_ip, int flags, const char *command)
+    const char *client_ip, int flags, const char *command, const int failmode)
 {
     bson obj;
     bson_iterator it;
@@ -441,6 +528,9 @@ duo_login(struct duo_ctx *ctx, const char *username,
 
     /* Check preauth status */
     if ((ret = _duo_preauth(ctx, &obj, username, client_ip)) != DUO_CONTINUE) {
+        if(ret == DUO_SERVER_ERROR || ret == DUO_CONN_ERROR || ret == DUO_CLIENT_ERROR) {
+            return (failmode == DUO_FAIL_SAFE) ? (DUO_FAIL_SAFE_ALLOW) : (DUO_FAIL_SECURE_DENY);
+        }
         return (ret);
     }
 
@@ -463,6 +553,10 @@ duo_login(struct duo_ctx *ctx, const char *username,
         if (duo_add_param(ctx, "ipaddr", client_ip) != DUO_OK) {
             return (DUO_LIB_ERROR);
         }
+    }
+
+    if(_duo_add_hostname_param(ctx) != DUO_OK) {
+        return (DUO_LIB_ERROR);
     }
 
     /* Add pushinfo parameters */

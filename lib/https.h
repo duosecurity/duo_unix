@@ -19,16 +19,10 @@ typedef enum {
 } HTTPScode;
 
 /* Initialize HTTPS library */
-HTTPScode https_init(
-    const char *ikey,
-    const char *skey,
-    const char *useragent,
-    const char *cafile,
-    const char *http_proxy
-);
+HTTPScode https_init(const char *cafile, const char *http_proxy);
 
 /* Open HTTPS connection to host[:port] */
-HTTPScode https_open(https_t **hp, const char *host);
+HTTPScode https_open(https_t **hp, const char *host, const char *useragent);
 
 /* Send request, return 0 for success or -1 on error */
 HTTPScode https_send(
@@ -36,7 +30,10 @@ HTTPScode https_send(
     const char *method,
     const char *uri,
     int param_cnt,
-    char *params[]
+    char *params[],
+    const char *ikey,
+    const char *skey,
+    const char *useragent
 );
 
 /* Read response, return HTTP status code, set body and length if available.

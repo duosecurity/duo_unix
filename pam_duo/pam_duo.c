@@ -26,6 +26,8 @@
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <openssl/crypto.h>
+#include <openssl/err.h>
 
 /* These #defines must be present according to PAM documentation. */
 #define PAM_SM_AUTH
@@ -156,9 +158,34 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     }
 
+#ifdef OPENSSL_FIPS
+    /*
+     * When fips_mode is configured, invoke OpenSSL's FIPS_mode_set() API. Note
+     * that in some environments, FIPS may be enabled system-wide, causing FIPS
+     * operation to be enabled automatically when OpenSSL is initialized.  The
+     * fips_mode option is an experimental feature allowing explicit entry to FIPS
+     * operation in cases where it isn't enabled globally at the OS level (for
+     * example, when integrating directly with the OpenSSL FIPS Object Module).
+     */
+    if(!FIPS_mode_set(cfg.fips_mode)) {
+        /* The smallest size buff can be according to the openssl docs */
+        char buff[256];
+        int error = ERR_get_error();
+        ERR_error_string_n(error, buff, sizeof(buff));
+        duo_syslog(LOG_ERR, "Unable to start fips_mode: %s", buff);
+
+       return (EXIT_FAILURE);
+    }
+#else
+    if(cfg.fips_mode) {
+        duo_syslog(LOG_ERR, "FIPS mode flag specified, but OpenSSL not built with FIPS support. Failing the auth.");
+        return (EXIT_FAILURE);
+    }
+#endif
     /* Check user */
     if (pam_get_user(pamh, &user, NULL) != PAM_SUCCESS ||
         (pw = getpwnam(user)) == NULL) {
+        close_config(&cfg);
         return (PAM_USER_UNKNOWN);
     }
     /* XXX - Service-specific behavior */
@@ -166,6 +193,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     cmd = NULL;
     if (pam_get_item(pamh, PAM_SERVICE, (duopam_const void **)
         (duopam_const void *)&service) != PAM_SUCCESS) {
+        close_config(&cfg);
         return (PAM_SERVICE_ERR);
     }
     if (strcmp(service, "sshd") == 0) {
@@ -180,6 +208,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     } else if (strcmp(service, "su") == 0 || strcmp(service, "su-l") == 0) {
         /* Check calling user for Duo auth, just like sudo */
         if ((pw = getpwuid(getuid())) == NULL) {
+            close_config(&cfg);
             return (PAM_USER_UNKNOWN);
         }
         user = pw->pw_name;
@@ -187,8 +216,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     /* Check group membership */
     matched = duo_check_groups(pw, cfg.groups, cfg.groups_cnt);
     if (matched == -1) {
+        close_config(&cfg);
         return (PAM_SERVICE_ERR);
     } else if (matched == 0) {
+        close_config(&cfg);
         return (PAM_SUCCESS);
     }
 
@@ -230,6 +261,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
                     "pam_duo/" PACKAGE_VERSION,
                     cfg.noverify ? "" : cfg.cafile, cfg.https_timeout, cfg.http_proxy)) == NULL) {
         duo_log(LOG_ERR, "Couldn't open Duo API handle", pw->pw_name, host, NULL);
+        close_config(&cfg);
         return (PAM_SERVICE_ERR);
     }
     duo_set_conv_funcs(duo, __duo_prompt, __duo_status, pamh);
@@ -242,7 +274,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 
     for (i = 0; i < cfg.prompts; i++) {
         code = duo_login(duo, user, host, flags,
-                    cfg.pushinfo ? cmd : NULL);
+                    cfg.pushinfo ? cmd : NULL, cfg.failmode);
         if (code == DUO_FAIL) {
             duo_log(LOG_WARNING, "Failed Duo login",
                 pw->pw_name, host, duo_geterr(duo));
@@ -266,12 +298,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
             duo_log(LOG_WARNING, "Aborted Duo login",
                 pw->pw_name, host, duo_geterr(duo));
             pam_err = PAM_ABORT;
-        } else if (cfg.failmode == DUO_FAIL_SAFE &&
-                    (code == DUO_CONN_ERROR ||
-                     code == DUO_CLIENT_ERROR || code == DUO_SERVER_ERROR)) {
+        } else if (code == DUO_FAIL_SAFE_ALLOW) {
             duo_log(LOG_WARNING, "Failsafe Duo login",
                 pw->pw_name, host, duo_geterr(duo));
             pam_err = PAM_SUCCESS;
+        } else if (code == DUO_FAIL_SECURE_DENY) {
+            duo_log(LOG_WARNING, "Failsecure Duo login",
+                pw->pw_name, host, duo_geterr(duo));
+            pam_err = PAM_SERVICE_ERR;
         } else {
             duo_log(LOG_ERR, "Error in Duo login",
                 pw->pw_name, host, duo_geterr(duo));
@@ -283,6 +317,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         pam_err = PAM_MAXTRIES;
     }
     duo_close(duo);
+    close_config(&cfg);
 
     return (pam_err);
 }

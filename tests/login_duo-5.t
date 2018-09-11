@@ -7,7 +7,7 @@ mockduo with valid cert
   $ sleep 1
 
 Timeout
-  $ env UID=1001 TIMEOUT=1 ./login_duo.py -d -c confs/mockduo_users.conf -f timeout true
+  $ env UID=1001 TIMEOUT=1 ./login_duo.py -d -c confs/mockduo.conf -f timeout true
   Attempting connection
   Attempting connection
   Attempting connection

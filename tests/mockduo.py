@@ -13,9 +13,13 @@ import ssl
 import sys
 import time
 import urllib
+import socket
 
 IKEY = 'DIXYZV6YM8IFYVWBINCA'
 SKEY = 'yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo'
+# Used to check if the FQDN is set to either the ipv4 or ipv6 address
+IPV6_LOOPBACK_ADDR = '1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa'
+IPV4_LOOPBACK_ADDR = '1.0.0.127.in-addr.arpa'
 
 tx_msgs = {
     'txPUSH1': [ '0:Pushed a login request to your phone.',
@@ -51,7 +55,7 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         
         return sig == h.hexdigest()
 
-    def _get_args(self):
+    def _get_args(self): 
         if self.method == 'POST':
             env = { 'REQUEST_METHOD': 'POST',
                     'CONTENT_TYPE': self.headers['Content-Type'] }
@@ -110,7 +114,17 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             return self._send(200, buf)
 
         self._send(404)
-        
+
+    def hostname_check(self, hostname):
+        domain_fqdn = socket.getfqdn().lower()
+        if hostname == domain_fqdn.lower() or hostname == socket.gethostname().lower():
+            return True 
+        #Check if socket.getfqdn() is the loopback address for ipv4 or ipv6 then check the hostname of the machine 
+        if domain_fqdn == IPV6_LOOPBACK_ADDR or domain_fqdn == IPV4_LOOPBACK_ADDR:
+            if hostname == socket.gethostbyaddr(socket.gethostname())[0].lower():
+                return True
+        return False 
+
     def do_POST(self):
         self.method = 'POST'
         self.args = self._get_args()
@@ -138,6 +152,12 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 ret['response'] = { 'result': 'allow', 'status': 'you rock' }
             elif self.args['user'] == 'preauth-allow-bad_response':
                 ret['response'] = { 'result': 'allow', 'xxx': 'you rock' }
+            elif (self.args['user'] == 'hostname'):
+                if (self.hostname_check(self.args['hostname'].lower())):
+                    ret['response'] = { 'result': 'deny', 'status': 'correct hostname' }
+                else:
+                    response = "hostname recieved: " + self.args['hostname'] + " found: " + socket.getfqdn()
+                    ret['response'] = { 'result': 'deny', 'status': response }
             else:
                 ret['response'] = {
                     'result': 'auth',
@@ -164,6 +184,8 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             else:
                 ret['response'] = { 'result': 'deny',
                                     'status': 'no %s' % self.args['factor'] }
+            if (self.args['user'] == 'auth_timeout'):
+                return self._send(500)
         else:
             return self._send(404)
 

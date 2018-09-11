@@ -1,3 +1,24 @@
+duo_unix-1.10.4:
+
+- Removed failmode decision from auth endpoint and moved it to only preauth according to standards in our other integrations
+- Updated Duo Unix to speak up to TLS 1.2
+- Support for LibreSSL 2.7.0 and up
+- Minor memory leak fixes
+- Output message when user is locked out
+
+duo_unix-1.10.3:
+
+- Added support for http_proxy with SELinux enabled
+
+duo_unix-1.10.2:
+
+- Added default failmode values in config files
+
+duo_unix-1.10.1:
+
+- Fixed bug causing automated tests to fail on OSX
+- Addressed an issue which kept configuration secrets in memory for longer than necessary
+
 duo_unix-1.10.0:
 
 - Added LibreSSL support
@@ -6,7 +27,7 @@ duo_unix-1.10.0:
 
 duo_unix-1.9.21:
 
-- Only allow http_proxy to be defined in configuration file instead of environment
+- PSA-2017-002: Only allow http_proxy to be defined in configuration file instead of environment
 
 duo_unix-1.9.20:
 

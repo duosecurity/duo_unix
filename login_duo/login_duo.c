@@ -24,6 +24,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <openssl/crypto.h>
+#include <openssl/err.h>
 
 #include "util.h"
 #include "duo.h"
@@ -165,12 +167,41 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         }
         return (EXIT_FAILURE);
     }
+    
+
+#ifdef OPENSSL_FIPS
+    /*
+     * When fips_mode is configured, invoke OpenSSL's FIPS_mode_set() API. Note
+     * that in some environments, FIPS may be enabled system-wide, causing FIPS
+     * operation to be enabled automatically when OpenSSL is initialized.  The
+     * fips_mode option is an experimental feature allowing explicit entry to FIPS
+     * operation in cases where it isn't enabled globally at the OS level (for
+     * example, when integrating directly with the OpenSSL FIPS Object Module).
+     */
+    if(!FIPS_mode_set(cfg.fips_mode)) {
+        /* The smallest size buff can be according to the openssl docs */ 
+        char buff[256];
+        int error = ERR_get_error();
+        ERR_error_string_n(error, buff, sizeof(buff));
+        duo_syslog(LOG_ERR, "Unable to start fips_mode: %s", buff);
+	 
+       return (EXIT_FAILURE);
+    }
+#else
+    if(cfg.fips_mode) {
+        duo_syslog(LOG_ERR, "FIPS mode flag specified, but OpenSSL not built with FIPS support. Failing the auth.");
+        return (EXIT_FAILURE);
+    }
+#endif
+
     prompts = cfg.prompts;
     /* Check group membership. */
     matched = duo_check_groups(pw, cfg.groups, cfg.groups_cnt);
     if (matched == -1) {
+        close_config(&cfg);
         return (EXIT_FAILURE);
     } else if (matched == 0) {
+        close_config(&cfg);
         return (EXIT_SUCCESS);
     }
 
@@ -212,6 +243,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
                     cfg.https_timeout, cfg.http_proxy)) == NULL) {
         duo_log(LOG_ERR, "Couldn't open Duo API handle",
             pw->pw_name, host, NULL);
+        close_config(&cfg);
         return (EXIT_FAILURE);
     }
 
@@ -236,7 +268,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 
     for (i = 0; i < prompts; i++) {
         code = duo_login(duo, duouser, host, flags,
-                    cfg.pushinfo ? cmd : NULL);
+                    cfg.pushinfo ? cmd : NULL, cfg.failmode);
         if (code == DUO_FAIL) {
             duo_log(LOG_WARNING, "Failed Duo login",
                 duouser, host, duo_geterr(duo));
@@ -267,12 +299,13 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         } else if (code == DUO_ABORT) {
             duo_log(LOG_WARNING, "Aborted Duo login",
                 duouser, host, duo_geterr(duo));
-        } else if (cfg.failmode == DUO_FAIL_SAFE &&
-                    (code == DUO_CONN_ERROR ||
-                     code == DUO_CLIENT_ERROR || code == DUO_SERVER_ERROR)) {
+        } else if (code == DUO_FAIL_SAFE_ALLOW) {
             duo_log(LOG_WARNING, "Failsafe Duo login",
                 duouser, host, duo_geterr(duo));
                         ret = EXIT_SUCCESS;
+        } else if (code == DUO_FAIL_SECURE_DENY) {
+            duo_log(LOG_WARNING, "Failsecure Duo login",
+                duouser, host, duo_geterr(duo));
         } else {
             duo_log(LOG_ERR, "Error in Duo login",
                 duouser, host, duo_geterr(duo));
@@ -280,6 +313,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         break;
     }
     duo_close(duo);
+    close_config(&cfg);
 
     return (ret);
 }
