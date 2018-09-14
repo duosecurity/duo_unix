@@ -47,7 +47,7 @@
 
 /*
  * Finding the maximum length for the machine's hostname
- * Idea and technique originated from https://github.com/openssh/openssh-portable 
+ * Idea and technique originated from https://github.com/openssh/openssh-portable
  */
 #ifndef HOST_NAME_MAX
 # include "netdb.h" /* for MAXHOSTNAMELEN */
@@ -231,7 +231,7 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
         ctx->argv[ctx->argc++] = p;
         ret = DUO_OK;
     }
-    
+
     free(k);
     free(v);
 
@@ -249,45 +249,39 @@ _duo_seterr(struct duo_ctx *ctx, const char *fmt, ...)
 }
 
 
-static void 
-_duo_get_hostname(struct duo_ctx *ctx, char *dns_fqdn, int dns_fqdn_size)
+static void
+_duo_get_hostname(char *dns_fqdn, size_t dns_fqdn_size)
 {
     struct addrinfo hints, *info, *p;
-    int error;
-
     char hostname[HOST_NAME_MAX + 1];
-    /* gethostname may not insert a null terminator when it needs to truncate the hostname */
+
+    /* gethostname may not insert a null terminator when it needs to truncate the hostname.
+     * See gethostname's man page under "Description" for more info.
+     */
     hostname[HOST_NAME_MAX] = '\0';
     gethostname(hostname, HOST_NAME_MAX);
     memset(&hints, 0, sizeof(hints));
-    
+
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_CANONNAME;
     strlcpy(dns_fqdn, hostname, dns_fqdn_size);
-    
-    if ((error = getaddrinfo(hostname, NULL, &hints, &info)) != 0) {
-        _duo_seterr(ctx, "%s", gai_strerror(error));
-    }
-    else {
+
+    if (getaddrinfo(hostname, NULL, &hints, &info) == 0) {
         if(info->ai_canonname != NULL && strlen(info->ai_canonname) > 0) {
             strlcpy(dns_fqdn, info->ai_canonname, dns_fqdn_size);
         }
-    } 
-    
-    freeaddrinfo(info);
+        freeaddrinfo(info);
+    }
 }
 
 int
 _duo_add_hostname_param(struct duo_ctx *ctx)
 {
     char dns_fqdn[DNS_MAXNAMELEN];
-    _duo_get_hostname(ctx, dns_fqdn, sizeof(dns_fqdn));
+    _duo_get_hostname(dns_fqdn, sizeof(dns_fqdn));
 
-    if(duo_add_param(ctx, "hostname", dns_fqdn) != DUO_OK) {
-        return (DUO_LIB_ERROR);
-    }
-    return (DUO_OK);
+    return duo_add_param(ctx, "hostname", dns_fqdn);
 }
 
 #define _BSON_FIND(ctx, it, obj, name, type) do {           \
@@ -408,11 +402,11 @@ _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
             return (DUO_LIB_ERROR);
         }
     }
-    
+
     if(_duo_add_hostname_param(ctx) != DUO_OK) {
         return (DUO_LIB_ERROR);
     }
- 
+
     if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/preauth.bson", ctx->https_timeout)) != DUO_OK ||
         (ret = _duo_bson_response(ctx, obj)) != DUO_OK) {
         return (ret);
