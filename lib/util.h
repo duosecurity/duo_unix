@@ -11,6 +11,16 @@
 #define MAX_GROUPS 256
 #define MAX_PROMPTS 3
 
+#define MAX_GECOS_FIELDS 122 // Maximum possible number of GECOS fields
+/*
+ * Reasoning: GECOS_MAX length is 127 characters. Assume all fields except
+ * a minimal length email address (3 characters) are empty (i.e. all commas).
+ * That leaves 123 commas minus a null terminator. Adjusting for human counting
+ * tendencies, that leaves 123 possible fields ranging from indicies 0 to 122.
+ *
+ * Reference: https://www.qualys.com/2015/07/23/cve-2015-3245-cve-2015-3246/cve-2015-3245-cve-2015-3246.txt
+ */
+
 #include <pwd.h>
 #include <syslog.h>
 #include <stdarg.h>
@@ -42,6 +52,8 @@ struct duo_config {
     int  https_timeout;
     int  send_gecos;
     int  gecos_parsed;
+    char gecos_delim;
+    int  gecos_fieldnum;
     int  fips_mode;
 };
 
