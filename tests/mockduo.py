@@ -158,6 +158,14 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 else:
                     response = "hostname recieved: " + self.args['hostname'] + " found: " + socket.getfqdn()
                     ret['response'] = { 'result': 'deny', 'status': response }
+            elif self.args['user'] == 'gecos_user_gecos_field6':
+                ret['response'] = { 'result': 'allow', 'status': 'you rock' }
+            elif self.args['user'] == 'gecos_user_gecos_field3':
+                ret['response'] = { 'result': 'allow', 'status': 'you rock' }
+            elif self.args['user'] == 'full_gecos_field':
+                ret['response'] = { 'result': 'allow', 'status': 'you rock' }
+            elif self.args['user'] == 'gecos/6':
+                ret['response'] = { 'result': 'allow', 'status': 'you rock' }
             else:
                 ret['response'] = {
                     'result': 'auth',

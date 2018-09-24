@@ -224,10 +224,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     }
 
     /* Use GECOS field if called for */
-    if (cfg.send_gecos || cfg.gecos_parsed) {
+    if (cfg.send_gecos || cfg.gecos_username_pos >= 0) {
         if (strlen(pw->pw_gecos) > 0) {
-            if (cfg.gecos_parsed) {
-                user = duo_split_at(pw->pw_gecos, *cfg.gecos_delim, cfg.gecos_pos);
+            if (cfg.gecos_username_pos >= 0) {
+                user = duo_split_at(pw->pw_gecos, cfg.gecos_delim, cfg.gecos_username_pos);
                 if (user == NULL || (strcmp(user, "") == 0)) {
                     duo_log(LOG_DEBUG, "Could not parse GECOS field", pw->pw_name, NULL, NULL);
                     user = pw->pw_name;
@@ -288,27 +288,27 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         if (code == DUO_OK) {
             if ((p = duo_geterr(duo)) != NULL) {
                 duo_log(LOG_WARNING, "Skipped Duo login",
-                    pw->pw_name, host, p);
+                    user, host, p);
             } else {
                 duo_log(LOG_INFO, "Successful Duo login",
-                    pw->pw_name, host, NULL);
+                    user, host, NULL);
             }
             pam_err = PAM_SUCCESS;
         } else if (code == DUO_ABORT) {
             duo_log(LOG_WARNING, "Aborted Duo login",
-                pw->pw_name, host, duo_geterr(duo));
+                user, host, duo_geterr(duo));
             pam_err = PAM_ABORT;
         } else if (code == DUO_FAIL_SAFE_ALLOW) {
             duo_log(LOG_WARNING, "Failsafe Duo login",
-                pw->pw_name, host, duo_geterr(duo));
+                user, host, duo_geterr(duo));
             pam_err = PAM_SUCCESS;
         } else if (code == DUO_FAIL_SECURE_DENY) {
             duo_log(LOG_WARNING, "Failsecure Duo login",
-                pw->pw_name, host, duo_geterr(duo));
+                user, host, duo_geterr(duo));
             pam_err = PAM_SERVICE_ERR;
         } else {
             duo_log(LOG_ERR, "Error in Duo login",
-                pw->pw_name, host, duo_geterr(duo));
+                user, host, duo_geterr(duo));
             pam_err = PAM_SERVICE_ERR;
         }
         break;
