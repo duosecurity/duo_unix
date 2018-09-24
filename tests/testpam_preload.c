@@ -34,6 +34,8 @@ FILE *(*_sys_fopen)(const char *filename, const char *mode);
 FILE *(*_sys_fopen64)(const char *filename, const char *mode);
 char *(*_sys_inet_ntoa)(struct in_addr in);
 
+void modify_gecos(const char *username, struct passwd *pass);
+
 static void
 _fatal(const char *msg)
 {
@@ -119,18 +121,34 @@ inet_ntoa(struct in_addr in)
     }
 }
 
+void
+modify_gecos(const char *username, struct passwd *pass)
+{
+    if (strcmp(username, "gecos/6") == 0) {
+       pass->pw_gecos = strdup("1/2/3/4/5/gecos_user_gecos_field6");
+    } else if (strcmp(username, "gecos/3") == 0) {
+       pass->pw_gecos = strdup("1/2/gecos_user_gecos_field3/4/5/6");
+    } else if (strcmp(username, "gecos,6") == 0) {
+       pass->pw_gecos = strdup("1,2,3,4,5,gecos_user_gecos_field6");
+    } else if (strcmp(username, "gecos,3") == 0) {
+       pass->pw_gecos = strdup("1,2,gecos_user_gecos_field3,4,5,6");
+    } else if (strcmp(username, "fullgecos") == 0) {
+       pass->pw_gecos = strdup("full_gecos_field");
+    }
+}
+
 struct passwd *
 getpwnam(const char *name)
 {
-	// Tests rely on the username being correctly set.
-	static char username[1024];
-	strncpy(username, name, 1024);
-	username[1024 - 1] = '\0';
+    // Tests rely on the username being correctly set.
+    static char username[1024];
+    strncpy(username, name, 1024);
+    username[1024 - 1] = '\0';
 
-	static struct passwd ret;
-	memcpy(&ret, getpwuid(getuid()), sizeof(struct passwd));
-	ret.pw_name = username;
+    static struct passwd ret;
+    memcpy(&ret, getpwuid(getuid()), sizeof(struct passwd));
+    modify_gecos(username, &ret);
+    ret.pw_name = username;
 
-	return &ret;
+    return &ret;
 }
-

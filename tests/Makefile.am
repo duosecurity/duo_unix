@@ -4,7 +4,7 @@ TESTS_ENVIRONMENT = env BUILDDIR=$(abs_top_builddir) $(PYTHON) $(top_srcdir)/tes
 # Preserve ordering; login_duo-0.t does some setup
 TESTS = login_duo-0.t login_duo-1.t login_duo-2.t login_duo-3.t login_duo-4.t login_duo-5.t login_duo-6.t login_duo-7.t
 TESTS += groups-0.t mocklogin_duo-0.t mocklogin_duo-1.t util-0.t test_crypto-0.t
-PAM_TESTS = pam_duo-0.t pam_duo-1.t pam_duo-2.t pam_duo-3.t pam_duo-4.t pam_duo-5.t pam_duo-6.t
+PAM_TESTS = pam_duo-0.t pam_duo-1.t pam_duo-2.t pam_duo-3.t pam_duo-4.t pam_duo-5.t pam_duo-6.t pam_duo-7.t
 
 check_LTLIBRARIES = libgroups_preload.la
 libgroups_preload_la_SOURCES = groups_preload.c
