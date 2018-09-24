@@ -129,16 +129,6 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     int i, flags, ret, prompts, matched;
     int headless = 0;
 
-    /*
-     * Handle a delimited GECOS field. E.g.
-     *
-     *     username:x:0:0:code1/code2/code3//textField/usergecosparsed:/username:/bin/bash
-     *
-     * Parse the username from the appropriate position in the GECOS field.
-     */
-    const char delimiter = '/';
-    const unsigned int delimited_position = 5;
-
     if ((pw = getpwuid(ctx->uid)) == NULL) {
         die("Who are you?");
     }
@@ -216,10 +206,10 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     }
 
     /* Use GECOS field if called for */
-    if ((cfg.send_gecos || cfg.gecos_parsed) && !ctx->duouser) {
+    if ((cfg.send_gecos || cfg.gecos_username_pos >= 0) && !ctx->duouser) {
         if (strlen(pw->pw_gecos) > 0) {
-            if (cfg.gecos_parsed) {
-                duouser = duo_split_at(pw->pw_gecos, delimiter, delimited_position);
+            if (cfg.gecos_username_pos >= 0) {
+                duouser = duo_split_at(pw->pw_gecos, cfg.gecos_delim, cfg.gecos_username_pos);
                 if (duouser == NULL || (strcmp(duouser, "") == 0)) {
                     duo_log(LOG_DEBUG, "Could not parse GECOS field", pw->pw_name, NULL, NULL);
                     duouser = pw->pw_name;

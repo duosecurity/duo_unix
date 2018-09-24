@@ -16,6 +16,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #include "util.h"
 #include "groupaccess.h"
@@ -31,6 +32,8 @@ duo_config_default(struct duo_config *cfg)
     cfg->local_ip_fallback = 0;
     cfg->https_timeout = -1;
     cfg->fips_mode = 0;
+    cfg->gecos_username_pos = -1;
+    cfg->gecos_delim = ',';
 }
 
 int
@@ -114,7 +117,29 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
     } else if (strcmp(name, "send_gecos") == 0) {
         cfg->send_gecos = duo_set_boolean_option(val);
     } else if (strcmp(name, "gecos_parsed") == 0) {
-        cfg->gecos_parsed = duo_set_boolean_option(val);
+        duo_log(LOG_ERR, "The gecos_parsed configuration item for Duo Unix is deprecated and no longer has any effect. Use gecos_delim and gecos_username_pos instead", NULL, NULL, NULL);
+    } else if (strcmp(name, "gecos_delim") == 0) {
+        if (strlen(val) != 1) {
+            fprintf(stderr, "Invalid character option length. Character fields must be 1 character long: '%s'\n", val);
+            return (0);
+        }
+
+        char delim = val[0];
+        if (!ispunct(delim) || delim == ':') {
+            fprintf(stderr, "Invalid gecos_delim '%c' (delimiter must be punctuation other than ':')\n", delim);
+            return (0);
+        }
+        cfg->gecos_delim = delim;
+    } else if (strcmp(name, "gecos_username_pos") == 0) {
+        int gecos_username_pos = atoi(val);
+        if (gecos_username_pos < 1) {
+            fprintf(stderr, "Gecos position starts at 1\n");
+            return (0);
+        }
+        else {
+            // Offset the position so user facing first position is 1
+            cfg->gecos_username_pos = gecos_username_pos - 1;
+        }
     } else if (strcmp(name, "dev_fips_mode") == 0) {
         /* This flag is for development */
         cfg->fips_mode = duo_set_boolean_option(val);
