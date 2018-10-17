@@ -1,6 +1,6 @@
 Duo Unix
 ===
-[![Build Status]((https://travis-ci.org/duosecurity/duo_unix.svg?branch=master)](https://travis-ci.org/duosecurity/duo_unix)
+[![Build Status](https://travis-ci.org/duosecurity/duo_unix.svg?branch=master)](https://travis-ci.org/duosecurity/duo_unix)
 
 Duo two-factor authentication for Unix systems.
 
