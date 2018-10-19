@@ -10,12 +10,12 @@ Sync
   $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f whatever true < /dev/null
   [6] Successful Duo login for 'whatever'
 
-Fips Testing Variable Setup
-  $ check_fips_found="$(gcc -dM -include "openssl/crypto.h" -E - < /dev/null 2>/dev/null | grep '#define OPENSSL_FIPS')" && echo [1]
+FIPS testing variable setup
+  $ fips_available=$(./is_fips_supported.sh) && echo "[1]"
   [1]
 
 mocklogin_duo
-  $ if [ "$check_fips_found" ]; then
+  $ if [ $fips_available -eq 0 ]; then
   >    CONFS="mockduo_fips.conf";
   > else
   >    CONFS="mockduo.conf";

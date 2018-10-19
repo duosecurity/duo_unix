@@ -1,6 +1,5 @@
 Testing files to make sure fips compliant
   $ cd ${TESTDIR}
-  $ chmod +x ./fips_scanner.sh
   $ ./fips_scanner.sh ../
   Starting scan ...
   Scanning directory
