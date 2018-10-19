@@ -137,6 +137,28 @@ AS_IF([test "x$with_pam" != "xno"], [
 ])
 AC_SUBST(PAMDIR, "$PAMDIR")
 
+# Check whether SELinux support was requested.
+AC_ARG_WITH(selinux,
+  AS_HELP_STRING([--with-selinux],[build/install an SELinux module]),
+  [],
+  [with_selinux=no]
+)
+AM_CONDITIONAL([SELINUX], [test "x$with_selinux" != "xno"])
+
+# If SELinux was requested, verify we have the necessary tools to
+# support it.
+AS_IF([test "x$with_selinux" != "xno"], [
+  AC_CHECK_FILE([/usr/share/selinux/devel/Makefile], [selinux_makefile=yes], [selinux_makefile=no])
+  AC_CHECK_PROG([have_checkmodule], [checkmodule], [yes], [no])
+  AC_CHECK_PROG([have_semodule], [semodule], [yes], [no])
+  AC_CHECK_PROG([have_semodule_package], [semodule_package], [yes], [no])
+  if test "x${selinux_makefile}" = "xyes" && test "x${have_checkmodule}" = "xyes" && test "x${have_semodule}" = "xyes" && test "x${have_semodule_package}" = "xyes"; then
+    AC_MSG_NOTICE([will build/install authlogin_duo SELinux policy module])
+  else
+    AC_MSG_FAILURE([required SELinux components are missing])
+  fi
+])
+
 # Check for Duo privsep user
 case "$host" in
      *darwin*)		DUO_PRIVSEP_USER="_sshd" ;;
@@ -183,6 +205,6 @@ AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy vsyslog])
 AC_SEARCH_LIBS(inet_ntoa, nsl)
 AC_SEARCH_LIBS(socket, socket)
 
-AC_CONFIG_FILES(Makefile compat/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile tests/Makefile tests/Unity-2.4.3/Makefile)
+AC_CONFIG_FILES(Makefile compat/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile selinux/Makefile tests/Makefile tests/Unity-2.4.3/Makefile)
 
 AC_OUTPUT
