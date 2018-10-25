@@ -238,6 +238,20 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
     return (ret);
 }
 
+static duo_code_t
+duo_add_optional_param(struct duo_ctx *ctx, const char *name, const char *value)
+{
+    /* Wrapper around duo_add_param for optional arguments.
+       If a parameter's value doesn't exist we don't add the param.
+    */
+    if (value == NULL || strlen(value) == 0) {
+        return DUO_OK;
+    }
+    else {
+        return duo_add_param(ctx, name, value);
+    }
+}
+
 static void
 _duo_seterr(struct duo_ctx *ctx, const char *fmt, ...)
 {
@@ -281,7 +295,7 @@ _duo_add_hostname_param(struct duo_ctx *ctx)
     char dns_fqdn[DNS_MAXNAMELEN];
     _duo_get_hostname(dns_fqdn, sizeof(dns_fqdn));
 
-    return duo_add_param(ctx, "hostname", dns_fqdn);
+    return duo_add_optional_param(ctx, "hostname", dns_fqdn);
 }
 
 #define _BSON_FIND(ctx, it, obj, name, type) do {           \
@@ -397,10 +411,8 @@ _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
         return (DUO_LIB_ERROR);
     }
 
-    if (client_ip) {
-        if (duo_add_param(ctx, "ipaddr", client_ip) != DUO_OK) {
-            return (DUO_LIB_ERROR);
-        }
+    if (duo_add_optional_param(ctx, "ipaddr", client_ip) != DUO_OK) {
+        return (DUO_LIB_ERROR);
     }
 
     if(_duo_add_hostname_param(ctx) != DUO_OK) {
@@ -543,10 +555,8 @@ duo_login(struct duo_ctx *ctx, const char *username,
     }
 
     /* Add client IP, if passed in */
-    if (client_ip) {
-        if (duo_add_param(ctx, "ipaddr", client_ip) != DUO_OK) {
-            return (DUO_LIB_ERROR);
-        }
+    if (duo_add_optional_param(ctx, "ipaddr", client_ip) != DUO_OK) {
+        return (DUO_LIB_ERROR);
     }
 
     if(_duo_add_hostname_param(ctx) != DUO_OK) {
