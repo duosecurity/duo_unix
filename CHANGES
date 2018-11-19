@@ -1,3 +1,6 @@
+duo_unix-1.11.1:
+- Fixed bug causing console login to fail on certain systems
+
 duo_unix-1.11.0:
 
 - Added support for GECOS field parsing based on user-supplied delimiter
@@ -138,7 +141,7 @@ duo_unix-1.9.3:
 
 - Autopush is more user friendly
 
-- Add prompts option to the config file 
+- Add prompts option to the config file
 
 - Various build and test fixups
 
