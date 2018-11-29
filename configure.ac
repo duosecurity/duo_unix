@@ -39,6 +39,11 @@ AC_PROG_INSTALL
 AC_PROG_MKDIR_P
 LT_INIT
 
+# Set third party library versions
+unity_version=Unity-2.4.3
+AC_DEFINE_DIR([UNITY_VERSION], [unity_version], [Unity directory name])
+
+
 # Compiler options
 if test "x$GCC" = "xyes"; then
    CFLAGS="$CFLAGS -Wall -D_FORTIFY_SOURCE=2"
@@ -178,6 +183,6 @@ AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy vsyslog])
 AC_SEARCH_LIBS(inet_ntoa, nsl)
 AC_SEARCH_LIBS(socket, socket)
 
-AC_CONFIG_FILES(Makefile compat/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile tests/Makefile)
+AC_CONFIG_FILES(Makefile compat/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile tests/Makefile tests/Unity-2.4.3/Makefile)
 
 AC_OUTPUT
