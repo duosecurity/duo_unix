@@ -158,6 +158,16 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 else:
                     response = "hostname recieved: " + self.args['hostname'] + " found: " + socket.getfqdn()
                     ret['response'] = { 'result': 'deny', 'status': response }
+            elif self.args['user'] == 'failopen':
+                if self.args['failmode'] == 'open':
+                    ret['response'] = { 'result': 'deny', 'status': 'correct failmode' }
+                else:
+                    ret['response'] = { 'result': 'deny', 'status': 'incorrect failmode' }
+            elif self.args['user'] == 'failclosed':
+                if self.args['failmode'] == 'closed':
+                    ret['response'] = { 'result': 'deny', 'status': 'correct failmode' }
+                else:
+                    ret['response'] = { 'result': 'deny', 'status': 'incorrect failmode' }
             elif self.args['user'] == 'gecos_user_gecos_field6':
                 ret['response'] = { 'result': 'allow', 'status': 'you rock' }
             elif self.args['user'] == 'gecos_user_gecos_field3':

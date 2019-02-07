@@ -19,4 +19,13 @@ Failsecure preauth fail
   Autopushing login request to phone...
   [1]
 
-
+Failmode safe
+  $ ./testpam.py -d -c confs/mockduo.conf -f failopen true
+  [4] Aborted Duo login for 'failopen': correct failmode
+  correct failmode
+  [1]
+Failmode secure
+  $ ./testpam.py -d -c confs/mockduo_failsecure.conf -f failclosed true
+  [4] Aborted Duo login for 'failclosed': correct failmode
+  correct failmode
+  [1]
