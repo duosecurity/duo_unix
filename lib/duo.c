@@ -298,6 +298,13 @@ _duo_add_hostname_param(struct duo_ctx *ctx)
     return duo_add_optional_param(ctx, "hostname", dns_fqdn);
 }
 
+int _duo_add_failmode_param(struct duo_ctx *ctx, const int failmode)
+{
+    const char *failmode_str = (failmode == DUO_FAIL_SECURE) ? ("closed") : ("open");
+
+    return duo_add_optional_param(ctx, "failmode", failmode_str);
+}
+
 #define _BSON_FIND(ctx, it, obj, name, type) do {           \
     if (bson_find(it, obj, name) != type) {             \
         _duo_seterr(ctx, "BSON missing valid '%s'", name);  \
@@ -400,7 +407,7 @@ duo_geterr(struct duo_ctx *ctx)
 
 duo_code_t
 _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
-    const char *client_ip)
+    const char *client_ip, const int failmode)
 {
     bson_iterator it;
     duo_code_t ret;
@@ -416,6 +423,10 @@ _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
     }
 
     if(_duo_add_hostname_param(ctx) != DUO_OK) {
+        return (DUO_LIB_ERROR);
+    }
+
+    if(_duo_add_failmode_param(ctx, failmode) != DUO_OK) {
         return (DUO_LIB_ERROR);
     }
 
@@ -533,7 +544,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
     }
 
     /* Check preauth status */
-    if ((ret = _duo_preauth(ctx, &obj, username, client_ip)) != DUO_CONTINUE) {
+    if ((ret = _duo_preauth(ctx, &obj, username, client_ip, failmode)) != DUO_CONTINUE) {
         if(ret == DUO_SERVER_ERROR || ret == DUO_CONN_ERROR || ret == DUO_CLIENT_ERROR) {
             return (failmode == DUO_FAIL_SAFE) ? (DUO_FAIL_SAFE_ALLOW) : (DUO_FAIL_SECURE_DENY);
         }
