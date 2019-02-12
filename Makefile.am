@@ -7,6 +7,10 @@ if PAM
 SUBDIRS += pam_duo
 endif
 
+if SELINUX
+SUBDIRS += selinux
+endif
+
 SUBDIRS += tests
 
 dist_doc_DATA = README.md CONTRIBUTING.md AUTHORS CHANGES LICENSE

@@ -11,29 +11,6 @@ pam_duo_la_LDFLAGS = -module -no-undefined -avoid-version -shared -export-symbol
 
 notrans_dist_man8_MANS = pam_duo.8
 
-semodule_name = authlogin_duo
-semodule:
-	-checkmodule -M -m -o $(semodule_name).mod $(semodule_name).te
-	-semodule_package -o $(semodule_name).pp -m $(semodule_name).mod
-
-semodule-install:
-	-bzip2 -9 $(semodule_name).pp
-	-install -d $(DESTDIR)/usr/share/selinux/packages/
-	-install -m 0644 $(semodule_name).pp.bz2 $(DESTDIR)/usr/share/selinux/packages/
-	-semodule -i $(DESTDIR)/usr/share/selinux/packages/$(semodule_name).pp.bz2
-
-semodule-remove:
-	-semodule -r $(semodule_name)
-	-rm -f $(DESTDIR)/usr/share/selinux/packages/$(semodule_name).pp.bz2
-
-clean-local: clean-local-semodule
-
-clean-local-semodule:
-	-rm -f $(semodule_name).{mod,pp,pp.bz2}
-
-.PHONY: semodule semodule-enable semodule-install semodule-remove clean-local-semodule
-
-
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
 	-@if [ ! -f $(DESTDIR)$(sysconfdir)/pam_duo.conf ]; then \
@@ -56,4 +33,4 @@ uninstall-local:
 		echo "Removing shared object ${PAMDIR}/pam_duo.so"; \
 	fi
 
-EXTRA_DIST = pam_duo.conf $(semodule_name).te
+EXTRA_DIST = pam_duo.conf
