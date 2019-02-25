@@ -29,10 +29,12 @@ static struct passwd _passwd[6] = {
 /* Supplemental groups */
 static char *_gr_users[] = { "user1", "admin1", NULL };
 static char *_gr_admin[] = { "admin2", NULL };
+static char *_gr_spaces[] = { "user2", NULL };
 
-static struct group _groups[2] = {
+static struct group _groups[3] = {
         { "users", NULL, 100, _gr_users },
         { "admin", NULL, 10, _gr_admin },
+	{ "users with spaces", NULL, 200, _gr_spaces },
 };
 
 static int _group_ptr = 0;
