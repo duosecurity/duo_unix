@@ -8,6 +8,7 @@ SUBDIRS += pam_duo
 endif
 
 SUBDIRS += tests
+SUBDIRS += tests/unity_tests
 
 dist_doc_DATA = README.md CONTRIBUTING.md AUTHORS CHANGES LICENSE
 
