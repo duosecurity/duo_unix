@@ -21,7 +21,6 @@
 #include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -34,7 +33,7 @@
 #include "util.h"
 #include "bson.h"
 #include "duo.h"
-#include "https.h"
+#include "duo_private.h"
 #include "ini.h"
 #include "urlenc.h"
 
@@ -62,28 +61,6 @@
 
 /* For sizing buffers; sufficient to cover the longest possible DNS FQDN */
 #define DNS_MAXNAMELEN 256
-
-struct duo_ctx {
-    https_t *https;    /* HTTPS handle */
-    char    *host;     /* host[:port] */
-    char    err[512];  /* error message */
-
-    char    *argv[16]; /* request arguments */
-    int     argc;
-
-    const char *body;  /* response body */
-    int     body_len;
-
-    int     https_timeout; /* milliseconds */
-
-    char *ikey;
-    char *skey;
-    char *useragent;
-
-    char *(*conv_prompt)(void *arg, const char *pr, char *buf, size_t sz);
-    void  (*conv_status)(void *arg, const char *msg);
-    void   *conv_arg;
-};
 
 static char *
 __prompt_fn(void *arg, const char *prompt, char *buf, size_t bufsz)
@@ -212,7 +189,7 @@ duo_reset_conv_funcs(struct duo_ctx *ctx)
     ctx->conv_status = __status_fn;
 }
 
-static duo_code_t
+duo_code_t
 duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
 {
     duo_code_t ret;
@@ -238,7 +215,7 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
     return (ret);
 }
 
-static duo_code_t
+duo_code_t
 duo_add_optional_param(struct duo_ctx *ctx, const char *name, const char *value)
 {
     /* Wrapper around duo_add_param for optional arguments.
