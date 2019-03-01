@@ -51,7 +51,7 @@ int
 duo_common_ini_handler(struct duo_config *cfg, const char *section,
     const char *name, const char*val)
 {
-    char *buf, *p, *q, *r;
+    char *buf, *currWord, *nextWord, *tmpString;
     int int_val, length, new_length;
 
     if (strcmp(name, "ikey") == 0) {
@@ -69,7 +69,7 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
             fprintf(stderr, "Out of memory parsing groups\n");
             return (0);
         }
-        for (p = strtok(buf, " "); p != NULL; p = strtok(NULL, " ")) {
+        for (currWord = strtok(buf, " "); currWord != NULL; currWord = strtok(NULL, " ")) {
             if (cfg->groups_cnt >= MAX_GROUPS) {
                 fprintf(stderr, "Exceeded max %d groups\n",
                     MAX_GROUPS);
@@ -77,16 +77,17 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
                 free(buf);
                 return (0);
             }
-            while (p[strlen(p) - 1] == '\\') {
-                p[strlen(p) - 1] = ' ';
-                q = strtok(NULL, " ");
-		new_length = strlen(p) + strlen(q) + 1;
-                r = (char *) malloc(new_length);
-                length = strlcpy(r, p, new_length);
-                strncat(r,q, new_length);
-                p = r;
+            //Concatenate next word if current word ends with "\ "
+            while (currWord[strlen(currWord) - 1] == '\\') {
+                currWord[strlen(currWord) - 1] = ' ';
+                nextWord = strtok(NULL, " ");
+                new_length = strlen(currWord) + strlen(nextWord) + 1;
+                tmpString = (char *) malloc(new_length);
+                length = strlcpy(tmpString, currWord, new_length);
+                strncat(tmpString,nextWord, new_length);
+                currWord = tmpString;
             }
-            cfg->groups[cfg->groups_cnt++] = p;
+            cfg->groups[cfg->groups_cnt++] = currWord;
         }
     } else if (strcmp(name, "failmode") == 0) {
         if (strcmp(val, "secure") == 0) {
