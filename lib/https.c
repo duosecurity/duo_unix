@@ -351,9 +351,9 @@ _establish_connection(struct https_request * const req,
 
 /* Provide implementations for HMAC_CTX_new and HMAC_CTX_free when
  * building for OpenSSL versions older than 1.1.0
- * or any version of LibreSSL.
+ * or LibreSSL versions older than 2.7.0
  */
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x2070000fL
 static HMAC_CTX *
 HMAC_CTX_new(void)
 {

@@ -1,3 +1,24 @@
+duo_unix-1.11.1:
+- Fixed bug causing console login to fail on certain systems
+
+duo_unix-1.11.0:
+
+- Added support for GECOS field parsing based on user-supplied delimiter
+- Updated README to include development/testing steps
+- Minor test infrastructure updates
+
+duo_unix-1.10.5:
+
+- Fixed an accidental null pointer free on systems where getaddrinfo() is unsuccessful
+
+duo_unix-1.10.4:
+
+- Removed failmode decision from auth endpoint and moved it to only preauth according to standards in our other integrations
+- Updated Duo Unix to speak up to TLS 1.2
+- Support for LibreSSL 2.7.0 and up
+- Minor memory leak fixes
+- Output message when user is locked out
+
 duo_unix-1.10.3:
 
 - Added support for http_proxy with SELinux enabled
@@ -120,7 +141,7 @@ duo_unix-1.9.3:
 
 - Autopush is more user friendly
 
-- Add prompts option to the config file 
+- Add prompts option to the config file
 
 - Various build and test fixups
 

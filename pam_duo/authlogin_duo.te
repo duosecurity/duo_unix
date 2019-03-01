@@ -1,10 +1,31 @@
-module authlogin_duo 1.0.1;
+module authlogin_duo 2.1.0;
 
-require {
-    type http_port_t;
+## <desc>
+##  <p>
+##  Allow sshd to use the pam_duo PAM module.
+##  </p>
+## </desc>
+gen_tunable(pam_duo_permit_sshd, true)
+
+## <desc>
+##  <p>
+##  Allow local logins to use the pam_duo PAM module.
+##  </p>
+## </desc>
+gen_tunable(pam_duo_permit_local_login, false)
+
+gen_require(`
     type http_cache_port_t;
+    type http_port_t;
+    type local_login_t;
     type sshd_t;
     class tcp_socket name_connect;
-};
+    ')
 
-allow sshd_t {http_port_t http_cache_port_t}:tcp_socket name_connect;
+tunable_policy(`pam_duo_permit_sshd',`
+    allow sshd_t {http_port_t http_cache_port_t}:tcp_socket name_connect;
+')
+
+tunable_policy(`pam_duo_permit_local_login',`
+    allow local_login_t {http_port_t http_cache_port_t}:tcp_socket name_connect;
+')

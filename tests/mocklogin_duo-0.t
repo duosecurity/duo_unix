@@ -11,7 +11,7 @@ Sync
   [6] Successful Duo login for 'whatever'
 
 mocklogin_duo
-  $ python ./mocklogin_duo.py
+  $ python ./mocklogin_duo.py confs/mockduo.conf
   ===> 'Duo login for foobar\r\n\r\nChoose or lose:\r\n\r\n  1. Push 1\r\n  2. Phone 1\r\n  3. SMS 1 (deny)\r\n  4. Phone 2 (deny)\r\n\r\nPasscode or option (1-4): '
   ===> "123456\r\n\r\nInvalid passcode, please try again.\r\n[4] Failed Duo login for 'foobar'\r\n\r\nDuo login for foobar\r\n\r\nChoose or lose:\r\n\r\n  1. Push 1\r\n  2. Phone 1\r\n  3. SMS 1 (deny)\r\n  4. Phone 2 (deny)\r\n\r\nPasscode or option (1-4): "
   ===> "wefawefgoiagj3rj\r\n\r\nInvalid passcode, please try again.\r\n[4] Failed Duo login for 'foobar'\r\n\r\nDuo login for foobar\r\n\r\nChoose or lose:\r\n\r\n  1. Push 1\r\n  2. Phone 1\r\n  3. SMS 1 (deny)\r\n  4. Phone 2 (deny)\r\n\r\nPasscode or option (1-4): "

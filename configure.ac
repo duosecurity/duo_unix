@@ -7,7 +7,7 @@ AC_PREREQ(2.65)
 
 # Package, version, bug report address
 AC_INIT([duo_unix],
-	[1.10.3],
+	[1.11.1],
 	[support@duosecurity.com])
 
 # Tells autoconf where to find necessary build scripts and macros.
@@ -38,6 +38,11 @@ AC_USE_SYSTEM_EXTENSIONS
 AC_PROG_INSTALL
 AC_PROG_MKDIR_P
 LT_INIT
+
+# Set third party library versions
+unity_version=Unity-2.4.3
+AC_DEFINE_DIR([UNITY_VERSION], [unity_version], [Unity directory name])
+
 
 # Compiler options
 if test "x$GCC" = "xyes"; then
@@ -178,6 +183,6 @@ AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy vsyslog])
 AC_SEARCH_LIBS(inet_ntoa, nsl)
 AC_SEARCH_LIBS(socket, socket)
 
-AC_CONFIG_FILES(Makefile compat/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile tests/Makefile)
+AC_CONFIG_FILES(Makefile compat/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile tests/Makefile tests/unity_tests/Makefile tests/unity_tests/Unity-2.4.3/Makefile)
 
 AC_OUTPUT

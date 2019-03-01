@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <stdarg.h>
@@ -44,6 +45,23 @@
 #define AUTODEFAULT_MSG     "Using default second-factor authentication."
 #define ENV_VAR_MSG         "Reading $DUO_PASSCODE..."
 
+/*
+ * Finding the maximum length for the machine's hostname
+ * Idea and technique originated from https://github.com/openssh/openssh-portable
+ */
+#ifndef HOST_NAME_MAX
+# include "netdb.h" /* for MAXHOSTNAMELEN */
+# if defined(_POSIX_HOST_NAME_MAX)
+#  define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
+# elif defined(MAXHOSTNAMELEN)
+#  define HOST_NAME_MAX MAXHOSTNAMELEN
+# else
+#  define HOST_NAME_MAX 255
+# endif
+#endif /* HOST_NAME_MAX */
+
+/* For sizing buffers; sufficient to cover the longest possible DNS FQDN */
+#define DNS_MAXNAMELEN 256
 
 struct duo_ctx {
     https_t *https;    /* HTTPS handle */
@@ -213,11 +231,25 @@ duo_add_param(struct duo_ctx *ctx, const char *name, const char *value)
         ctx->argv[ctx->argc++] = p;
         ret = DUO_OK;
     }
-    
+
     free(k);
     free(v);
 
     return (ret);
+}
+
+static duo_code_t
+duo_add_optional_param(struct duo_ctx *ctx, const char *name, const char *value)
+{
+    /* Wrapper around duo_add_param for optional arguments.
+       If a parameter's value doesn't exist we don't add the param.
+    */
+    if (value == NULL || strlen(value) == 0) {
+        return DUO_OK;
+    }
+    else {
+        return duo_add_param(ctx, name, value);
+    }
 }
 
 static void
@@ -228,6 +260,49 @@ _duo_seterr(struct duo_ctx *ctx, const char *fmt, ...)
     va_start(ap, fmt);
     vsnprintf(ctx->err, sizeof(ctx->err), fmt, ap);
     va_end(ap);
+}
+
+
+static void
+_duo_get_hostname(char *dns_fqdn, size_t dns_fqdn_size)
+{
+    struct addrinfo hints, *info, *p;
+    char hostname[HOST_NAME_MAX + 1];
+
+    /* gethostname may not insert a null terminator when it needs to truncate the hostname.
+     * See gethostname's man page under "Description" for more info.
+     */
+    hostname[HOST_NAME_MAX] = '\0';
+    gethostname(hostname, HOST_NAME_MAX);
+    memset(&hints, 0, sizeof(hints));
+
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_CANONNAME;
+    strlcpy(dns_fqdn, hostname, dns_fqdn_size);
+
+    if (getaddrinfo(hostname, NULL, &hints, &info) == 0) {
+        if(info->ai_canonname != NULL && strlen(info->ai_canonname) > 0) {
+            strlcpy(dns_fqdn, info->ai_canonname, dns_fqdn_size);
+        }
+        freeaddrinfo(info);
+    }
+}
+
+int
+_duo_add_hostname_param(struct duo_ctx *ctx)
+{
+    char dns_fqdn[DNS_MAXNAMELEN];
+    _duo_get_hostname(dns_fqdn, sizeof(dns_fqdn));
+
+    return duo_add_optional_param(ctx, "hostname", dns_fqdn);
+}
+
+int _duo_add_failmode_param(struct duo_ctx *ctx, const int failmode)
+{
+    const char *failmode_str = (failmode == DUO_FAIL_SECURE) ? ("closed") : ("open");
+
+    return duo_add_optional_param(ctx, "failmode", failmode_str);
 }
 
 #define _BSON_FIND(ctx, it, obj, name, type) do {           \
@@ -332,7 +407,7 @@ duo_geterr(struct duo_ctx *ctx)
 
 duo_code_t
 _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
-    const char *client_ip)
+    const char *client_ip, const int failmode)
 {
     bson_iterator it;
     duo_code_t ret;
@@ -343,10 +418,16 @@ _duo_preauth(struct duo_ctx *ctx, bson *obj, const char *username,
         return (DUO_LIB_ERROR);
     }
 
-    if (client_ip) {
-        if (duo_add_param(ctx, "ipaddr", client_ip) != DUO_OK) {
-            return (DUO_LIB_ERROR);
-        }
+    if (duo_add_optional_param(ctx, "ipaddr", client_ip) != DUO_OK) {
+        return (DUO_LIB_ERROR);
+    }
+
+    if(_duo_add_hostname_param(ctx) != DUO_OK) {
+        return (DUO_LIB_ERROR);
+    }
+
+    if(_duo_add_failmode_param(ctx, failmode) != DUO_OK) {
+        return (DUO_LIB_ERROR);
     }
 
     if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/preauth.bson", ctx->https_timeout)) != DUO_OK ||
@@ -446,7 +527,7 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
 
 duo_code_t
 duo_login(struct duo_ctx *ctx, const char *username,
-    const char *client_ip, int flags, const char *command)
+    const char *client_ip, int flags, const char *command, const int failmode)
 {
     bson obj;
     bson_iterator it;
@@ -463,7 +544,10 @@ duo_login(struct duo_ctx *ctx, const char *username,
     }
 
     /* Check preauth status */
-    if ((ret = _duo_preauth(ctx, &obj, username, client_ip)) != DUO_CONTINUE) {
+    if ((ret = _duo_preauth(ctx, &obj, username, client_ip, failmode)) != DUO_CONTINUE) {
+        if(ret == DUO_SERVER_ERROR || ret == DUO_CONN_ERROR || ret == DUO_CLIENT_ERROR) {
+            return (failmode == DUO_FAIL_SAFE) ? (DUO_FAIL_SAFE_ALLOW) : (DUO_FAIL_SECURE_DENY);
+        }
         return (ret);
     }
 
@@ -482,10 +566,12 @@ duo_login(struct duo_ctx *ctx, const char *username,
     }
 
     /* Add client IP, if passed in */
-    if (client_ip) {
-        if (duo_add_param(ctx, "ipaddr", client_ip) != DUO_OK) {
-            return (DUO_LIB_ERROR);
-        }
+    if (duo_add_optional_param(ctx, "ipaddr", client_ip) != DUO_OK) {
+        return (DUO_LIB_ERROR);
+    }
+
+    if(_duo_add_hostname_param(ctx) != DUO_OK) {
+        return (DUO_LIB_ERROR);
     }
 
     /* Add pushinfo parameters */

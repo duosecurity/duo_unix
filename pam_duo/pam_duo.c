@@ -26,6 +26,8 @@
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <openssl/crypto.h>
+#include <openssl/err.h>
 
 /* These #defines must be present according to PAM documentation. */
 #define PAM_SM_AUTH
@@ -123,16 +125,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 
 	int i, flags, pam_err, matched;
 
-	/*
-	 * Handle a delimited GECOS field. E.g.
-	 *
-	 *     username:x:0:0:code1/code2/code3//textField/usergecosparsed:/username:/bin/bash
-	 *
-	 * Parse the username from the appropriate position in the GECOS field.
-	 */
-	const char delimiter = '/';
-	const unsigned int delimited_position = 5;
-
 	duo_config_default(&cfg);
 
 	/* Parse configuration */
@@ -166,6 +158,30 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     }
 
+#ifdef OPENSSL_FIPS
+    /*
+     * When fips_mode is configured, invoke OpenSSL's FIPS_mode_set() API. Note
+     * that in some environments, FIPS may be enabled system-wide, causing FIPS
+     * operation to be enabled automatically when OpenSSL is initialized.  The
+     * fips_mode option is an experimental feature allowing explicit entry to FIPS
+     * operation in cases where it isn't enabled globally at the OS level (for
+     * example, when integrating directly with the OpenSSL FIPS Object Module).
+     */
+    if(!FIPS_mode_set(cfg.fips_mode)) {
+        /* The smallest size buff can be according to the openssl docs */
+        char buff[256];
+        int error = ERR_get_error();
+        ERR_error_string_n(error, buff, sizeof(buff));
+        duo_syslog(LOG_ERR, "Unable to start fips_mode: %s", buff);
+
+       return (EXIT_FAILURE);
+    }
+#else
+    if(cfg.fips_mode) {
+        duo_syslog(LOG_ERR, "FIPS mode flag specified, but OpenSSL not built with FIPS support. Failing the auth.");
+        return (EXIT_FAILURE);
+    }
+#endif
     /* Check user */
     if (pam_get_user(pamh, &user, NULL) != PAM_SUCCESS ||
         (pw = getpwnam(user)) == NULL) {
@@ -208,10 +224,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     }
 
     /* Use GECOS field if called for */
-    if (cfg.send_gecos || cfg.gecos_parsed) {
+    if (cfg.send_gecos || cfg.gecos_username_pos >= 0) {
         if (strlen(pw->pw_gecos) > 0) {
-            if (cfg.gecos_parsed) {
-                user = duo_split_at(pw->pw_gecos, delimiter, delimited_position);
+            if (cfg.gecos_username_pos >= 0) {
+                user = duo_split_at(pw->pw_gecos, cfg.gecos_delim, cfg.gecos_username_pos);
                 if (user == NULL || (strcmp(user, "") == 0)) {
                     duo_log(LOG_DEBUG, "Could not parse GECOS field", pw->pw_name, NULL, NULL);
                     user = pw->pw_name;
@@ -258,7 +274,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 
     for (i = 0; i < cfg.prompts; i++) {
         code = duo_login(duo, user, host, flags,
-                    cfg.pushinfo ? cmd : NULL);
+                    cfg.pushinfo ? cmd : NULL, cfg.failmode);
         if (code == DUO_FAIL) {
             duo_log(LOG_WARNING, "Failed Duo login",
                 pw->pw_name, host, duo_geterr(duo));
@@ -272,25 +288,27 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         if (code == DUO_OK) {
             if ((p = duo_geterr(duo)) != NULL) {
                 duo_log(LOG_WARNING, "Skipped Duo login",
-                    pw->pw_name, host, p);
+                    user, host, p);
             } else {
                 duo_log(LOG_INFO, "Successful Duo login",
-                    pw->pw_name, host, NULL);
+                    user, host, NULL);
             }
             pam_err = PAM_SUCCESS;
         } else if (code == DUO_ABORT) {
             duo_log(LOG_WARNING, "Aborted Duo login",
-                pw->pw_name, host, duo_geterr(duo));
+                user, host, duo_geterr(duo));
             pam_err = PAM_ABORT;
-        } else if (cfg.failmode == DUO_FAIL_SAFE &&
-                    (code == DUO_CONN_ERROR ||
-                     code == DUO_CLIENT_ERROR || code == DUO_SERVER_ERROR)) {
+        } else if (code == DUO_FAIL_SAFE_ALLOW) {
             duo_log(LOG_WARNING, "Failsafe Duo login",
-                pw->pw_name, host, duo_geterr(duo));
+                user, host, duo_geterr(duo));
             pam_err = PAM_SUCCESS;
+        } else if (code == DUO_FAIL_SECURE_DENY) {
+            duo_log(LOG_WARNING, "Failsecure Duo login",
+                user, host, duo_geterr(duo));
+            pam_err = PAM_SERVICE_ERR;
         } else {
             duo_log(LOG_ERR, "Error in Duo login",
-                pw->pw_name, host, duo_geterr(duo));
+                user, host, duo_geterr(duo));
             pam_err = PAM_SERVICE_ERR;
         }
         break;

@@ -20,22 +20,22 @@ HTTP server errors
   [4] Failsafe Duo login for '504': HTTP 504
   $ for http_code in 400 401 402 403 404 500 501 502 503 504; do ./testpam.py -d -c confs/mockduo_failsecure.conf -f $http_code true; done
   [4] Aborted Duo login for '400': HTTP 400
-  [3] Error in Duo login for '401': Invalid ikey or skey
+  [4] Failsecure Duo login for '401': Invalid ikey or skey
   [4] Aborted Duo login for '402': HTTP 402
   [4] Aborted Duo login for '403': HTTP 403
   [4] Aborted Duo login for '404': HTTP 404
-  [3] Error in Duo login for '500': HTTP 500
-  [3] Error in Duo login for '501': HTTP 501
-  [3] Error in Duo login for '502': HTTP 502
-  [3] Error in Duo login for '503': HTTP 503
-  [3] Error in Duo login for '504': HTTP 504
+  [4] Failsecure Duo login for '500': HTTP 500
+  [4] Failsecure Duo login for '501': HTTP 501
+  [4] Failsecure Duo login for '502': HTTP 502
+  [4] Failsecure Duo login for '503': HTTP 503
+  [4] Failsecure Duo login for '504': HTTP 504
   [1]
 
 With bad keys
   $ ./testpam.py -d -c confs/mockduo_badkeys.conf -f whatever true
   [4] Failsafe Duo login for 'whatever': Invalid ikey or skey
   $ ./testpam.py -d -c confs/mockduo_badkeys_failsecure.conf -f whatever true
-  [3] Error in Duo login for 'whatever': Invalid ikey or skey
+  [4] Failsecure Duo login for 'whatever': Invalid ikey or skey
   [1]
 
 Preauth states
@@ -49,14 +49,14 @@ Preauth states
   [4] Skipped Duo login for 'preauth-allow': you rock
   [4] Failsafe Duo login for 'preauth-allow-bad_response': BSON missing valid 'status'
   $ for user in preauth-ok-missing_response preauth-fail-missing_response preauth-bad-stat preauth-fail preauth-deny preauth-allow preauth-allow-bad_response; do ./testpam.py -d -c confs/mockduo_failsecure.conf -f $user true; done
-  [3] Error in Duo login for 'preauth-ok-missing_response': BSON missing valid 'response'
-  [3] Error in Duo login for 'preauth-fail-missing_response': BSON missing valid 'code'
-  [3] Error in Duo login for 'preauth-bad-stat'
-  [3] Error in Duo login for 'preauth-fail': BSON missing valid 'response'
+  [4] Failsecure Duo login for 'preauth-ok-missing_response': BSON missing valid 'response'
+  [4] Failsecure Duo login for 'preauth-fail-missing_response': BSON missing valid 'code'
+  [4] Failsecure Duo login for 'preauth-bad-stat'
+  [4] Failsecure Duo login for 'preauth-fail': BSON missing valid 'response'
   [4] Aborted Duo login for 'preauth-deny': you suck
   you suck
   [4] Skipped Duo login for 'preauth-allow': you rock
-  [3] Error in Duo login for 'preauth-allow-bad_response': BSON missing valid 'status'
+  [4] Failsecure Duo login for 'preauth-allow-bad_response': BSON missing valid 'status'
   [1]
 
 Test manually-set hosts
@@ -85,3 +85,10 @@ Test using configured http_proxy variable
   [4] Failsafe Duo login for 'preauth-allow': Couldn't connect to localhost:4443: Failed to connect
   
   $ export http_proxy=$orig_http_proxy
+
+Test getting hostname
+  $ ./testpam.py -d -c confs/mockduo.conf -f hostname true
+  [4] Aborted Duo login for 'hostname': correct hostname
+  correct hostname
+  [1]
+
