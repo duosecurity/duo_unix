@@ -10,7 +10,7 @@ libduo_la_LIBADD = @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
 libduo_la_LDFLAGS = -no-undefined -version-info 3:0:0 -export-symbols-regex '^duo_'
 
 libduo_la_includedir = $(includedir)
-libduo_la_include_HEADERS = duo.h util.h shell.h
+libduo_la_include_HEADERS = duo.h duo_private.h util.h shell.h
 
 notrans_dist_man3_MANS = duo.3
 
