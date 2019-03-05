@@ -52,7 +52,7 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
     const char *name, const char*val)
 {
     char *buf, *currWord, *nextWord, *tmpString;
-    int int_val, length, new_length;
+    int int_val, new_length;
 
     if (strcmp(name, "ikey") == 0) {
         cfg->ikey = strdup(val);
@@ -77,14 +77,14 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
                 free(buf);
                 return (0);
             }
-            //Concatenate next word if current word ends with "\ "
+            /* Concatenate next word if current word ends with "\ " */
             while (currWord[strlen(currWord) - 1] == '\\') {
                 currWord[strlen(currWord) - 1] = ' ';
                 nextWord = strtok(NULL, " ");
                 new_length = strlen(currWord) + strlen(nextWord) + 1;
                 tmpString = (char *) malloc(new_length);
-                length = strlcpy(tmpString, currWord, new_length);
-                strncat(tmpString,nextWord, new_length);
+                strlcpy(tmpString, currWord, new_length);
+                strncat(tmpString, nextWord, new_length);
                 currWord = tmpString;
             }
             cfg->groups[cfg->groups_cnt++] = currWord;

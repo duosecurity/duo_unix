@@ -4,6 +4,8 @@ TESTS_ENVIRONMENT = env BUILDDIR=$(abs_top_builddir)/unityrunner
 SUBDIRS = $(UNITY_VERSION)
 
 # Create the unity runner executable
-check_PROGRAMS = unityrunner
+check_PROGRAMS = unityrunner add_groupname
 unityrunner_LDADD = $(top_builddir)/lib/libduo.la $(top_builddir)/compat/libcompat.la $(top_builddir)/tests/unity_tests/$(UNITY_VERSION)/libunity.la
-TESTS = unityrunner
+add_groupname_LDADD = $(top_builddir)/lib/libduo.la $(top_builddir)/compat/libcompat.la $(top_builddir)/tests/unity_tests/$(UNITY_VERSION)/libunity.la
+add_groupname_CFLAGS = -Werror -Wunused-function
+TESTS = unityrunner add_groupname
