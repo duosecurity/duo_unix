@@ -9,8 +9,8 @@ void test_groupname() {
     char *value = "groupsname";
     const char *section = "\0";
 
-    TEST_ASSERT_EQUAL(1, duo_common_ini_handler(&cfg, section, name, value)); 
-    TEST_ASSERT_EQUAL_STRING(value, cfg.groups[cfg.groups_cnt - 1]);	
+    TEST_ASSERT_EQUAL(1, duo_common_ini_handler(&cfg, section, name, value));
+    TEST_ASSERT_EQUAL_STRING(value, cfg.groups[cfg.groups_cnt - 1]);
 }
 
 void test_groupname_comma() {
@@ -39,7 +39,7 @@ void test_groupname_escaped_one() {
     const char *name = "group";
     const char *value = "testing\\ name";
     const char *section = "\0";
-	
+
     TEST_ASSERT_EQUAL(1, duo_common_ini_handler(&cfg, section, name, value));
     TEST_ASSERT_EQUAL_STRING("testing name", cfg.groups[cfg.groups_cnt - 1]);
 }
@@ -49,7 +49,7 @@ void test_groupname_escaped_and_space() {
     const char *name = "group";
     const char *value = "test group\\ name";
     const char *section = "\0";
-	
+
     TEST_ASSERT_EQUAL(1, duo_common_ini_handler(&cfg, section, name, value));
     TEST_ASSERT_EQUAL_STRING("test", cfg.groups[cfg.groups_cnt - 2]);
     TEST_ASSERT_EQUAL_STRING("group name", cfg.groups[cfg.groups_cnt - 1]);
@@ -71,7 +71,7 @@ void test_groupname_escaped_two() {
     const char *name = "groups";
     const char *value = "test group\\ name\\ here";
     const char *section = "\0";
-	
+
     TEST_ASSERT_EQUAL(1, duo_common_ini_handler(&cfg, section, name, value));
     TEST_ASSERT_EQUAL_STRING("test", cfg.groups[cfg.groups_cnt - 2]);
     TEST_ASSERT_EQUAL_STRING("group name here", cfg.groups[cfg.groups_cnt - 1]);

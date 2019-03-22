@@ -107,7 +107,8 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         /* Clamp the value into acceptable range */
         if (int_val <= 0) {
             int_val = 1;
-        } else if (int_val < cfg->prompts) {
+        } 
+        if (int_val < cfg->prompts) {
             cfg->prompts = int_val;
         }
     } else if (strcmp(name, "autopush") == 0) {
