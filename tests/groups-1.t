@@ -6,14 +6,26 @@ mockduo with valid cert
   $ trap 'exec kill $MOCKPID >/dev/null 2>&1' EXIT
   $ sleep 1
 
-match groups with spaces
-  $ env UID=1001 ./groups.py -d -c confs/mockduo_space_users.conf -f preauth-allow true
-  [4] Skipped Duo login for 'preauth-allow': you rock
+users only: bypass users 
+  $ env UID=1003 ./groups.py -d -c confs/mockduo_users.conf -f preauth-allow
+  [6] User preauth-allow bypassed Duo 2FA due to user's UNIX group
+  $ env UID=1004 ./groups.py -d -c confs/mockduo_users.conf -f preauth-allow
+  [6] User preauth-allow bypassed Duo 2FA due to user's UNIX group
 
-match groups with backslash
-  $ env UID=1004 ./groups.py -d -c confs/mockduo_space_users.conf -f preauth-allow true
-  [4] Skipped Duo login for 'preauth-allow': you rock
+users or admins: bypass users 
+  $ env UID=1004 ./groups.py -d -c confs/mockduo_users_admins.conf -f preauth-allow
+  [6] User preauth-allow bypassed Duo 2FA due to user's UNIX group
 
-match groups without spaces
-  $ env UID=1002 ./groups.py -d -c confs/mockduo_space_users.conf -f preauth-allow true
-  [4] Skipped Duo login for 'preauth-allow': you rock
+admins and not users: bypass users 
+  $ env UID=1000 ./groups.py -d -c confs/mockduo_admins_no_users.conf -f preauth-allow
+  [6] User preauth-allow bypassed Duo 2FA due to user's UNIX group
+  $ env UID=1001 ./groups.py -d -c confs/mockduo_admins_no_users.conf -f preauth-allow
+  [6] User preauth-allow bypassed Duo 2FA due to user's UNIX group
+  $ env UID=1002 ./groups.py -d -c confs/mockduo_admins_no_users.conf -f preauth-allow
+  [6] User preauth-allow bypassed Duo 2FA due to user's UNIX group
+  $ env UID=1004 ./groups.py -d -c confs/mockduo_admins_no_users.conf -f preauth-allow
+  [6] User preauth-allow bypassed Duo 2FA due to user's UNIX group
+
+non-existent shell
+  $ env UID=1005 ./groups.py -d -c confs/mockduo_users.conf -f noshell
+  [6] User noshell bypassed Duo 2FA due to user's UNIX group
