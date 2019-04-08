@@ -7,6 +7,7 @@ UNITY_TESTS = unityrunner add_param_test common_ini_wrong_flag_test common_ini_f
 
 # Create the unity runner executable
 check_PROGRAMS = $(UNITY_TESTS)
+include_HEADERS = common_ini_test.h
 
 LDADD = $(top_builddir)/lib/libduo.la $(top_builddir)/compat/libcompat.la $(top_builddir)/tests/unity_tests/$(UNITY_VERSION)/libunity.la 
 CFLAGS = -Werror -Wunused-function
