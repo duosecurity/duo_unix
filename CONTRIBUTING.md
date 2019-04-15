@@ -3,7 +3,6 @@ Thanks for your interest in contributing to Duo Unix!
 
 We welcome pull requests as well issues you may have.
 
-
 ## Opening Issues
 Before opening an issue on the Github project see if your issue falls into the following categories. If it does please direct your issue to those locations instead.
 

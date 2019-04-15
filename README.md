@@ -130,7 +130,7 @@ For production deployments Duo recommends using our stable release tarballs or p
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
+Please read [CODEOFCONDUCT.md](CODEOFCONDUCT.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests to us.
 
 ## Versioning
 
