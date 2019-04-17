@@ -1,13 +1,21 @@
 
 AM_CPPFLAGS = -I$(top_srcdir)/compat -I$(top_srcdir)/lib @OPENSSL_INCLUDES@
+SOURCES = pam_duo.c pam_extra.h pam_extra.c pam_duo_private.c pam_duo_private.h
+LIBADD = $(top_builddir)/lib/libduo.la $(top_builddir)/compat/libcompat.la @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@ -lpam
+LDFLAGS = -module -no-undefined -avoid-version -shared -export-symbols-regex '^pam_sm_'
+
+#Because pam_duo.la is shared, linking it with the unit tests will not compile
+#Instead use unit_testing_pam_duo.la to link with them
+check_LTLIBRARIES = unit_testing_pam_duo.la
+unit_testing_pam_duo_la_SOURCES = $(SOURCES)
+unit_testing_pam_duo_la_LIBADD = $(LIBADD)
 
 pam_libdir = @PAMDIR@
 pam_lib_LTLIBRARIES = pam_duo.la
 
 pam_duo_la_DEFS = -DDEBUG_PAM -DPAM_DEBUG @DEFS@
-pam_duo_la_SOURCES = pam_duo.c pam_extra.h pam_extra.c
-pam_duo_la_LIBADD = $(top_builddir)/lib/libduo.la $(top_builddir)/compat/libcompat.la @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@ -lpam
-pam_duo_la_LDFLAGS = -module -no-undefined -avoid-version -shared -export-symbols-regex '^pam_sm_'
+pam_duo_la_SOURCES = $(SOURCES)
+pam_duo_la_LIBADD = $(LIBADD)
 
 notrans_dist_man8_MANS = pam_duo.8
 

@@ -22,8 +22,6 @@
 #include <pwd.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <syslog.h>
 #include <unistd.h>
 #include <openssl/crypto.h>
@@ -47,7 +45,7 @@
 #include <security/pam_modules.h>
 #endif
 #ifdef HAVE_SECURITY_PAM_EXT_H
-#include <security/pam_ext.h>	/* Linux-PAM */
+#include <security/pam_ext.h>  /* Linux-PAM */
 #endif
 
 /* OpenGroup RFC86.0 and XSSO specify no "const" on arguments */
@@ -61,15 +59,16 @@
 #include "duo.h"
 #include "groupaccess.h"
 #include "pam_extra.h"
+#include "pam_duo_private.h"
 
 #ifndef PAM_EXTERN
 #define PAM_EXTERN
 #endif
 
 #ifndef DUO_PRIVSEP_USER
-# define DUO_PRIVSEP_USER	"duo"
+# define DUO_PRIVSEP_USER      "duo"
 #endif
-#define DUO_CONF		DUO_CONF_DIR "/pam_duo.conf"
+#define DUO_CONF               DUO_CONF_DIR "/pam_duo.conf"
 
 static int
 __ini_handler(void *u, const char *section, const char *name, const char *val)
@@ -107,52 +106,45 @@ PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     int argc, const char *argv[])
 {
-	struct duo_config cfg;
-	struct passwd *pw;
-	struct in_addr addr;
-	duo_t *duo;
-	duo_code_t code;
+    struct duo_config cfg;
+    struct passwd *pw;
+    struct in_addr addr;
+    duo_t *duo;
+    duo_code_t code;
 
-	/*
-	 * Only variables that will be passed to a pam_* function
-	 * need to be marked as 'duopam_const char *', anything else
-	 * should be 'const char *'. This is because there are different
-	 * PAM implementations, some with the const qualifier, and some
-	 * without.
-	 */
-	duopam_const char *ip, *service, *user;
-	const char *cmd, *p, *config, *host;
+    /*
+     * Only variables that will be passed to a pam_* function
+     * need to be marked as 'duopam_const char *', anything else
+     * should be 'const char *'. This is because there are different
+     * PAM implementations, some with the const qualifier, and some
+     * without.
+     */
+    duopam_const char *ip, *service, *user;
+    const char *cmd, *p, *config, *host;
 
-	int i, flags, pam_err, matched;
+    int i, flags, pam_err, matched;
 
-	duo_config_default(&cfg);
+    duo_config_default(&cfg);
 
-	/* Parse configuration */
-	config = DUO_CONF;
-	for (i = 0; i < argc; i++) {
-		if (strncmp("conf=", argv[i], 5) == 0) {
-			config = argv[i] + 5;
-		} else if (strcmp("debug", argv[i]) == 0) {
-			duo_debug = 1;
-		} else {
-			duo_syslog(LOG_ERR, "Invalid pam_duo option: '%s'",
-			    argv[i]);
-			return (PAM_SERVICE_ERR);
-		}
-	}
-	i = duo_parse_config(config, __ini_handler, &cfg);
-	if (i == -2) {
-		duo_syslog(LOG_ERR, "%s must be readable only by user 'root'",
-		    config);
-		return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
-	} else if (i == -1) {
-		duo_syslog(LOG_ERR, "Couldn't open %s: %s",
-		    config, strerror(errno));
-		return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
-	} else if (i > 0) {
-		duo_syslog(LOG_ERR, "Parse error in %s, line %d", config, i);
-		return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
-	} else if (!cfg.apihost || !cfg.apihost[0] ||
+    /* Parse configuration */
+    config = DUO_CONF;
+    if(parse_argv(&config, argc, argv) == 0) {
+        return (PAM_SERVICE_ERR);
+    }
+
+    i = duo_parse_config(config, __ini_handler, &cfg);
+    if (i == -2) {
+        duo_syslog(LOG_ERR, "%s must be readable only by user 'root'",
+            config);
+        return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+    } else if (i == -1) {
+        duo_syslog(LOG_ERR, "Couldn't open %s: %s",
+            config, strerror(errno));
+        return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+    } else if (i > 0) {
+        duo_syslog(LOG_ERR, "Parse error in %s, line %d", config, i);
+        return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+    } else if (!cfg.apihost || !cfg.apihost[0] ||
             !cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0]) {
         duo_syslog(LOG_ERR, "Missing host, ikey, or skey in %s", config);
         return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
