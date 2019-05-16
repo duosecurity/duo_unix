@@ -18,11 +18,9 @@ pam_duo_la_SOURCES = $(SOURCES)
 pam_duo_la_LIBADD = $(LIBADD)
 
 notrans_dist_man8_MANS = pam_duo.8
-
 semodule_name = authlogin_duo
 semodule:
-	-checkmodule -M -m -o $(semodule_name).mod $(semodule_name).te
-	-semodule_package -o $(semodule_name).pp -m $(semodule_name).mod
+	-make -f /usr/share/selinux/devel/Makefile
 
 semodule-install:
 	-bzip2 -9 $(semodule_name).pp
