@@ -1,3 +1,9 @@
+duo_unix-1.11.2:
+- Added recommended Kerberos configuration for Duo Unix to our documentation, found at https://help.duo.com/s/article/5085. Thanks to Neal Poole at Facebook for bringing expertise and attention to this topic.
+- Updated SELinux policy to allow local logins to use the pam_duo PAM module and made sshd configurable
+- Added support for spaces in group names when escaped with backslashes in pam_duo.conf and login_duo.conf
+- Test infrastructure updates
+
 duo_unix-1.11.1:
 - Fixed bug causing console login to fail on certain systems
 
