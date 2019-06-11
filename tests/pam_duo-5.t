@@ -18,7 +18,7 @@ Test that an auth works with FIPS enabled (if available on this system). Otherwi
   >    CONFS="mockduo.conf";
   > fi
   $ ./testpam.py -d -c confs/$CONFS -f preauth-allow true
-  [4] Skipped Duo login for 'preauth-allow': you rock
+  [4] Skipped Duo login for 'preauth-allow': preauth-allowed
 
 Test that a config with FIPS enabled but unavailable on the system logs that an auth failed due to the lack of FIPS. Mock the output otherwise if FIPS does actually exist on the system.
   $ if [ $fips_available -eq 0 ]; then

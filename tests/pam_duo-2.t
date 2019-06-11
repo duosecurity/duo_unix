@@ -17,4 +17,4 @@ Invalid cert
 
 With noverify
   $ ./testpam.py -d -c confs/mockduo_noverify.conf -f preauth-allow true
-  [4] Skipped Duo login for 'preauth-allow': you rock
+  [4] Skipped Duo login for 'preauth-allow': preauth-allowed

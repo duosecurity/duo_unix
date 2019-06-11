@@ -7,20 +7,20 @@ mockduo with valid cert
 
 Send gecos field unparsed
   $ ./testpam.py -d -c confs/mockduo_gecos_send_unparsed.conf -f "fullgecos" true
-  [4] Skipped Duo login for 'full_gecos_field': you rock
+  [4] Skipped Duo login for 'full_gecos_field': full-gecos-field
 
 Deprecated gecos_parsed flag
   $ ./testpam.py -d -c confs/mockduo_gecos_deprecated_parse_flag.conf -f "gecos/6" true
   [3] The gecos_parsed configuration item for Duo Unix is deprecated and no longer has any effect. Use gecos_delim and gecos_username_pos instead
-  [4] Skipped Duo login for 'gecos/6': you rock
+  [4] Skipped Duo login for 'gecos/6': gecos/6
 
 Gecos delimiter = default position = 6
   $ ./testpam.py -d -c confs/mockduo_gecos_default_delim_6_pos.conf -f "gecos,6" true
-  [4] Skipped Duo login for 'gecos_user_gecos_field6': you rock
+  [4] Skipped Duo login for 'gecos_user_gecos_field6': gecos-user-gecos-field6-allowed
 
 Gecos delimiter = / position = 3
   $ ./testpam.py -d -c confs/mockduo_gecos_slash_delim_3_pos.conf -f "gecos/3" true
-  [4] Skipped Duo login for 'gecos_user_gecos_field3': you rock
+  [4] Skipped Duo login for 'gecos_user_gecos_field3': gecos-user-gecos-field3-allowed
 
 Gecos invalid delimiter length
   $ ./testpam.py -d -c confs/mockduo_gecos_long_delim.conf true
