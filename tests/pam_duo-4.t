@@ -43,32 +43,36 @@ Preauth states
   [4] Failsafe Duo login for 'preauth-ok-missing_response': BSON missing valid 'response'
   [4] Failsafe Duo login for 'preauth-fail-missing_response': BSON missing valid 'code'
   [4] Failsafe Duo login for 'preauth-bad-stat'
-  [4] Failsafe Duo login for 'preauth-fail': BSON missing valid 'response'
-  [4] Aborted Duo login for 'preauth-deny': you suck
-  you suck
-  [4] Skipped Duo login for 'preauth-allow': you rock
+  [4] Failed Duo login for 'preauth-fail': 1000: Pre-authentication failed
+  [4] Failed Duo login for 'preauth-fail': 1000: Pre-authentication failed
+  [4] Failed Duo login for 'preauth-fail': 1000: Pre-authentication failed
+  [4] Aborted Duo login for 'preauth-deny': preauth-denied
+  preauth-denied
+  [4] Skipped Duo login for 'preauth-allow': preauth-allowed
   [4] Failsafe Duo login for 'preauth-allow-bad_response': BSON missing valid 'status'
   $ for user in preauth-ok-missing_response preauth-fail-missing_response preauth-bad-stat preauth-fail preauth-deny preauth-allow preauth-allow-bad_response; do ./testpam.py -d -c confs/mockduo_failsecure.conf -f $user true; done
   [4] Failsecure Duo login for 'preauth-ok-missing_response': BSON missing valid 'response'
   [4] Failsecure Duo login for 'preauth-fail-missing_response': BSON missing valid 'code'
   [4] Failsecure Duo login for 'preauth-bad-stat'
-  [4] Failsecure Duo login for 'preauth-fail': BSON missing valid 'response'
-  [4] Aborted Duo login for 'preauth-deny': you suck
-  you suck
-  [4] Skipped Duo login for 'preauth-allow': you rock
+  [4] Failed Duo login for 'preauth-fail': 1000: Pre-authentication failed
+  [4] Failed Duo login for 'preauth-fail': 1000: Pre-authentication failed
+  [4] Failed Duo login for 'preauth-fail': 1000: Pre-authentication failed
+  [4] Aborted Duo login for 'preauth-deny': preauth-denied
+  preauth-denied
+  [4] Skipped Duo login for 'preauth-allow': preauth-allowed
   [4] Failsecure Duo login for 'preauth-allow-bad_response': BSON missing valid 'status'
   [1]
 
 Test manually-set hosts
   $ for host in 1.2.3.4 XXXX:XXXX:XXXX:XXXX:XXXX:XXXX:AAA.BBB.CCC.DDD nowhere "%s" "!@#$%^&*()_+<>{}|;'"; do ./testpam.py -d -c confs/mockduo.conf -f preauth-allow -h $host true; done
-  [4] Skipped Duo login for 'preauth-allow' from 1.2.3.4: you rock
-  [4] Skipped Duo login for 'preauth-allow' from XXXX:XXXX:XXXX:XXXX:XXXX:XXXX:AAA.BBB.CCC.DDD: you rock
-  [4] Skipped Duo login for 'preauth-allow' from nowhere: you rock
-  [4] Skipped Duo login for 'preauth-allow' from %s: you rock
-  [4] Skipped Duo login for 'preauth-allow' from !@#$%^&*()_+<>{}|;': you rock
+  [4] Skipped Duo login for 'preauth-allow' from 1.2.3.4: preauth-allowed
+  [4] Skipped Duo login for 'preauth-allow' from XXXX:XXXX:XXXX:XXXX:XXXX:XXXX:AAA.BBB.CCC.DDD: preauth-allowed
+  [4] Skipped Duo login for 'preauth-allow' from nowhere: preauth-allowed
+  [4] Skipped Duo login for 'preauth-allow' from %s: preauth-allowed
+  [4] Skipped Duo login for 'preauth-allow' from !@#$%^&*()_+<>{}|;': preauth-allowed
 
   $ env FALLBACK=1 ./testpam.py -d -c confs/mockduo_fallback.conf -f preauth-allow -h BADHOST true
-  [4] Skipped Duo login for 'preauth-allow' from 1.2.3.4: you rock
+  [4] Skipped Duo login for 'preauth-allow' from 1.2.3.4: preauth-allowed
 
 
 
@@ -77,10 +81,10 @@ Test using configured http_proxy variable
   $ unset http_proxy
 
   $ ./testpam.py -d -c confs/mockduo.conf -f preauth-allow true
-  [4] Skipped Duo login for 'preauth-allow': you rock
+  [4] Skipped Duo login for 'preauth-allow': preauth-allowed
   $ export http_proxy=0.0.0.0
   $ ./testpam.py -d -c confs/mockduo.conf -f preauth-allow true
-  [4] Skipped Duo login for 'preauth-allow': you rock
+  [4] Skipped Duo login for 'preauth-allow': preauth-allowed
   $ ./testpam.py -d -c confs/mockduo_proxy.conf -f preauth-allow true
   [4] Failsafe Duo login for 'preauth-allow': Couldn't connect to localhost:4443: Failed to connect
   
