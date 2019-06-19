@@ -168,18 +168,18 @@ time_t bson_oid_generated_time(bson_oid_t* oid){
     return out;
 }
 
-void bson_print( bson * b ){
-    bson_print_raw( b->data , 0 );
+void bson_print( bson * b, const size_t maxBufferSize ){
+    bson_print_raw( b->data , 0, maxBufferSize);
 }
 
-void bson_print_raw( const char * data , int depth ){
+void bson_print_raw( const char * data , int depth , const size_t maxBufferSize ){
     bson_iterator i;
     const char * key;
     int temp;
     char oidhex[25];
-    bson_iterator_init( &i , data );
 
-    while ( bson_iterator_next( &i ) ){
+    bson_iterator_init( &i , data , maxBufferSize , bson_fatal_msg );
+    while ( bson_iterator_next( &i , bson_fatal_msg) ){
         bson_type t = bson_iterator_type( &i );
         if ( t == 0 )
             break;
@@ -198,7 +198,7 @@ void bson_print_raw( const char * data , int depth ){
         case bson_object:
         case bson_array:
             printf( "\n" );
-            bson_print_raw( bson_iterator_value( &i ) , depth + 1 );
+            bson_print_raw( bson_iterator_value( &i ) , depth + 1, maxBufferSize );
             break;
         default:
             fprintf( stderr , "can't print type : %d\n" , t );
@@ -211,16 +211,25 @@ void bson_print_raw( const char * data , int depth ){
    ITERATOR
    ------------------------------ */
 
-void bson_iterator_init( bson_iterator * i , const char * bson ){
+void bson_iterator_init( bson_iterator * i , const char * bson , const int bson_size , void (*fatal_error_func)(int, const char*) ){
+    if(bson_size <= 4) {
+        char msg[] = "Invalid BSON response";
+        fatal_error_func(0, msg);
+        return;
+    }
+
     i->cur = bson + 4;
     i->first = 1;
+    i->curSize = 4;
+    i->maxBufferSize = bson_size;
 }
 
-bson_type bson_find(bson_iterator* it, const bson* obj, const char* name){
-    bson_iterator_init(it, obj->data);
-    while(bson_iterator_next(it)){
-        if (strcmp(name, bson_iterator_key(it)) == 0)
+bson_type bson_find(bson_iterator* it, const bson* obj, const char* name, const size_t maxBufferSize){
+    bson_iterator_init(it, obj->data, maxBufferSize, bson_fatal_msg);
+    while(bson_iterator_next(it, bson_fatal_msg)){
+        if (strncmp(name, bson_iterator_key(it), (maxBufferSize - it->curSize)) == 0) {
             break;
+        }
     }
     return bson_iterator_type(it);
 }
@@ -229,7 +238,7 @@ bson_bool_t bson_iterator_more( const bson_iterator * i ){
     return *(i->cur);
 }
 
-bson_type bson_iterator_next( bson_iterator * i ){
+bson_type bson_iterator_next( bson_iterator * i , void (*fatal_error_func)(int, const char*)){
     int ds;
 
     if ( i->first ){
@@ -270,13 +279,19 @@ bson_type bson_iterator_next( bson_iterator * i ){
         {
             char msg[] = "unknown type: 000000000000";
             bson_numstr(msg+14, (unsigned)(i->cur[0]));
-            bson_fatal_msg(0, msg);
+            fatal_error_func(0, msg);
             return 0;
         }
     }
-    
-    i->cur += 1 + strlen( i->cur + 1 ) + 1 + ds;
-
+    /* lenOfValue = BSON_type + key length (up to the maxBufferSize) + key terminating null byte + value size and metadata */
+    size_t lenOfValue = 1 + strnlen( i->cur + 1, (i->maxBufferSize - i->curSize - 1)) + 1 + ds;
+    if((lenOfValue + i->curSize) >= i->maxBufferSize) {
+        char msg[] = "Invalid BSON response";
+        fatal_error_func(0, msg);
+        return 0;
+    }
+    i->curSize += lenOfValue;
+    i->cur += lenOfValue;
     return (bson_type)(*i->cur);
 }
 
@@ -412,8 +427,8 @@ const char * bson_iterator_regex_opts( const bson_iterator * i ){
 void bson_iterator_subobject(const bson_iterator * i, bson * sub){
     bson_init(sub, (char*)bson_iterator_value(i), 0);
 }
-void bson_iterator_subiterator(const bson_iterator * i, bson_iterator * sub){
-    bson_iterator_init(sub, bson_iterator_value(i));
+void bson_iterator_subiterator(const bson_iterator * i, bson_iterator * sub, const int maxBufferSize){
+    bson_iterator_init(sub, bson_iterator_value(i), maxBufferSize, bson_fatal_msg);
 }
 
 /* ----------------------------
@@ -593,7 +608,7 @@ bson_buffer * bson_append_element( bson_buffer * b, const char * name_or_null, c
     bson_iterator next = *elem;
     int size;
 
-    bson_iterator_next(&next);
+    bson_iterator_next(&next, bson_fatal_msg);
     size = next.cur - elem->cur;
 
     if (name_or_null == NULL){
