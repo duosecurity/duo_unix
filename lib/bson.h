@@ -63,6 +63,8 @@ typedef struct {
 typedef struct {
     const char * cur;
     bson_bool_t first;
+    int curSize;
+    int maxBufferSize;
 } bson_iterator;
 
 typedef struct {
@@ -95,18 +97,18 @@ bson * bson_init( bson * b , char * data , bson_bool_t mine );
 int bson_size(const bson * b );
 void bson_destroy( bson * b );
 
-void bson_print( bson * b );
-void bson_print_raw( const char * bson , int depth );
+void bson_print( bson * b, const size_t maxBufferSize );
+void bson_print_raw( const char * bson , int depth, const size_t maxBufferSize );
 
 /* advances iterator to named field */
 /* returns bson_eoo (which is false) if field not found */
-bson_type bson_find(bson_iterator* it, const bson* obj, const char* name);
+bson_type bson_find(bson_iterator* it, const bson* obj, const char* name, const size_t maxBufferSize);
 
-void bson_iterator_init( bson_iterator * i , const char * bson );
+void bson_iterator_init( bson_iterator * i , const char * bson , const int bson_size , void (*fatal_func)(int, const char*));
 
 /* more returns true for eoo. best to loop with bson_iterator_next(&it) */
 bson_bool_t bson_iterator_more( const bson_iterator * i );
-bson_type bson_iterator_next( bson_iterator * i );
+bson_type bson_iterator_next( bson_iterator * i , void (*fatal_func)(int, const char*));
 
 bson_type bson_iterator_type( const bson_iterator * i );
 const char * bson_iterator_key( const bson_iterator * i );
@@ -152,7 +154,7 @@ const char * bson_iterator_regex_opts( const bson_iterator * i );
 
 /* these work with bson_object and bson_array */
 void bson_iterator_subobject(const bson_iterator * i, bson * sub);
-void bson_iterator_subiterator(const bson_iterator * i, bson_iterator * sub);
+void bson_iterator_subiterator(const bson_iterator * i, bson_iterator * sub, const int maxBufferSize);
 
 /* str must be at least 24 hex chars + null byte */
 void bson_oid_from_string(bson_oid_t* oid, const char* str);

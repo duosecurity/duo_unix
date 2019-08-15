@@ -283,7 +283,7 @@ int _duo_add_failmode_param(struct duo_ctx *ctx, const int failmode)
 }
 
 #define _BSON_FIND(ctx, it, obj, name, type) do {           \
-    if (bson_find(it, obj, name) != type) {             \
+    if (bson_find(it, obj, name, ctx->body_len) != type) {             \
         _duo_seterr(ctx, "BSON missing valid '%s'", name);  \
         return (DUO_SERVER_ERROR);              \
     }                               \
@@ -301,7 +301,6 @@ _duo_bson_response(struct duo_ctx *ctx, bson *resp)
     bson_init(&obj, (char *)ctx->body, 0);
 
     ret = DUO_SERVER_ERROR;
-
     if (ctx->body_len <= 0 || bson_size(&obj) > ctx->body_len) {
         _duo_seterr(ctx, "invalid BSON response");
         return (ret);
@@ -461,7 +460,7 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
         _BSON_FIND(ctx, &it, obj, "factors", bson_object);
         bson_iterator_subobject(&it, obj);
 
-        if (bson_find(&it, obj, "default") != bson_string) {
+        if (bson_find(&it, obj, "default", ctx->body_len) != bson_string) {
             _duo_seterr(ctx, "No default factor found for automatic login");
             return (DUO_ABORT);
         }
@@ -493,7 +492,7 @@ _duo_prompt(struct duo_ctx *ctx, bson *obj, int flags, char *buf,
         _BSON_FIND(ctx, &it, obj, "factors", bson_object);
         bson_iterator_subobject(&it, obj);
 
-        if (bson_find(&it, obj, buf) == bson_string) {
+        if (bson_find(&it, obj, buf, ctx->body_len) == bson_string) {
             *p = bson_iterator_string(&it);
         } else {
             *p = buf;
@@ -609,13 +608,13 @@ duo_login(struct duo_ctx *ctx, const char *username,
             (ret = _duo_bson_response(ctx, &obj)) != DUO_OK) {
             break;
         }
-        if (bson_find(&it, &obj, "status") == bson_string) {
+        if (bson_find(&it, &obj, "status", ctx->body_len) == bson_string) {
             if (ctx->conv_status != NULL) {
                 ctx->conv_status(ctx->conv_arg,
                     bson_iterator_string(&it));
             }
         }
-        if (bson_find(&it, &obj, "result") == bson_string) {
+        if (bson_find(&it, &obj, "result", ctx->body_len) == bson_string) {
             p = bson_iterator_string(&it);
 
             if (strcasecmp(p, "allow") == 0) {

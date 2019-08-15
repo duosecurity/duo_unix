@@ -3,7 +3,7 @@ TESTS_ENVIRONMENT = env BUILDDIR=$(abs_top_builddir)/unityrunner
 
 SUBDIRS = $(UNITY_VERSION)
 
-UNITY_TESTS = unityrunner add_param_test common_ini_wrong_flag_test common_ini_failmode_test common_ini_prompts_test common_ini_https_timeout common_ini_string_options common_ini_bool_options_test add_groupname_test gecos_ini_test
+UNITY_TESTS = unityrunner add_param_test common_ini_wrong_flag_test common_ini_failmode_test common_ini_prompts_test common_ini_https_timeout common_ini_string_options common_ini_bool_options_test add_groupname_test gecos_ini_test bson_iter_init_test bson_iter_next_test
 
 # Create the unity runner executable
 check_PROGRAMS = $(UNITY_TESTS)
