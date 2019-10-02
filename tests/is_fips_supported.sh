@@ -5,7 +5,7 @@
 # We also echo the return code before exiting since there's no good way to capture it
 # without some actual output in cram :(
 
-FIPS_VALIDATED_DISTROS=("centos7" "rhel7" "centos6" "rhel6")
+FIPS_VALIDATED_DISTROS=("centos8" "rhel8" "centos7" "rhel7" "centos6" "rhel6")
 
 # We can't use uname since that won't work with Docker images.
 # See https://stackoverflow.com/questions/31012297/uname-a-returning-the-same-in-docker-host-or-any-docker-container for more details.
