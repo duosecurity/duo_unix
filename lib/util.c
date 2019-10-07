@@ -13,10 +13,12 @@
 #include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <time.h>
 
 #include "util.h"
 #include "groupaccess.h"
@@ -34,6 +36,8 @@ duo_config_default(struct duo_config *cfg)
     cfg->fips_mode = 0;
     cfg->gecos_username_pos = -1;
     cfg->gecos_delim = ',';
+    cfg->remember_me_duration=0;
+    cfg->remember_me_protected=0;
 }
 
 int
@@ -154,6 +158,27 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
     } else if (strcmp(name, "dev_fips_mode") == 0) {
         /* This flag is for development */
         cfg->fips_mode = duo_set_boolean_option(val);
+    } else if (strcmp(name, "remember_me") == 0) {
+        if (val != NULL) {
+	    char *endptr=NULL;
+	    long int lval = strtol(val,&endptr,10);
+	    if (endptr != NULL) {
+	        switch (toupper(*endptr)) {
+		case (int)'D':
+		    lval = lval*24*60*60;
+		    break;
+		case (int)'H':
+		    lval = lval*60*60;
+		    break;
+		case (int)'M':
+		    lval = lval*60;
+		    break;
+		}
+		cfg->remember_me_duration = lval;
+	    }
+	}
+    } else if (strcmp(name, "remember_me_protected") == 0) {
+        cfg->remember_me_protected = duo_set_boolean_option(val);
     } else {
         /* Couldn't handle the option, maybe it's target specific? */
         return (0);
@@ -215,6 +240,101 @@ duo_check_groups(struct passwd *pw, char **groups, int groups_cnt)
     } else {
         return 1;
     }
+}
+
+static char *duo_remember_file(struct passwd *pw, const char *fn) {
+    char *filename = malloc(strlen(pw->pw_dir)+strlen(fn)+2);
+    sprintf(filename,"%s/%s",pw->pw_dir,fn);
+    return filename;
+}
+
+static FILE *
+duo_open_remember_file(struct passwd *pw, const char *fn, char *mode) {
+    char *filename = duo_remember_file(pw, fn);
+    FILE *rmfile = fopen(filename,mode);
+    if (strcmp(mode,"a+")==0) {
+        chmod(filename, S_IRUSR);
+    }
+    free(filename);
+    return rmfile;
+}
+ 
+int
+duo_is_remembered(struct passwd *pw, const char *fn, struct duo_config *cfg, const char *host) {
+    FILE *rmfile = duo_open_remember_file(pw,fn,"r");
+    time_t now = time(NULL);
+    int addr[4]={0};
+    int is_remembered = 0;
+    inet_pton(AF_INET, host, addr);
+    if (rmfile != NULL && cfg->remember_me_duration > 0) {
+        struct remembered remem;
+      while ((fread(&remem,sizeof(remem),1,rmfile) > 0) && (is_remembered == 0)) {
+            is_remembered = (( memcmp(remem.addr,addr,sizeof(addr)) == 0 ) &&
+			     ( difftime(now, remem.time) < (double)cfg->remember_me_duration ));
+      }
+    }
+    if (rmfile != NULL) {
+        fclose(rmfile);
+    }
+    return is_remembered;
+}
+
+void
+duo_remember(struct passwd *pw, const char *fn, struct duo_config *cfg, const char *host) {
+    if ( cfg->remember_me_duration > 0 ) {
+        time_t now = time(NULL);
+        FILE *rmfile = duo_open_remember_file(pw,fn,"a+");
+        struct remembered remem,newrem={{0},0};
+        int skip_count=0;
+        fseek(rmfile,0,SEEK_SET);
+        while((fread(&remem,sizeof(remem),1,rmfile) > 0) &&
+	      (difftime(now,remem.time) < (double)cfg->remember_me_duration)) {
+	    skip_count++;
+	}
+        fseek(rmfile,skip_count*sizeof(remem),SEEK_SET);
+        inet_pton(AF_INET, host, newrem.addr);
+        newrem.time=now;
+        fwrite(&newrem,sizeof(newrem),1,rmfile);
+        fclose(rmfile);
+	if (! cfg->remember_me_protected) {
+	    char *filename = duo_remember_file(pw, fn);
+	    int status = chown(filename, pw->pw_uid, pw->pw_gid);
+	    if (status) {
+	        duo_log(LOG_ERR, "Error changing remember me file ownership to user", NULL, NULL, NULL);
+	    }
+	    free(filename);
+	}
+    }
+}
+
+char *
+duo_remember_me_prompt(struct duo_config *cfg, const char *host) {
+    int days,hours,minutes,seconds;
+    int sec_per_day=24*60*60;
+    int sec_per_hour=60*60;
+    int sec_per_minute=60;
+    char *ans=malloc(256);
+    sprintf(ans,"Remember connection authentication from %s for ",host);
+    days=cfg->remember_me_duration/sec_per_day;
+    seconds=cfg->remember_me_duration - (days * sec_per_day);
+    hours=seconds/sec_per_hour;
+    seconds=cfg->remember_me_duration - (hours * sec_per_day);
+    minutes=seconds/sec_per_minute;
+    seconds=seconds - (minutes * sec_per_minute);
+    if (days > 0) {
+        sprintf(ans+strlen(ans),"%d days",days);
+    }
+    if (hours > 0) {
+        sprintf(ans+strlen(ans),"%s%d hours",days>0?" and ":"",hours);
+    }
+    if (minutes > 0) {
+        sprintf(ans+strlen(ans),"%s%d minutes",(days>0 || hours>0)?" and ":"",minutes);
+    }
+    if (seconds > 0) {
+        sprintf(ans+strlen(ans),"%s%d seconds",(days>0 || hours>0 || minutes>0)?" and ":"",seconds);
+    }
+    strcat(ans,"? [y/N] ");
+    return ans;
 }
 
 void

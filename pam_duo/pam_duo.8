@@ -66,6 +66,11 @@ IP. Default is "no".
 .It Cm send_gecos
 Instead of using the unix username, send Duo the contents of the GECOS field
 from /etc/passwd.  Default is "no".
+.It Cm remember_me
+Specifies a time period to remember authorizations from connections. The time period is specified with a number followed by one of the following letters:
+D,d,H,h,M,m,S,s where d or D is for days, h or H is for hours, m or M is for minutes and s or S is for seconds. Default is 0S which disables remember me. When remember me is enabled authorized connections will be saved in a ~/.pam_duo_remember file. Subsequent connections will be checked for a matching host in the remember file and if a match is found and if the time since last authentication has not exceeded the remember_me time duo authentication will be skipped.
+.It Cm remember_me_protected
+If set to yes the remember me file, ~/.pam_duo_remember, will be owned by root otherwise it is owned by the user.
 .El
 .Pp
 An example configuration file:
@@ -76,6 +81,8 @@ ikey = SI9F...53RI
 skey = 4MjR...Q2NmRiM2Q1Y
 pushinfo = yes
 autopush = yes
+remember_me = 1D
+remember_me_protected = no
 .Ed
 .Pp
 Other authentication restrictions may be implemented using 
