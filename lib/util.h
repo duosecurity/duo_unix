@@ -14,6 +14,7 @@
 #include <pwd.h>
 #include <syslog.h>
 #include <stdarg.h>
+#include <time.h>
 
 extern int duo_debug;
 
