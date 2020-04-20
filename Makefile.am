@@ -1,7 +1,7 @@
 
 ACLOCAL_AMFLAGS = -I autotools
 
-SUBDIRS = compat lib login_duo
+SUBDIRS = compat lib login_duo duo_unix_support
 
 if PAM
 SUBDIRS += pam_duo

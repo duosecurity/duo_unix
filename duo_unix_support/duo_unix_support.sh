@@ -2,12 +2,14 @@
 
 # Users can have login_duo installed in different locations by defining a --prefix flag at compile time
 PREFIX="/usr"
+README_INSTALL="/usr/local"
 options=$(getopt -o h -l prefix: -- "$@")
 while true; do
     case "$1" in
     --prefix)
         shift;
         PREFIX="$1"
+        README_INSTALL="$1"
         ;;
     -h)
         echo "Usage:"
@@ -23,7 +25,7 @@ while true; do
     shift
 done
 
-echo -e "The Duo Unix support script gathers and aggregates information about your Duo Unix installation and the server it is installed on for easy sending to Duo Security support. This script is intended to be used with Debian, Ubuntu, RHEL, and CentOS systems. While use of this script is not required for support cases with Duo, it is highly recommended as it will expedite the support and debugging process. Namely, this script collects:\n\n\t* Logfiles in /var/log, such as auth and secure\n\t* PAM configurations in /etc/pam.d, such as common-auth or sshd\n\t* SSHD configurations in /etc/ssh\n\t* Information about the server distribution and relevant libraries such as SELinux or OpenSSL\n\t* Configurations for pam_duo and login_duo scrubbed of sensitive skeys\n\nThese files are typically asked for during support cases with Duo. We advise that you review any of these files prior to running this script should you wish to expunge any other information you deem sensitive from these files. For a full list of the information collected by this script, see /usr/share/doc/duo_unix/duo_unix_support/README.md."
+echo -e "The Duo Unix support script gathers and aggregates information about your Duo Unix installation and the server it is installed on for easy sending to Duo Security support. This script is intended to be used with Debian, Ubuntu, RHEL, and CentOS systems. While use of this script is not required for support cases with Duo, it is highly recommended as it will expedite the support and debugging process. Namely, this script collects:\n\n\t* Logfiles in /var/log, such as auth and secure\n\t* PAM configurations in /etc/pam.d, such as common-auth or sshd\n\t* SSHD configurations in /etc/ssh\n\t* Information about the server distribution and relevant libraries such as SELinux or OpenSSL\n\t* Configurations for pam_duo and login_duo scrubbed of sensitive skeys\n\nThese files are typically asked for during support cases with Duo. We advise that you review any of these files prior to running this script should you wish to expunge any other information you deem sensitive from these files. For a full list of the information collected by this script, see ${README_INSTALL}/share/doc/duo_unix/duo_unix_support/README.md."
 
 read -rp "Do you wish to run this program? [N/y] " user_input
 
