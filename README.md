@@ -1,6 +1,10 @@
 Duo Unix
 ===
 [![Build Status](https://travis-ci.org/duosecurity/duo_unix.svg?branch=master)](https://travis-ci.org/duosecurity/duo_unix)
+[![Issues](https://img.shields.io/github/issues/duosecurity/duo_unix)](https://github.com/duosecurity/duo_unix/issues)
+[![Forks](https://img.shields.io/github/forks/duosecurity/duo_unix)](https://github.com/duosecurity/duo_unix/network/members)
+[![Stars](https://img.shields.io/github/stars/duosecurity/duo_unix)](https://github.com/duosecurity/duo_unix/stargazers)
+[![License](https://img.shields.io/badge/License-View%20License-orange)](https://github.com/duosecurity/duo_unix/blob/master/LICENSE)
 
 Duo two-factor authentication for Unix systems.
 
