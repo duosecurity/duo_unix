@@ -1,3 +1,7 @@
+duo_unix-1.11.4:
+- Added support for Ubuntu 20.04
+- Added support tool to collect information (e.g. logs and PAM stacks) for debugging purposes
+
 duo_unix-1.11.3:
 - Added support for RedHat 8, CentOS 8, and Debian 10
 - Improved validation of BSON messages
