@@ -19,3 +19,8 @@ int	getgrouplist(const char *name, gid_t basegid, gid_t *groups, int *ngroups);
 size_t	strlcpy(char *dst, const char *src, size_t size);
 #endif
 
+#ifndef HAVE_STRNLEN
+#include <sys/types.h>
+
+size_t strnlen(const char *str, size_t maxlen);
+#endif
