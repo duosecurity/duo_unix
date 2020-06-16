@@ -133,6 +133,14 @@ $ ../login_duo/login_duo -d -c confs/mockduo.conf -f my_username echo "Success"
 ```
 This mock server can be a bit brittle so you may have to restart it if you start seeing very weird behavior.
 
+## Static analysis
+
+Install [cppcheck](http://cppcheck.sourceforge.net/)
+
+```
+$ cppcheck --quiet --force -i tests --suppressions-list=.false_positive.txt --error-exitcode=1 .
+```
+
 ## Deployment
 
 For production deployments Duo recommends using our stable release tarballs or packages. Instructions can be found on our documentation page [Duo Unix Docs](https://duo.com/docs/duounix)

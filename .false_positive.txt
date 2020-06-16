@@ -1,0 +1,10 @@
+*:compat/asprintf.c:48
+*:compat/asprintf.c:52
+*:compat/asprintf.c:61
+*:compat/asprintf.c:62
+*:compat/asprintf.c:64
+*:compat/asprintf.c:65
+*:compat/asprintf.c:66
+*:compat/asprintf.c:75
+*:lib/https.c:492
+*:lib/https.c:503

@@ -75,8 +75,11 @@ ga_init(const char *user, gid_t base)
 		free(groups_byname);
 		return (-1);
 	}
-	if (getgrouplist(user, base, groups_bygid, &ngroups) == -1)
+	if (getgrouplist(user, base, groups_bygid, &ngroups) == -1) {
+        free(groups_bygid);
+        free(groups_byname);
 		return (-1);
+    }
 	for (i = 0, j = 0; i < ngroups; i++)
 		if ((gr = getgrgid(groups_bygid[i])) != NULL)
 			groups_byname[j++] = strdup(gr->gr_name);
