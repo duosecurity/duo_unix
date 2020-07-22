@@ -41,7 +41,7 @@ $ sudo yum install autoconf libtool pam-devel openssl-devel
 
 - RHEL 7 and CentOS 7 systems with SELinux enabled
 ```
-$ sudo yum install selinux-policy-devel
+$ sudo yum install selinux-policy-devel bzip2
 ```
 
 Clone the Duo Unix project down and enter the directory
