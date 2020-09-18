@@ -397,10 +397,7 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
                     ctx->argc, ctx->argv, ctx->ikey, ctx->skey, ctx->useragent)) == HTTPS_OK &&
             (err = https_recv(ctx->https, &code,
                 &ctx->body, &ctx->body_len, msecs)) == HTTPS_OK) {
-            if (code == 429) {
-                /* Retry rate limited requests */
-                continue;
-            } else {
+            if (code != 429) {  /* retry rate limited requests */
                 break;
             }
         }
