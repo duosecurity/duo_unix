@@ -22,11 +22,14 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <openssl/bio.h>
+#include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/rand.h>
 #include <openssl/sha.h>
 #include <openssl/ssl.h>
 
@@ -324,6 +327,49 @@ _duo_bson_response(struct duo_ctx *ctx, bson *resp)
     return (ret);
 }
 
+static int
+_sleep_ms(long milliseconds)
+{
+    struct timespec tim;
+    tim.tv_sec = milliseconds / 1000;
+    tim.tv_nsec = (milliseconds % 1000) * 1000000;
+
+    if (nanosleep(&tim, &tim) != 0) {
+        /* keep resuming nanosleep until it's no longer interrupted by a signal */
+        while (errno == EINTR) {
+            if (nanosleep(&tim, &tim) == 0) {
+                break;
+            }
+        }
+        return -1;
+    }
+
+    return 0;
+}
+
+static int
+_rate_limited_sleep(int retry_number)
+{
+    int wait_secs, random_wait_offset;
+    unsigned char rand_bytes[2];
+
+    wait_secs = 1 << retry_number;
+
+    /* Fuzz the wait time by a random amount of time between 0 and 1023 milliseconds
+     * to mitigate concurrently hitting the API from multiple Duo Unixes again in case
+     * the limit was a concurrency limit.
+     */
+    if (RAND_bytes(rand_bytes, sizeof(rand_bytes)) != 1) {
+        /* Intentionally ignore errors from RAND_bytes. It's not terrible if we
+         * don't get the random fuzzing */
+        memset(rand_bytes, 0, sizeof(rand_bytes));
+        ERR_get_error();
+    };
+    random_wait_offset = ((rand_bytes[0] & 0b11) << 8) | rand_bytes[1];
+
+    return _sleep_ms(wait_secs * 1000 + random_wait_offset);
+}
+
 static duo_code_t
 duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
 {
@@ -334,10 +380,15 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
     ctx->body_len = 0;
 
     for (i = 0; i < 3; i++) {
+        if (code == 429) {
+            _rate_limited_sleep(i);
+        }
+
         if (ctx->https == NULL &&
             (err = https_open(&ctx->https, ctx->host, ctx->useragent)) != HTTPS_OK) {
             if (err == HTTPS_ERR_SERVER) {
                 sleep(1 << i);
+                code = 0;
                 continue;
             }
             break;
@@ -346,7 +397,12 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
                     ctx->argc, ctx->argv, ctx->ikey, ctx->skey, ctx->useragent)) == HTTPS_OK &&
             (err = https_recv(ctx->https, &code,
                 &ctx->body, &ctx->body_len, msecs)) == HTTPS_OK) {
-            break;
+            if (code == 429) {
+                /* Retry rate limited requests */
+                continue;
+            } else {
+                break;
+            }
         }
         https_close(&ctx->https);
     }

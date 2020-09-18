@@ -10,10 +10,19 @@ Failsafe preauth fail
   [3] Error in Duo login for 'auth_timeout': HTTP 500
   [1]
 
-
 Failsecure preauth fail
   $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo_failsecure.conf -f auth_timeout true
   [3] Error in Duo login for 'auth_timeout': HTTP 500
+  [1]
+
+Failsafe preauth rate limited
+  $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f preauth_rate_limited true
+  [4] Aborted Duo login for 'preauth_rate_limited': HTTP 429
+  [1]
+
+Failsecure preauth rate limited
+  $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo_failsecure.conf -f preauth_rate_limited true
+  [4] Aborted Duo login for 'preauth_rate_limited': HTTP 429
   [1]
 
 Failmode safe check
