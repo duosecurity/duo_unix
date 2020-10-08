@@ -69,7 +69,7 @@
 # define DUO_PRIVSEP_USER      "duo"
 #endif
 #define DUO_CONF               DUO_CONF_DIR "/pam_duo.conf"
-
+#define DUO_REMEMBER_FN ".pam_duo_remember"
 static int
 __ini_handler(void *u, const char *section, const char *name, const char *val)
 {
@@ -249,6 +249,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         }
     }
 
+    if ((host != NULL) && duo_is_remembered(pw, DUO_REMEMBER_FN, &cfg, host)) {
+      close_config(&cfg);
+      return PAM_SUCCESS;
+    }
     /* Try Duo auth */
     if ((duo = duo_open(cfg.apihost, cfg.ikey, cfg.skey,
                     "pam_duo/" PACKAGE_VERSION,
@@ -309,6 +313,18 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     if (i == MAX_PROMPTS) {
         pam_err = PAM_MAXTRIES;
     }
+    if (pam_err == PAM_SUCCESS && host != NULL && cfg.remember_me_duration > 0) {
+        char *response=NULL;
+        char *prompt = duo_remember_me_prompt(&cfg,host);
+        pam_prompt(pamh, PAM_PROMPT_ECHO_ON, &response, prompt);
+        free(prompt);
+        if (response != NULL && (response[0] == 'y' || response[0] == 'Y'))
+	    duo_remember(pw, DUO_REMEMBER_FN, &cfg, host);
+        if (response != NULL) {
+	  free(response);
+        }
+    }
+
     duo_close(duo);
     close_config(&cfg);
 
