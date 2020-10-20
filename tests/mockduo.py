@@ -195,7 +195,9 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         elif self.path == '/rest/v1/auth.bson':
             if self.args['factor'] == 'auto':
                 txid = 'tx' + self.args['auto'].upper()
-                if self.args['async'] == '1':
+                if self.args['user'] == 'pam_prompt':
+                    ret['response'] = { 'txid': 'wrongFactor1' }
+                elif self.args['async'] == '1':
                     ret['response'] = { 'txid': txid }
                 else:
                     ret['response'] = self._get_tx_response(txid, 0)
