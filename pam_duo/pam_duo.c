@@ -306,9 +306,11 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         }
         break;
     }
-    if (i == MAX_PROMPTS) {
+
+    if (i == cfg.prompts) {
         pam_err = PAM_MAXTRIES;
     }
+
     duo_close(duo);
     close_config(&cfg);
 

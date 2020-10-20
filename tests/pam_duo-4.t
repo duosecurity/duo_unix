@@ -96,3 +96,20 @@ Test getting hostname
   correct hostname
   [1]
 
+Test max prompts equals one
+  $ ./testpam.py -d -c confs/mockduo_prompts_1.conf -f pam_prompt true
+  [4] Failed Duo login for 'pam_prompt'
+  Autopushing login request to phone...
+  Invalid passcode, please try again.
+
+Test max prompts equals PAM_MAXPROMPTS
+  $ ./testpam.py -d -c confs/mockduo_prompts_default.conf -f pam_prompt true
+  [4] Failed Duo login for 'pam_prompt'
+  [4] Failed Duo login for 'pam_prompt'
+  [4] Failed Duo login for 'pam_prompt'
+  Autopushing login request to phone...
+  Invalid passcode, please try again.
+  Autopushing login request to phone...
+  Invalid passcode, please try again.
+  Autopushing login request to phone...
+  Invalid passcode, please try again.
