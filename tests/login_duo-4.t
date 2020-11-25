@@ -103,3 +103,6 @@ Test getting hostname
   [4] Aborted Duo login for 'hostname': correct hostname
   [1]
  
+Test extra whitespace before comment in conf file
+  $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo_extra_space.conf -f preauth-allow true
+  [4] Skipped Duo login for 'preauth-allow': preauth-allowed
