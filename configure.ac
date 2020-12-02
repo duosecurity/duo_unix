@@ -46,7 +46,7 @@ AC_DEFINE_DIR([UNITY_VERSION], [unity_version], [Unity directory name])
 
 # Compiler options
 if test "x$GCC" = "xyes"; then
-   CFLAGS="$CFLAGS -Wall -D_FORTIFY_SOURCE=2"
+   CFLAGS="$CFLAGS -Wall -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -fPIE"
    AC_MSG_NOTICE([Adding gcc options: $CFLAGS])
 fi
 GGL_CHECK_STACK_PROTECTOR([has_stack_protector=yes], [has_stack_protector=no])
