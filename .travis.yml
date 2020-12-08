@@ -28,6 +28,7 @@ before_install:
 script:
     - ./bootstrap
     - ./configure --with-pam --prefix=/usr $OS_SPECIFIC_ARGS
+    - cat config.log
     - make
     - make check
     - cppcheck --quiet --force -i tests --suppressions-list=.false_positive.txt --error-exitcode=1 .
