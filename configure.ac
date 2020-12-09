@@ -46,13 +46,16 @@ AC_DEFINE_DIR([UNITY_VERSION], [unity_version], [Unity directory name])
 
 # Compiler options
 if test "x$GCC" = "xyes"; then
-   CFLAGS="$CFLAGS -Wall -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now,--no-as-needed,-ldl -fPIE"
+   CFLAGS="$CFLAGS -Wall -D_FORTIFY_SOURCE=2 -fPIE"
    AC_MSG_NOTICE([Adding gcc options: $CFLAGS])
 fi
 GGL_CHECK_STACK_PROTECTOR([has_stack_protector=yes], [has_stack_protector=no])
 IS_AIX=no
 # XXX - disable -fstack-protector due to missing libssp_nonshared
 case "$host_os" in
+    linux* | gnu* | k*bsd*-gnu)
+        CFLAGS="$CFLAGS -Wl,-z,relro,-z,now,--no-as-needed,-ldl"
+        ;;
     *aix*)
         AC_MSG_NOTICE([-fstack-protector disabled on AIX])
         has_stack_protector=no
