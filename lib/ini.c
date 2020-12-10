@@ -81,10 +81,15 @@ int ini_parse(FILE *file,
         if (*prev_name && *start && start > line) {
             /* Non-black line with leading whitespace, treat as continuation
                of previous name's value (as per Python ConfigParser). */
-	    if (!handler(user, section, prev_name, start) && !error) {
+            value = lskip(start);
+            /* Skip line if this line is a comment with whitespace infront */
+            if (*value == ';') {
+                continue;
+            }
+            if (!handler(user, section, prev_name, start) && !error) {
                 error = lineno;
-		break;
-	    }
+                break;
+            }
         }
         else
 #endif
@@ -102,7 +107,7 @@ int ini_parse(FILE *file,
             else if (!error) {
                 /* No ']' found on section line */
                 error = lineno;
-		break;
+                break;
             }
         }
         else if (*start && *start != ';') {
@@ -121,13 +126,13 @@ int ini_parse(FILE *file,
                 strncpy0(prev_name, name, sizeof(prev_name));
                 if (!handler(user, section, name, value) && !error) {
                     error = lineno;
-		    break;
-		}
+                    break;
+                }
             }
             else if (!error) {
                 /* No '=' found on name=value line */
                 error = lineno;
-		break;
+                break;
             }
         }
     }

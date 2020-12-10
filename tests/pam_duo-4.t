@@ -113,3 +113,7 @@ Test max prompts equals PAM_MAXPROMPTS
   Invalid passcode, please try again.
   Autopushing login request to phone...
   Invalid passcode, please try again.
+
+Test extra whitespace before comment in conf fil
+  $ ./testpam.py -d -c confs/mockduo_extra_space.conf -f preauth-allow true
+  [4] Skipped Duo login for 'preauth-allow': preauth-allowed
