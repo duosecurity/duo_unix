@@ -24,6 +24,7 @@ before_install:
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y libpam-dev; fi
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y automake; fi
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y cppcheck; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y libssl-dev; fi
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export OS_SPECIFIC_ARGS=""; fi
 script:
     - ./bootstrap
