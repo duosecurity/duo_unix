@@ -11,12 +11,20 @@ Failsafe preauth fail
   Autopushing login request to phone...
   [1]
 
-
-
 Failsecure preauth fail
   $ ./testpam.py -d -c confs/mockduo_autopush_secure.conf -f auth_timeout true
   [3] Error in Duo login for 'auth_timeout': HTTP 500
   Autopushing login request to phone...
+  [1]
+
+Failsafe preauth rate-limited
+  $ ./testpam.py -d -c confs/mockduo_autopush.conf -f preauth_rate_limited true
+  [4] Aborted Duo login for 'preauth_rate_limited': HTTP 429
+  [1]
+
+Failsecure preauth rate-limited
+  $ ./testpam.py -d -c confs/mockduo_autopush_secure.conf -f preauth_rate_limited true
+  [4] Aborted Duo login for 'preauth_rate_limited': HTTP 429
   [1]
 
 Failmode safe
@@ -24,6 +32,7 @@ Failmode safe
   [4] Aborted Duo login for 'failopen': correct failmode
   correct failmode
   [1]
+
 Failmode secure
   $ ./testpam.py -d -c confs/mockduo_failsecure.conf -f failclosed true
   [4] Aborted Duo login for 'failclosed': correct failmode

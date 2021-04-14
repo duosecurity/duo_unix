@@ -176,6 +176,9 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 ret['response'] = { 'result': 'allow', 'status': 'full-gecos-field' }
             elif self.args['user'] == 'gecos/6':
                 ret['response'] = { 'result': 'allow', 'status': 'gecos/6' }
+            elif self.args['user'] == 'preauth_rate_limited':
+                ret = { 'stat': 'FAIL', 'code': 42901, 'message': 'Too Many Requests' }
+                return self._send(429, bson.dumps(ret))
             else:
                 ret['response'] = {
                     'result': 'auth',
