@@ -152,6 +152,7 @@ check_and_cp () {
 #Different Unix systesm utilize different files, it is alright if not all are gathered.
 COPY_FILES=(
            "/etc/pam.d/sshd"
+           "/etc/pam.d/sudo"
            "/etc/pam.d/common-auth"
            "/etc/pam.d/passwd"
            "/etc/pam.d/system-auth"
