@@ -16,6 +16,7 @@ Configs
 
 PAM Stacks
     /etc/pam.d/sshd
+    /etc/pam.d/sudo
     /etc/pam.d/passwd
     /etc/pam.d/common-auth
     /etc/pam.d/system-auth
