@@ -6,6 +6,9 @@ We welcome pull requests as well issues you may have.
 ## Opening Issues
 Before opening an issue on the Github project see if your issue falls into the following categories. If it does please direct your issue to those locations instead.
 
+##### I have a feature request
+Please send feature requests to [Duo Support](https://duo.com/support).  It will get tracked properly and our product team will be able to review it.
+
 ##### My issue is related to a security vulnerability in Duo Unix
 Thank you for reporting this! In order to keep our customers safe we ask that you do NOT open an issue on the public Github page but instead contact us directly using our [Security Response Guide](https://duo.com/labs/security-response).
 
