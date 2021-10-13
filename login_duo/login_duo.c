@@ -202,6 +202,10 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         return (EXIT_FAILURE);
     } else if (matched == 0) {
         duo_syslog(LOG_INFO, "User %s bypassed Duo 2FA due to user's UNIX group", duouser);
+        /* Print out /etc/motd file if user is bypassed due to their group */
+        if (cfg.motd && !headless) {
+            _print_motd();
+        }
         close_config(&cfg);
         return (EXIT_SUCCESS);
     }
