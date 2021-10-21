@@ -1,12 +1,12 @@
 name: Duo Unix CI
 
-on: workflow_dispatch
-#  push:
-#    branches:
-#      - master
-#  pull_request:
-#    branches:
-#      - master
+on: 
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   nix_ci:
