@@ -46,8 +46,10 @@ AC_DEFINE_DIR([UNITY_VERSION], [unity_version], [Unity directory name])
 
 # Compiler options
 if test "x$GCC" = "xyes"; then
-   CFLAGS="$CFLAGS -Wall -D_FORTIFY_SOURCE=2 -fPIE"
-   AC_MSG_NOTICE([Adding gcc options: $CFLAGS])
+   if test "x$with_coverage" != "xyes"; then
+      CFLAGS="$CFLAGS -Wall -D_FORTIFY_SOURCE=2 -fPIE"
+      AC_MSG_NOTICE([Adding gcc options: $CFLAGS])
+   fi
 fi
 GGL_CHECK_STACK_PROTECTOR([has_stack_protector=yes], [has_stack_protector=no])
 IS_AIX=no
@@ -108,6 +110,18 @@ case "$host" in
      *linux*)          PAM_DIR="/lib/security" ;;
      *)                PAM_DIR="/usr/lib/security" ;; # NetBSD, Solaris, AIX, HP-UX
 esac
+
+AC_ARG_WITH(coverage,
+  AS_HELP_STRING([--with-coverage=COV],[build for coverage testing]),
+  [],
+  [ with_coverage=no ]
+)
+AM_CONDITIONAL([COVERAGE], [ test "x$with_coverage" != "xno" ])
+AS_IF([test "x$with_coverage" != "xno"], [
+   CFLAGS="$CFLAGS -O0 --coverage"
+   LFLAGS="$LFLAGS -lgcov --coverage"
+   AC_MSG_NOTICE([--coverage enabled in CFLAGS])
+])
 
 # Check PAM
 AC_ARG_WITH(pam,

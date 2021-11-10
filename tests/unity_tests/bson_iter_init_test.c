@@ -34,7 +34,6 @@ static void test_bson_iter_init_four_size() {
     bson_iterator it;
     /* 4..1 */
     char msg[4] = "\x04\x00\x00\x01";
-    char *expected_error_msg = "Invalid BSON response";
     int msg_size = 4;
     reached_error_test = 0;
 
