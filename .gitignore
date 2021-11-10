@@ -1,3 +1,4 @@
+*.err
 *.la
 *.lo
 *.o
@@ -39,3 +40,5 @@ Makefile.in
 /autotools/test-driver
 /duo_unix-*
 test.conf
+__pycache__/
+Vagrantfile
