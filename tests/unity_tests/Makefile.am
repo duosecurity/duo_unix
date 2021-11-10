@@ -10,7 +10,7 @@ check_PROGRAMS = $(UNITY_TESTS)
 include_HEADERS = common_ini_test.h
 
 LDADD = $(top_builddir)/lib/libduo.la $(top_builddir)/compat/libcompat.la $(top_builddir)/tests/unity_tests/$(UNITY_VERSION)/libunity.la
-CFLAGS = -Werror -Wunused-function
+CFLAGS = @CFLAGS@ -Werror -Wunused-function
 
 if PAM
 UNITY_TESTS += pam_argv_parse_test

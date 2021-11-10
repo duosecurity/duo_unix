@@ -5,8 +5,8 @@ static void test_ikey() {
     struct duo_config cfg = {0};
     char *name = "ikey";
     char *value = "1234123412341234";
-    char *expected_value = "1234123412341234"; 
-    
+    char *expected_value = "1234123412341234";
+
     duo_common_ini_handler(&cfg, SECTION, name, value);
     TEST_ASSERT_EQUAL_STRING(expected_value, cfg.ikey);
 }
@@ -17,7 +17,7 @@ static void test_ikey_empty() {
     const char *expected_value = EMPTY_STR;
 
     duo_common_ini_handler(&cfg, SECTION, name, EMPTY_STR);
-    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.ikey); 
+    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.ikey);
 }
 
 static void test_ikey_null() {
@@ -26,7 +26,7 @@ static void test_ikey_null() {
     const char *expected_value = NULL_STR;
 
     duo_common_ini_handler(&cfg, SECTION, name, NULL_STR);
-    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.ikey); 
+    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.ikey);
 }
 
 /* Test adding skey to duo_config */
@@ -37,16 +37,16 @@ static void test_skey() {
     char *expected_value = "1234123412341234";
 
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.skey); 
+    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.skey);
 }
 
 static void test_skey_empty() {
     struct duo_config cfg = {0};
     char *name = "skey";
     const char *expected_value = EMPTY_STR;
-    
+
     duo_common_ini_handler(&cfg, SECTION, name, EMPTY_STR);
-    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.skey); 
+    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.skey);
 }
 
 static void test_skey_null() {
@@ -55,7 +55,7 @@ static void test_skey_null() {
     const char *expected_value = NULL_STR;
 
     duo_common_ini_handler(&cfg, SECTION, name, NULL_STR);
-    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.skey); 
+    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.skey);
 }
 
 /* Test adding apihost to duo_config */
@@ -66,16 +66,16 @@ static void test_host() {
     char *expected_value = "123412341234";
 
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.apihost); 
+    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.apihost);
 }
 
 static void test_host_empty() {
     struct duo_config cfg = {0};
     char *name = "host";
-    const char *expected_value = EMPTY_STR; 
-    
+    const char *expected_value = EMPTY_STR;
+
     duo_common_ini_handler(&cfg, SECTION, name, EMPTY_STR);
-    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.apihost); 
+    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.apihost);
 }
 
 static void test_host_null() {
@@ -84,7 +84,7 @@ static void test_host_null() {
     const char *expected_value = NULL_STR;
 
     duo_common_ini_handler(&cfg, SECTION, name, NULL_STR);
-    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.apihost); 
+    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.apihost);
 }
 
 /* Test adding cafile to duo_config */
@@ -95,16 +95,16 @@ static void test_cafile() {
     char *expected_value = "cafilevalue";
 
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.cafile); 
+    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.cafile);
 }
 
 static void test_cafile_empty() {
     struct duo_config cfg = {0};
     char *name = "cafile";
-    const char *expected_value = EMPTY_STR;    
+    const char *expected_value = EMPTY_STR;
 
     duo_common_ini_handler(&cfg, SECTION, name, EMPTY_STR);
-    TEST_ASSERT_EQUAL_STRING(EMPTY_STR, cfg.cafile); 
+    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.cafile);
 }
 
 static void test_cafile_null() {
@@ -124,7 +124,7 @@ static void test_http_proxy() {
     char *expected_value = "http://username:password@proxy.example.org:8080";
 
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.http_proxy); 
+    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.http_proxy);
 }
 
 static void test_http_proxy_empty() {
@@ -133,7 +133,7 @@ static void test_http_proxy_empty() {
     const char *expected_value = EMPTY_STR;
 
     duo_common_ini_handler(&cfg, SECTION, name, EMPTY_STR);
-    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.http_proxy); 
+    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.http_proxy);
 }
 
 static void test_http_proxy_null() {
@@ -142,7 +142,7 @@ static void test_http_proxy_null() {
     const char *expected_value = NULL_STR;
 
     duo_common_ini_handler(&cfg, SECTION, name, NULL_STR);
-    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.http_proxy); 
+    TEST_ASSERT_EQUAL_STRING(expected_value, cfg.http_proxy);
 }
 
 int main() {
@@ -162,6 +162,6 @@ int main() {
     RUN_TEST(test_http_proxy);
     RUN_TEST(test_http_proxy_empty);
     RUN_TEST(test_http_proxy_null);
-    
+
     return UNITY_END();
 }

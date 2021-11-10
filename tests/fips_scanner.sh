@@ -127,11 +127,12 @@ echo -e "===================================\n"
 
 #Exclude files that are being used to search for anything not fips compliant 
 #Unless excluded, these files will also be scanned and trigger false positives
+errorFile="fips_scanner.sh.err"
 fipsScanner="fips_scanner.sh"
 testCrypto="test_crypto-0*"
 for cipher in ${CIPHER_LIST[@]} ; do
     echo "Scanning for cipher function: ${cipher}"
-    if grep -R ${cipher} ${DIR} --exclude={$fipsScanner,$testCrypto} ; then
+    if grep -R ${cipher} ${DIR} --exclude={$fipsScanner,$testCrypto,$errorFile} ; then
       echo -e "\e[92mFound potential calls for ${cipher}\e[0m"
     fi
 done
@@ -157,7 +158,7 @@ echo -e "\nChecking for low-level digest calls"
 echo -e "===================================\n"
 for digest in ${DIGEST_LIST[@]} ; do
     echo "Scanning for cipher function: ${digest}"
-    if grep -R ${digest} ${DIR} --exclude={$fipsScanner,$testCrypto} ; then
+    if grep -R ${digest} ${DIR} --exclude={$fipsScanner,$testCrypto,$errorFile} ; then
       echo -e "\e[92mFound potential calls for ${digest}\e[0m"
     fi    
 done

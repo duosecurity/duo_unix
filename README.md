@@ -120,6 +120,21 @@ Example failing test
 $ echo "Hello World"
 Goodbye World
 ```
+### Testing with coverage
+To generate coverate reports you'll need to compile Duo Unix with the `--with-coverage` options.
+Please note that in order to view HTML version of the coverage reports you'll also need to
+install the python package `gcovr`.
+
+To see the testing coverage of the Duo PAM for example you would run the following at the
+repository root.
+```
+$ ./configure --with-coverage --with-pam
+$ ./collect_coverage.sh
+$ $BROWSER coverage/pam_duo.html
+```
+```
+Note that configuring Duo Unix --with-coverage disables any compiler optimizations
+to allow the profiler to better match executed instructions with lines of code.
 
 ### Other testing tips
 
