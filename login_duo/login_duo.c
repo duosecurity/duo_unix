@@ -195,6 +195,13 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 #endif
 
     prompts = cfg.prompts;
+
+    /* Detect non-interactive sessions */
+    if ((p = getenv("SSH_ORIGINAL_COMMAND")) != NULL ||
+        !isatty(STDIN_FILENO)) {
+        headless = 1;
+    }
+
     /* Check group membership. */
     matched = duo_check_groups(pw, cfg.groups, cfg.groups_cnt);
     if (matched == -1) {
@@ -253,13 +260,11 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     }
 
     /* Special handling for non-interactive sessions */
-    if ((p = getenv("SSH_ORIGINAL_COMMAND")) != NULL ||
-        !isatty(STDIN_FILENO)) {
+    if (headless) {
         /* Try to support automatic one-shot login */
         duo_set_conv_funcs(duo, NULL, NULL, NULL);
         flags = (DUO_FLAG_SYNC|DUO_FLAG_AUTO);
         prompts = 1;
-        headless = 1;
     } else if (cfg.autopush) { /* Special handling for autopush */
         duo_set_conv_funcs(duo, NULL, __autopush_status_fn, NULL);
         flags = (DUO_FLAG_SYNC|DUO_FLAG_AUTO);
