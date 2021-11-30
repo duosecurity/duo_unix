@@ -1,3 +1,11 @@
+duo_unix-1.11.5:
+- Added support for Debian 11
+- Removed support for Debian 8
+- Removed support for CentOS 6
+- Fixed MOTD display for non-interactive sessions
+- The support tool now also collects the sudo PAM configuration file
+- Updated pinned certificates
+
 duo_unix-1.11.4:
 - Added support for Ubuntu 20.04
 - Added support tool to collect information (e.g. logs and PAM stacks) for debugging purposes
