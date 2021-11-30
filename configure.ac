@@ -7,7 +7,7 @@ AC_PREREQ(2.65)
 
 # Package, version, bug report address
 AC_INIT([duo_unix],
-	[1.11.5],
+	[1.12.0],
 	[support@duosecurity.com])
 
 # Tells autoconf where to find necessary build scripts and macros.
@@ -60,6 +60,7 @@ case "$host_os" in
         ;;
     *aix*)
         AC_MSG_NOTICE([-fstack-protector disabled on AIX])
+        CFLAGS="$CFLAGS -Wl,-lm"
         has_stack_protector=no
         IS_AIX=yes
         ;;

@@ -1,71 +1,94 @@
 #!/usr/bin/env python
 
+import argparse
 import getopt
 import getpass
 import os
+import platform
 import subprocess
 import sys
 import tempfile
-import platform
 
 import paths
 
 # login_duo-compatible wrapper to pam_duo
 
+
 def usage():
-    print >>sys.stderr, 'Usage: %s [-d] [-c config] [-f user] [-h host]' % \
-          sys.argv[0]
+    print >>sys.stderr, "Usage: %s [-d] [-c config] [-f user] [-h host]" % sys.argv[0]
     sys.exit(1)
-    
+
+
+class TempPamConfig(object):
+    def __init__(self, config):
+        self.config = config
+        self.file = None
+
+    def __enter__(self):
+        self.file = tempfile.NamedTemporaryFile()
+        if sys.platform == "sunos5":
+            self.file.write("testpam ")
+        self.file.write(self.config)
+        self.file.flush()
+        return self.file
+
+    def __exit__(self, type, value, traceback):
+        self.file.close()
+
+
+def testpam(args, config_file_name, env_overrides=None):
+    env = os.environ.copy()
+    env["PAM_CONF"] = config_file_name
+
+    if env_overrides:
+        env.update(env_overrides)
+
+    if sys.platform == "darwin":
+        env["DYLD_LIBRARY_PATH"] = paths.topbuilddir + "/lib/.libs"
+        env["DYLD_INSERT_LIBRARIES"] = paths.build + "/.libs/libtestpam_preload.dylib"
+        env["DYLD_FORCE_FLAT_NAMESPACE"] = "1"
+    elif sys.platform == "sunos5":
+        architecture = {"32bit": "32", "64bit": "64"}[platform.architecture()[0]]
+        env["LD_PRELOAD_" + architecture] = paths.build + "/.libs/libtestpam_preload.so"
+    else:
+        env["LD_PRELOAD"] = paths.build + "/.libs/libtestpam_preload.so"
+
+    testpam_path = [os.path.join(paths.build, "testpam")]
+    p = subprocess.Popen(testpam_path + args, env=env)
+    p.wait()
+    return p
+
+
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'dc:f:h:')
+        opts, args = getopt.getopt(sys.argv[1:], "dc:f:h:")
     except getopt.GetoptError:
         usage()
 
-    opt_conf = '/etc/duo/pam_duo.conf'
+    opt_conf = "/etc/duo/pam_duo.conf"
     opt_user = getpass.getuser()
     opt_host = None
-    
+
     for o, a in opts:
-        if o == '-c':
+        if o == "-c":
             opt_conf = a
-        elif o == '-f':
+        elif o == "-f":
             opt_user = a
-        elif o == '-h':
+        elif o == "-h":
             opt_host = a
 
-    args = [ paths.build + '/testpam', opt_user ]
+    args = [opt_user]
     if opt_host:
         args.append(opt_host)
-    
-    f = tempfile.NamedTemporaryFile()
-    #f = open('/tmp/pam.conf', 'w')
-    if sys.platform == 'sunos5':
-        f.write('testpam ')
-    f.write('auth  required  %s/pam_duo.so conf=%s debug' %
-            (paths.topbuilddir + '/pam_duo/.libs', opt_conf))
-    f.flush()
-    
-    env = os.environ.copy()
-    env['PAM_CONF'] = f.name
 
-    if sys.platform == 'darwin':
-        env['DYLD_LIBRARY_PATH'] = paths.topbuilddir + '/lib/.libs'
-        env['DYLD_INSERT_LIBRARIES'] = paths.build + \
-                                       '/.libs/libtestpam_preload.dylib'
-        env['DYLD_FORCE_FLAT_NAMESPACE'] = '1'
-    elif sys.platform == 'sunos5':
-        architecture = {'32bit': '32', '64bit': '64'}[platform.architecture()[0]]
-        env['LD_PRELOAD_' + architecture] = paths.build + '/.libs/libtestpam_preload.so'
-    else:
-        env['LD_PRELOAD'] = paths.build + '/.libs/libtestpam_preload.so'
-        
-    p = subprocess.Popen(args, env=env)
-    p.wait()
-    f.close()
-    
-    sys.exit(p.returncode)
+    config = "auth  required  {libpath}/pam_duo.so conf={duo_config_path} debug".format(
+        libpath=paths.topbuilddir + "/pam_duo/.libs", duo_config_path=opt_conf
+    )
+    with TempPamConfig(config) as config_file:
+        process = testpam(args, config_file.name)
 
-if __name__ == '__main__':
+    sys.exit(process.returncode)
+
+
+if __name__ == "__main__":
     main()

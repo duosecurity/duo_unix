@@ -714,9 +714,11 @@ https_send(struct https_request *req, const char *method, const char *uri,
     while (BIO_flush(req->cbio) != 1) {
         if ((n = _BIO_wait(req->cbio, -1)) != 1) {
             ctx.errstr = n ? _SSL_strerror() : "Write timed out";
+            free(qs);
             return (HTTPS_ERR_SERVER);
         }
     }
+    free(qs);
     return (HTTPS_OK);
 }
 
