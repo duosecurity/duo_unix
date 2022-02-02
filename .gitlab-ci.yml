@@ -1,4 +1,5 @@
-include: 
+---
+include:
   - project: "mirrors/duo_unix_ci"
     ref: "master"
     file: ".gitlab-ci.yml"
