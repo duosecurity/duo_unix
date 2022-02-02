@@ -64,6 +64,9 @@ struct https_request {
 
     http_parser *parser;
     int done;
+
+    int sigpipe_ignored;
+    struct sigaction old_sigpipe;
 };
 
 static int
@@ -466,8 +469,6 @@ https_init(const char *cafile, const char *http_proxy)
     ctx.parse_settings.on_body = __on_body;
     ctx.parse_settings.on_message_complete = __on_message_complete;
 
-    signal(SIGPIPE, SIG_IGN);
-
     return (0);
 }
 
@@ -479,6 +480,7 @@ https_open(struct https_request **reqp, const char *host, const char *useragent)
     char *p;
     int n;
     int connection_error = 0;
+    struct sigaction sigpipe;
 
     const char *api_host;
     const char *api_port;
@@ -491,6 +493,13 @@ https_open(struct https_request **reqp, const char *host, const char *useragent)
         https_close(&req);
         return (HTTPS_ERR_SYSTEM);
     }
+
+    memset(&sigpipe, 0, sizeof(sigpipe));
+    sigpipe.sa_handler = SIG_IGN;
+    if (sigaction(SIGPIPE, &sigpipe, &req->old_sigpipe) == 0) {
+      req->sigpipe_ignored = 1;
+    }
+
     if ((p = strchr(req->host, ':')) != NULL) {
         *p = '\0';
         req->port = p + 1;
@@ -770,6 +779,9 @@ https_close(struct https_request **reqp)
         }
         if (req->cbio != NULL) {
             BIO_free_all(req->cbio);
+        }
+        if (req->sigpipe_ignored) {
+          sigaction(SIGPIPE, &req->old_sigpipe, NULL);
         }
         free(req->parser);
         free(req->host);
