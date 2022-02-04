@@ -33,6 +33,7 @@ int (*_sys_open64)(const char *pathname, int flags, ...);
 FILE *(*_sys_fopen)(const char *filename, const char *mode);
 FILE *(*_sys_fopen64)(const char *filename, const char *mode);
 char *(*_sys_inet_ntoa)(struct in_addr in);
+struct passwd *(* _getpwuid)(uid_t uid);
 
 void modify_gecos(const char *username, struct passwd *pass);
 
@@ -71,7 +72,7 @@ _preload_init(void)
 const char *
 _replace(const char *filename)
 {
-	if (strcmp(filename, "/etc/pam.d/testpam") == 0 ||
+	if (strncmp(filename, "/etc/pam.d/", 10) == 0 ||
             strcmp(filename, "/etc/pam.conf") == 0) {
 		return (getenv("PAM_CONF"));
 	}
@@ -134,12 +135,37 @@ modify_gecos(const char *username, struct passwd *pass)
        pass->pw_gecos = strdup("1,2,gecos_user_gecos_field3,4,5,6");
     } else if (strcmp(username, "fullgecos") == 0) {
        pass->pw_gecos = strdup("full_gecos_field");
+    } else if (strcmp(username, "fullgecos") == 0) {
+       pass->pw_gecos = strdup("full_gecos_field");
+    } else if (strcmp(username, "emptygecos") == 0) {
+       pass->pw_gecos = strdup("");
+    } else if (strcmp(username, "onlydelim") == 0) {
+       pass->pw_gecos = strdup(",,,,,,,");
     }
 }
 
 struct passwd *
+getpwuid(uid_t uid)
+{
+    char *t = getenv("NO_USER");
+    if(t) {
+        return NULL;
+    }
+    else {
+        _getpwuid = dlsym(RTLD_NEXT, "getpwuid");
+        return (*_getpwuid)(uid);
+    }
+}
+
+
+struct passwd *
 getpwnam(const char *name)
 {
+    char *t = getenv("NO_USER");
+    if(t) {
+        return NULL;
+    }
+
     // Tests rely on the username being correctly set.
     static char username[1024];
     strncpy(username, name, 1024);

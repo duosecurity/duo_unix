@@ -42,3 +42,4 @@ Makefile.in
 test.conf
 __pycache__/
 Vagrantfile
+.isort.cfg
