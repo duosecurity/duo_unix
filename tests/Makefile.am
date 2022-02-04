@@ -11,6 +11,8 @@ check_LTLIBRARIES += liblogin_duo_preload.la
 liblogin_duo_preload_la_SOURCES = login_duo_preload.c
 liblogin_duo_preload_la_LDFLAGS = -no-undefined -avoid-version -rpath /baz -shared
 
+check_PROGRAMS = sigpipe
+
 if PAM
 TESTS += $(PAM_TESTS)
 
@@ -18,7 +20,7 @@ check_LTLIBRARIES += libtestpam_preload.la
 libtestpam_preload_la_SOURCES = testpam_preload.c
 libtestpam_preload_la_LDFLAGS = -no-undefined -avoid-version -rpath /bar -shared
 
-check_PROGRAMS = testpam
+check_PROGRAMS += testpam
 testpam_LDADD = -lpam
 endif
 

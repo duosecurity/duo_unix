@@ -686,5 +686,17 @@ class TestMOTD(unittest.TestCase):
             self.assertEqual(process.expect("SUCCESS", timeout=10), 0)
 
 
+class TestSigpipe(unittest.TestCase):
+    def test_sigpipe(self):
+        with TempConfig(MOCKDUO_CONF) as temp:
+            self.assertEqual("Success!\n", subprocess.check_output([
+                os.path.join(TESTDIR, "sigpipe"), "run",
+                os.path.join(BUILDDIR, "login_duo", "login_duo"),
+                "-c", temp.name,
+                "-f", "preauth-allow",
+                os.path.join(TESTDIR, "sigpipe"), "test"
+            ]))
+
+
 if __name__ == "__main__":
     unittest.main()

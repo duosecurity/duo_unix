@@ -34,6 +34,7 @@
 /libtool
 /login_duo/login_duo
 /stamp-h1
+/tests/sigpipe
 /tests/testpam
 Makefile
 Makefile.in
