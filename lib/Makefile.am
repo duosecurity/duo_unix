@@ -2,7 +2,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/compat @OPENSSL_INCLUDES@
 
 noinst_LTLIBRARIES = libduo.la
 
-libduo_la_SOURCES = bson.h bson.c cacert.h duo.c \
+libduo_la_SOURCES = cacert.h duo.c \
 		    http_parser.h http_parser.c https.h https.c ini.h ini.c \
 		    urlenc.h urlenc.c util.c parson.h parson.c
 libduo_la_LIBADD = @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
