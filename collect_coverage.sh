@@ -25,7 +25,6 @@ GCDA_FILES=(
     "/vagrant/tests/testpam.gcda"
     "/vagrant/tests/.libs/testpam_preload.gcda"
     "/vagrant/lib/.libs/http_parser.gcda"
-    "/vagrant/lib/.libs/bson.gcda"
     "/vagrant/lib/.libs/urlenc.gcda"
     "/vagrant/lib/.libs/ini.gcda"
     "/vagrant/lib/.libs/https.gcda"
