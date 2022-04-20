@@ -17,8 +17,10 @@ def port_open(ip, port):
     try:
         s.connect((ip, int(port)))
         s.shutdown(2)
+        s.close()
         return True
     except:
+        s.close()
         return False
 
 
@@ -75,26 +77,40 @@ class MockDuo:
                 break
             time.sleep(0.05)
         else:
+            stderr = self.process.stderr.read().decode("utf-8")
+            stdout = self.process.stdout.read().decode("utf-8")
+            self.process.stderr.close()
+            self.process.stdout.close()
+            self.process.stdin.close()
+            self.process.wait()
             raise MockDuoTimeoutException(
                 returncode=None,
                 cmd=self.cmd,
-                stderr=self.process.stderr.read(),
-                stdout=self.process.stdout.read(),
+                stderr=stderr,
+                stdout=stdout,
             )
 
         time.sleep(0.3)
         return self.process
 
     def __exit__(self, type, value, traceback):
-        returncode = self.process.poll()
-        if returncode is None:
-            self.process.terminate()
-            return
+        try:
+            returncode = self.process.poll()
+            if returncode is None:
+                self.process.terminate()
+                return
 
-        if returncode != 0:
-            raise MockDuoException(
-                returncode=returncode,
-                cmd=self.cmd,
-                stderr=self.process.stderr.read(),
-                stdout=self.process.stdout.read(),
-            )
+            stderr = self.process.stderr.read().decode("utf-8")
+            stdout = self.process.stdout.read().decode("utf-8")
+            if returncode != 0:
+                raise MockDuoException(
+                    returncode=returncode,
+                    cmd=self.cmd,
+                    stderr=stderr,
+                    stdout=stdout,
+                )
+        finally:
+            self.process.stderr.close()
+            self.process.stdout.close()
+            self.process.terminate()
+            self.process.wait()

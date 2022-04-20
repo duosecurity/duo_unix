@@ -49,7 +49,7 @@ class CommonSuites:
         def test_missing_config_file(self):
             """Missing conf file"""
             result = self.call_binary(["-d", "-c", "/nonexistent", "true"])
-            self.assertRegexpMatches(
+            self.assertRegex(
                 result["stderr"][0],
                 r"Couldn't open /nonexistent: No such file or directory",
             )
@@ -59,7 +59,7 @@ class CommonSuites:
             with TempConfig(TESTCONF) as temp:
                 os.chmod(temp.name, 0o644)
                 result = self.call_binary(["-d", "-c", temp.name, "true"])
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     "{name} must be readable only by user '.*'".format(name=temp.name),
                 )
@@ -73,7 +73,7 @@ class CommonSuites:
             ]:
                 with TempConfig(config) as temp:
                     result = self.call_binary(["-d", "-c", temp.name, "true"])
-                    self.assertRegexpMatches(
+                    self.assertRegex(
                         result["stderr"][0],
                         "Missing host, ikey, or skey in {name}".format(name=temp.name),
                     )
@@ -81,7 +81,7 @@ class CommonSuites:
         def test_corrupt_configuration_file_failsafe(self):
             with TempConfig(BAD_CORRUPT_CONF) as temp:
                 result = self.call_binary(["-d", "-c", temp.name, "true"])
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0], "Parse error in {name}".format(name=temp.name)
                 )
                 self.assertEqual(result["returncode"], 0)
@@ -89,7 +89,7 @@ class CommonSuites:
         def test_corrupt_configuration_file_failsecure(self):
             with TempConfig(BAD_CORRUPT_SECURE_CONF) as temp:
                 result = self.call_binary(["-d", "-c", temp.name, "true"])
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0], "Parse error in {name}".format(name=temp.name)
                 )
                 self.assertEqual(result["returncode"], 1)
@@ -101,7 +101,7 @@ class CommonSuites:
                 result = self.call_binary(
                     ["-d", "-c", temp.name, "-f", "whatever", "true"]
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"Failsafe Duo login for 'whatever'.*: Couldn't connect to .* Failed to connect",
                 )
@@ -114,14 +114,14 @@ class CommonSuites:
                 result = self.call_binary(
                     ["-d", "-c", temp.name, "-f", "whatever", "true"]
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0], r"Couldn't open Duo API handle for .*"
                 )
                 self.assertEqual(result["returncode"], 1)
 
     class DuoSelfSignedCert(CommonTestCase):
         def run(self, result=None):
-            with MockDuo(SELFSIGNED_CERT):
+            with MockDuo(SELFSIGNED_CERT) as p:
                 return super(CommonSuites.DuoSelfSignedCert, self).run(result)
 
         def test_invalid_cert(self):
@@ -131,7 +131,7 @@ class CommonSuites:
                     result = self.call_binary(
                         ["-d", "-c", temp.name, "-f", "whatever", "true"]
                     )
-                    self.assertRegexpMatches(
+                    self.assertRegex(
                         result["stderr"][0],
                         r"{failmode} Duo login for .* Couldn't connect to .*: certificate verify failed".format(
                             failmode=config.failmode_as_prefix()
@@ -146,7 +146,7 @@ class CommonSuites:
                 result = self.call_binary(
                     ["-d", "-c", temp.name, "-f", "preauth-allow", "true"]
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"Skipped Duo login for 'preauth-allow'.*: preauth-allowed",
                 )
@@ -163,7 +163,7 @@ class CommonSuites:
                     result = self.call_binary(
                         ["-d", "-c", temp.name, "-f", "whatever", "true"]
                     )
-                    self.assertRegexpMatches(
+                    self.assertRegex(
                         result["stderr"][0],
                         r"{failmode} Duo login for .*: Couldn't connect to .*: Certificate name validation failed".format(
                             failmode=config.failmode_as_prefix()
@@ -178,7 +178,7 @@ class CommonSuites:
                 result = self.call_binary(
                     ["-d", "-c", temp.name, "-f", "whatever", "true"]
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"Failsecure Duo login for .*: Couldn't connect to .*: Certificate name validation failed",
                 )
@@ -189,7 +189,7 @@ class CommonSuites:
                 result = self.call_binary(
                     ["-d", "-c", temp.name, "-f", "preauth-allow", "true"]
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"Skipped Duo login for 'preauth-allow'.*: preauth-allowed",
                 )
@@ -206,7 +206,7 @@ class CommonSuites:
                         result = self.call_binary(
                             ["-d", "-c", temp.name, "-f", code, "true"]
                         )
-                        self.assertRegexpMatches(
+                        self.assertRegex(
                             result["stderr"][0],
                             r"Aborted Duo login for '{code}'.*: HTTP {code}".format(
                                 code=code
@@ -220,7 +220,7 @@ class CommonSuites:
                         result = self.call_binary(
                             ["-d", "-c", temp.name, "-f", code, "true"]
                         )
-                        self.assertRegexpMatches(
+                        self.assertRegex(
                             result["stderr"][0],
                             r"{failmode} Duo login for '{code}'.*: HTTP {code}".format(
                                 failmode=config.failmode_as_prefix(), code=code
@@ -234,7 +234,7 @@ class CommonSuites:
                     result = self.call_binary(
                         ["-d", "-c", temp.name, "-f", code, "true"]
                     )
-                    self.assertRegexpMatches(
+                    self.assertRegex(
                         result["stderr"][0],
                         r"{failmode} Duo login for '{code}'.*: Invalid ikey or skey".format(
                             failmode=config.failmode_as_prefix(), code=code
@@ -247,7 +247,7 @@ class CommonSuites:
                     result = self.call_binary(
                         ["-d", "-c", temp.name, "-f", "whatever", "true"]
                     )
-                    self.assertRegexpMatches(
+                    self.assertRegex(
                         result["stderr"][0],
                         r"{failmode} Duo login for .*: Invalid ikey or skey".format(
                             failmode=config.failmode_as_prefix()
@@ -267,7 +267,7 @@ class CommonSuites:
                     result = self.call_binary(
                         ["-d", "-c", temp.name, "-f", user, "true"]
                     )
-                    self.assertRegexpMatches(
+                    self.assertRegex(
                         result["stderr"][0],
                         r"{prefix} Duo login for '{user}'.*{message}".format(
                             prefix=prefix if prefix else config.failmode_as_prefix(),
@@ -317,7 +317,7 @@ class CommonSuites:
                 result = self.call_binary(
                     ["-d", "-c", temp.name, "-f", "preauth-allow", "-h", host, "true"]
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"Skipped Duo login for 'preauth-allow' from {host}: preauth-allowed".format(
                         host=host
@@ -345,7 +345,7 @@ class CommonSuites:
                     ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
                     env={},
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"Skipped Duo login for 'preauth-allow'.*: preauth-allowed",
                 )
@@ -356,7 +356,7 @@ class CommonSuites:
                     ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
                     env={"http_proxy": "0.0.0.0"},
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"Skipped Duo login for 'preauth-allow'.*: preauth-allowed",
                 )
@@ -366,7 +366,7 @@ class CommonSuites:
                     ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
                     env={"http_proxy": "0.0.0.0"},
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"Failsafe Duo login for .*: Couldn't connect to localhost:4443: Failed to connect",
                 )
@@ -382,7 +382,7 @@ class CommonSuites:
                 result = self.call_binary(
                     ["-d", "-c", temp.name, "-f", "hostname", "true"],
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"Aborted Duo login for 'hostname': correct hostname",
                 )
@@ -403,7 +403,7 @@ class CommonSuites:
                     ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
                     timeout=10,
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"Skipped Duo login for 'preauth-allow'.*: preauth-allowed",
                 )
@@ -416,7 +416,7 @@ class CommonSuites:
                 result = self.call_binary(
                     ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     "FIPS mode flag specified, but OpenSSL not built with FIPS support. Failing the auth.",
                 )
@@ -432,7 +432,7 @@ class CommonSuites:
                     result = self.call_binary(
                         ["-d", "-c", temp.name, "-f", "auth_timeout", "true"],
                     )
-                    self.assertRegexpMatches(
+                    self.assertRegex(
                         result["stderr"][0],
                         r"Error in Duo login for 'auth_timeout': HTTP 500",
                     )
@@ -442,7 +442,7 @@ class CommonSuites:
                 result = self.call_binary(
                     ["-d", "-c", temp.name, "-f", "failopen", "true"],
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"Aborted Duo login for 'failopen': correct failmode",
                 )
@@ -452,7 +452,7 @@ class CommonSuites:
                 result = self.call_binary(
                     ["-d", "-c", temp.name, "-f", "failclosed", "true"],
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"Aborted Duo login for 'failclosed': correct failmode",
                 )
@@ -462,7 +462,7 @@ class CommonSuites:
                 result = self.call_binary(
                     ["-d", "-c", temp.name, "-f", "enroll", "true"],
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"User enrollment required",
                 )
@@ -491,7 +491,7 @@ class CommonSuites:
                     },
                     timeout=15,
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"Skipped Duo login for 'preauth-allow'.*: preauth-allowed",
                 )
@@ -504,7 +504,7 @@ class CommonSuites:
                         "SSH_CONNECTION": "1.2.3.4",
                     },
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r" Skipped Duo login for 'preauth-allow'",
                 )
@@ -514,7 +514,7 @@ class CommonSuites:
                 result = self.call_binary(
                     ["-d", "-c", temp.name, "-f", "preauth-allow", "true"]
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"Skipped Duo login for 'preauth-allow'.*: preauth-allowed",
                 )
@@ -550,7 +550,7 @@ class CommonSuites:
                 self.assertOutputEqual(
                     process.match.group(0), CommonSuites.Interactive.PROMPT_TEXT
                 )
-                process.sendline("123456")
+                process.sendline(b"123456")
                 self.assertEqual(
                     process.expect(CommonSuites.Interactive.PROMPT_REGEX, timeout=1), 0
                 )
@@ -563,7 +563,7 @@ class CommonSuites:
                     ]
                     + CommonSuites.Interactive.PROMPT_TEXT,
                 )
-                process.sendline("wefawefgoiagj3rj")
+                process.sendline(b"wefawefgoiagj3rj")
                 self.assertEqual(
                     process.expect(CommonSuites.Interactive.PROMPT_REGEX, timeout=1), 0
                 )
@@ -576,7 +576,7 @@ class CommonSuites:
                     ]
                     + CommonSuites.Interactive.PROMPT_TEXT,
                 )
-                process.sendline("A" * 500)
+                process.sendline(b"A" * 500)
                 self.assertEqual(process.expect(pexpect.EOF), 0)
                 self.maxDiff = None
                 self.assertOutputEqual(
@@ -598,7 +598,7 @@ class CommonSuites:
                 self.assertOutputEqual(
                     process.match.group(0), CommonSuites.Interactive.PROMPT_TEXT
                 )
-                process.sendline("3")
+                process.sendline(b"3")
                 self.assertEqual(
                     process.expect(CommonSuites.Interactive.PROMPT_REGEX, timeout=5), 0
                 )
@@ -611,7 +611,7 @@ class CommonSuites:
                     ]
                     + CommonSuites.Interactive.PROMPT_TEXT,
                 )
-                process.sendline("4")
+                process.sendline(b"4")
                 self.assertEqual(
                     process.expect(CommonSuites.Interactive.PROMPT_REGEX, timeout=5), 0
                 )
@@ -626,7 +626,7 @@ class CommonSuites:
                     ]
                     + CommonSuites.Interactive.PROMPT_TEXT,
                 )
-                process.sendline("1")
+                process.sendline(b"1")
                 self.assertEqual(process.expect(pexpect.EOF), 0)
                 self.assertOutputEqual(
                     process.before,
@@ -645,7 +645,7 @@ class CommonSuites:
                 )
                 # This is here to prevent race conditions with character entry
                 process.expect(CommonSuites.Interactive.PROMPT_REGEX, timeout=10)
-                process.sendline("2")
+                process.sendline(b"2")
                 self.assertEqual(process.expect(pexpect.EOF), 0)
                 self.assertOutputEqual(
                     process.before,
@@ -698,7 +698,7 @@ class CommonSuites:
                 result = self.call_binary(
                     ["-d", "-c", temp.name, "-f", "bad-json", "true"],
                 )
-                self.assertRegexpMatches(
+                self.assertRegex(
                     result["stderr"][0],
                     r"invalid JSON response",
                 )

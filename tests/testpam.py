@@ -27,8 +27,8 @@ class TempPamConfig(object):
     def __enter__(self):
         self.file = tempfile.NamedTemporaryFile()
         if sys.platform == "sunos5":
-            self.file.write("testpam ")
-        self.file.write(self.config)
+            self.file.write(b"testpam ")
+        self.file.write(self.config.encode("utf-8"))
         self.file.flush()
         return self.file
 

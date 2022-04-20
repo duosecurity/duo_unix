@@ -36,7 +36,7 @@ static struct passwd _passwd[11] = {
         { "fullgecos", "*", 1014, 100, .pw_gecos = "full_gecos_field", .pw_dir = "/", .pw_shell = "/bin/sh" },
         { "noshell", "*", 1015, 100, .pw_gecos = "full_gecos_field", .pw_dir = "/", .pw_shell = NULL},
         { "emptygecos", "*", 1016, 100, .pw_gecos = "", .pw_dir = "/", .pw_shell = "/bin/sh" },
-        { "slashshell", "*", 1017, 100, .pw_gecos = "full_gecos_field", .pw_dir = "/", .pw_shell = "/usr/bin/echo"},
+        { "slashshell", "*", 1017, 100, .pw_gecos = "full_gecos_field", .pw_dir = "/", .pw_shell = "/bin/echo"},
         { "preauth-allow", "*", 1018, 100, .pw_gecos = "gecos", .pw_dir = "/",
           .pw_shell = "/bin/sh" },
 };
