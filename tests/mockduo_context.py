@@ -17,11 +17,11 @@ def port_open(ip, port):
     try:
         s.connect((ip, int(port)))
         s.shutdown(2)
-        s.close()
         return True
     except:
-        s.close()
         return False
+    finally:
+        s.close()
 
 
 class MockDuoException(Exception):
@@ -81,7 +81,10 @@ class MockDuo:
             stdout = self.process.stdout.read().decode("utf-8")
             self.process.stderr.close()
             self.process.stdout.close()
-            self.process.stdin.close()
+
+            if self.process.stdin:
+                self.process.stdin.close()
+
             self.process.wait()
             raise MockDuoTimeoutException(
                 returncode=None,
