@@ -104,10 +104,12 @@ def pam_duo(args, env={}, timeout=2):
     process.stdout.close()
     process.stderr.close()
     process.stdin.close()
+
     try:
         process.terminate()
     except:
         pass
+
     return {
         "returncode": process.returncode,
         "stdout": stdout_lines,

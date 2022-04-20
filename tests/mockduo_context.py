@@ -17,8 +17,10 @@ def port_open(ip, port):
     try:
         s.connect((ip, int(port)))
         s.shutdown(2)
+        s.close()
         return True
     except:
+        s.close()
         return False
     finally:
         s.close()
