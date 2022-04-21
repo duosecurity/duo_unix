@@ -20,6 +20,8 @@ def port_open(ip, port):
         return True
     except:
         return False
+    finally:
+        s.close()
 
 
 class MockDuoException(Exception):
@@ -59,7 +61,7 @@ class MockDuoTimeoutException(MockDuoException):
 class MockDuo:
     def __init__(self, cert=NORMAL_CERT):
         self.cert = cert
-        self.cmd = ["python", os.path.join(TESTDIR, "mockduo.py"), self.cert]
+        self.cmd = ["python3", os.path.join(TESTDIR, "mockduo.py"), self.cert]
         self.process = None
 
     def __enter__(self):
@@ -75,26 +77,43 @@ class MockDuo:
                 break
             time.sleep(0.05)
         else:
+            stderr = self.process.stderr.read().decode("utf-8")
+            stdout = self.process.stdout.read().decode("utf-8")
+            self.process.stderr.close()
+            self.process.stdout.close()
+
+            if self.process.stdin:
+                self.process.stdin.close()
+
+            self.process.wait()
             raise MockDuoTimeoutException(
                 returncode=None,
                 cmd=self.cmd,
-                stderr=self.process.stderr.read(),
-                stdout=self.process.stdout.read(),
+                stderr=stderr,
+                stdout=stdout,
             )
 
         time.sleep(0.3)
         return self.process
 
     def __exit__(self, type, value, traceback):
-        returncode = self.process.poll()
-        if returncode is None:
-            self.process.terminate()
-            return
+        try:
+            returncode = self.process.poll()
+            if returncode is None:
+                self.process.terminate()
+                return
 
-        if returncode != 0:
-            raise MockDuoException(
-                returncode=returncode,
-                cmd=self.cmd,
-                stderr=self.process.stderr.read(),
-                stdout=self.process.stdout.read(),
-            )
+            stderr = self.process.stderr.read().decode("utf-8")
+            stdout = self.process.stdout.read().decode("utf-8")
+            if returncode != 0:
+                raise MockDuoException(
+                    returncode=returncode,
+                    cmd=self.cmd,
+                    stderr=stderr,
+                    stdout=stdout,
+                )
+        finally:
+            self.process.stderr.close()
+            self.process.stdout.close()
+            self.process.terminate()
+            self.process.wait()

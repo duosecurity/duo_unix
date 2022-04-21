@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
 import subprocess
 import unittest
@@ -9,9 +9,13 @@ BUILDDIR = topbuilddir
 
 
 def testutil_duo_split_at(args):
-    return subprocess.check_output(
-        [os.path.join(BUILDDIR, "lib", "testutil_duo_split_at")] + args
-    ).strip()
+    return (
+        subprocess.check_output(
+            [os.path.join(BUILDDIR, "lib", "testutil_duo_split_at")] + args
+        )
+        .decode("utf-8")
+        .strip()
+    )
 
 
 class TestDuoSplitAt(unittest.TestCase):

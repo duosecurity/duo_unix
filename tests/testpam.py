@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 import getopt
@@ -15,7 +15,10 @@ import paths
 
 
 def usage():
-    print >>sys.stderr, "Usage: %s [-d] [-c config] [-f user] [-h host]" % sys.argv[0]
+    print(
+        "Usage: {0} [-d] [-c config] [-f user] [-h host]".format(sys.argv[0]),
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 
@@ -27,8 +30,8 @@ class TempPamConfig(object):
     def __enter__(self):
         self.file = tempfile.NamedTemporaryFile()
         if sys.platform == "sunos5":
-            self.file.write("testpam ")
-        self.file.write(self.config)
+            self.file.write(b"testpam ")
+        self.file.write(self.config.encode("utf-8"))
         self.file.flush()
         return self.file
 
