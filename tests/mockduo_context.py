@@ -61,7 +61,7 @@ class MockDuoTimeoutException(MockDuoException):
 class MockDuo:
     def __init__(self, cert=NORMAL_CERT):
         self.cert = cert
-        self.cmd = ["python", os.path.join(TESTDIR, "mockduo.py"), self.cert]
+        self.cmd = ["python3", os.path.join(TESTDIR, "mockduo.py"), self.cert]
         self.process = None
 
     def __enter__(self):

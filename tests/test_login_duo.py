@@ -70,7 +70,7 @@ def login_duo_interactive(args, env=None, preload_script=""):
     env_passthrough.update(env)
 
     if preload_script != "":
-        login_duo_path = "python"
+        login_duo_path = "python3"
         args = [preload_script] + args
     else:
         login_duo_path = os.path.join(BUILDDIR, "login_duo", "login_duo")
@@ -94,7 +94,7 @@ def login_duo(args, env=None, timeout=10, preload_script=""):
         env = {}
 
     if preload_script != "":
-        login_duo_path = ["python", preload_script]
+        login_duo_path = ["python3", preload_script]
     else:
         login_duo_path = [os.path.join(BUILDDIR, "login_duo", "login_duo")]
 

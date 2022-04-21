@@ -2,14 +2,15 @@
 
 import cgi
 import json
-
-import BaseHTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Dict, Union
 
 try:
     from hashlib import sha1
 except ImportError:
     import sha as sha1
 
+import base64
 import hmac
 import os
 import socket
@@ -17,9 +18,10 @@ import ssl
 import sys
 import time
 import urllib
+import urllib.parse
 
 IKEY = "DIXYZV6YM8IFYVWBINCA"
-SKEY = "yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo"
+SKEY = b"yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo"
 # Used to check if the FQDN is set to either the ipv4 or ipv6 address
 IPV6_LOOPBACK_ADDR = (
     "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa"
@@ -45,12 +47,15 @@ tx_msgs = {
 }
 
 
-class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class MockDuoHandler(BaseHTTPRequestHandler):
     server_version = "MockDuo/1.0"
     protocol_version = "HTTP/1.1"
+    ret: Dict[str, Union[str, Dict]]
 
     def _verify_sig(self):
-        authz = self.headers["Authorization"].split()[1].decode("base64")
+        authz = base64.b64decode(self.headers["Authorization"].split()[1]).decode(
+            "utf-8"
+        )
         ikey, sig = authz.split(":")
         if ikey != IKEY:
             return False
@@ -58,9 +63,13 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         canon = [self.method, self.headers["Host"].split(":")[0].lower(), self.path]
         l = []
         for k in sorted(self.args.keys()):
-            l.append("%s=%s" % (urllib.quote(k, "~"), urllib.quote(self.args[k], "~")))
+            l.append(
+                "{0}={1}".format(
+                    urllib.parse.quote(k, "~"), urllib.parse.quote(self.args[k], "~")
+                )
+            )
         canon.append("&".join(l))
-        h = hmac.new(SKEY, "\n".join(canon), sha1)
+        h = hmac.new(SKEY, ("\n".join(canon)).encode("utf8"), digestmod="sha1")
 
         return sig == h.hexdigest()
 
@@ -75,15 +84,15 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             for k in fs.keys():
                 args[k] = fs[k].value
         else:
-            args = dict(cgi.parse_qsl(self.qs))
-        print "got %s %s args: %s" % (self.method, self.path, args)
+            args = dict(urllib.parse.parse_qsl(self.qs))
+        print("got {0} {1} args: {2}".format(self.method, self.path, args))
         return args
 
-    def _get_tx_response(self, txid, async):
+    def _get_tx_response(self, txid, is_async):
         last = True
         if txid not in tx_msgs:
             secs, msg = 0, "Invalid passcode, please try again."
-        elif async:
+        elif is_async:
             secs, msg = tx_msgs[txid].pop(0).split(":", 1)
             last = not tx_msgs[txid]
         else:
@@ -91,20 +100,20 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         if msg.startswith("Success"):
             rsp = {"result": "allow", "status": msg}
-        elif async and not last:
+        elif is_async and not last:
             rsp = {"status": msg}
         else:
             rsp = {"result": "deny", "status": msg}
         time.sleep(int(secs))
         return rsp
 
-    def _send(self, code, buf=""):
+    def _send(self, code, buf=b""):
         self.send_response(code)
         self.send_header("Content-length", str(len(buf)))
         if buf:
             self.send_header("Content-type", "application/json")
             self.end_headers()
-            self.wfile.write(buf)
+            self.wfile.write(buf.encode("utf8"))
         else:
             self.end_headers()
 
@@ -212,7 +221,7 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             else:
                 ret["response"] = {
                     "result": "auth",
-                    "prompt": "Duo login for %s\n\n" % self.args["user"]
+                    "prompt": "Duo login for {0}\n\n".format(self.args["user"])
                     + "Choose or lose:\n\n"
                     + "  1. Push 1\n  2. Phone 1\n"
                     + "  3. SMS 1 (deny)\n  4. Phone 2 (deny)\n\n"
@@ -237,7 +246,7 @@ class MockDuoHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             else:
                 ret["response"] = {
                     "result": "deny",
-                    "status": "no %s" % self.args["factor"],
+                    "status": "no {0}".format(self.args["factor"]),
                 }
             if self.args["user"] == "auth_timeout":
                 return self._send(500)
@@ -254,14 +263,16 @@ def main():
     port = 4443
     host = "localhost"
     if len(sys.argv) == 1:
-        cafile = os.path.realpath("%s/certs/mockduo.pem" % os.path.dirname(__file__))
+        cafile = os.path.realpath(
+            "{0}/certs/mockduo.pem".format(os.path.dirname(__file__))
+        )
     elif len(sys.argv) == 2:
         cafile = sys.argv[1]
     else:
-        print >> sys.stderr, "Usage: %s [certfile]\n" % sys.argv[0]
+        print("Usage: {0} [certfile]\n".format(sys.argv[0]), file=sys.stderr)
         sys.exit(1)
 
-    httpd = BaseHTTPServer.HTTPServer((host, port), MockDuoHandler)
+    httpd = HTTPServer((host, port), MockDuoHandler)
 
     httpd.socket = ssl.wrap_socket(httpd.socket, certfile=cafile, server_side=True)
 
