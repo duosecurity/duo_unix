@@ -13,6 +13,9 @@ import paths
 
 # login_duo-compatible wrapper to pam_duo
 
+PAM_SERVICE = "test_duo_unix_service"
+PAM_SERVICE_PATH = os.path.join("/etc", "pam.d", "test_duo_unix_service")
+
 
 def usage():
     print(
@@ -25,23 +28,29 @@ def usage():
 class TempPamConfig(object):
     def __init__(self, config):
         self.config = config
-        self.file = None
+        try:
+            self.file = open(PAM_SERVICE_PATH, "wb")
+        except PermissionError as e:
+            raise Exception(
+                "Permission denied opening pam.d make sure you run tests with elevated permissions"
+            ) from e
 
     def __enter__(self):
-        self.file = tempfile.NamedTemporaryFile()
         if sys.platform == "sunos5":
-            self.file.write(b"testpam ")
+            self.file.write(PAM_SERVICE.decode("utf8") + b" ")
         self.file.write(self.config.encode("utf-8"))
         self.file.flush()
         return self.file
 
     def __exit__(self, type, value, traceback):
         self.file.close()
+        os.remove(PAM_SERVICE_PATH)
 
 
 def testpam(args, config_file_name, env_overrides=None):
     env = os.environ.copy()
     env["PAM_CONF"] = config_file_name
+    env["PAM_SERVICE"] = PAM_SERVICE
 
     if env_overrides:
         env.update(env_overrides)

@@ -163,11 +163,13 @@ getpwnam(const char *name)
 FILE *
 fopen(const char *filename, const char *mode)
 {
-    _fopen = dlsym(RTLD_NEXT, "fopen");
     if (strcmp(filename, "/etc/motd") == 0) {
-        return (*_fopen)("/tmp/duomotdtest", mode);
+        char *m = getenv("MOTD_FILE");
+        if(m) {
+            _fopen = dlsym(RTLD_NEXT, "fopen");
+            return (*_fopen)(m, mode);
+        }
     }
-    else {
-        return (*_fopen)(filename, mode);
-    }
+    _fopen = dlsym(RTLD_NEXT, "fopen");
+    return (*_fopen)(filename, mode);
 }

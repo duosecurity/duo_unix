@@ -121,7 +121,7 @@ def login_duo(args, env=None, timeout=10, preload_script=""):
             break
         time.sleep(0.05)
     else:
-        (stdout, stderr) = process.communicate(input="1\r\n")
+        (stdout, stderr) = process.communicate(input=b"1\r\n")
         raise LoginDuoTimeoutException(
             "login_duo unexpectedly blocked for user input", stdout, stderr
         )
@@ -639,33 +639,43 @@ class TestMOTD(unittest.TestCase):
             return super(TestMOTD, self).run(result)
 
     def test_motd(self):
+        test_motd = "test_motd"
         with TempConfig(MOTD_CONF) as temp:
-            test_motd = "test_string"
-            with open("/tmp/duomotdtest", "w") as fh:
-                fh.write("{motd}\n".format(motd=test_motd))
-
-            process = login_duo_interactive(
-                ["-d", "-c", temp.name, "-f", "whatever", "echo", "SUCCESS"],
-                env={
-                    "UID": "1001",
-                },
-                preload_script=os.path.join(TESTDIR, "login_duo.py"),
-            )
-            process.sendline(b"1")
-            self.assertEqual(process.expect("test_string", timeout=10), 0)
+            try:
+                # I don't know why this test doesn't play nice with normal temp files
+                # either a race condition or a permissions issue but we have to do this instead
+                with open("/tmp/duo_unix_test_motd", "w") as fh:
+                    fh.write(test_motd + "\n")
+                process = login_duo_interactive(
+                    ["-d", "-c", temp.name, "-f", "whatever", "echo", "SUCCESS"],
+                    env={
+                        "UID": "1001",
+                        "MOTD_FILE": "/tmp/duo_unix_test_motd",
+                    },
+                    preload_script=os.path.join(TESTDIR, "login_duo.py"),
+                )
+                process.sendline(b"1")
+                self.assertEqual(process.expect(test_motd, timeout=10), 0)
+            finally:
+                try:
+                    os.remove("/tmp/duo_unix_test_motd")
+                except Exception:
+                    pass
 
     def test_motd_with_ssh_command(self):
+        test_motd = "test_motd"
         with TempConfig(MOTD_CONF) as temp:
-            test_motd = "test_string"
-            with open("/tmp/duomotdtest", "w") as fh:
-                fh.write("{motd}\n".format(motd=test_motd))
-
-            process = login_duo_interactive(
-                ["-d", "-c", temp.name, "-f", "whatever", "echo", "SUCCESS"],
-                env={"UID": "1001", "SSH_ORIGINAL_COMMAND": "ls"},
-                preload_script=os.path.join(TESTDIR, "login_duo.py"),
-            )
-            process.sendline(b"1")
+            with TempConfig(test_motd + "\n") as motd_file:
+                process = login_duo_interactive(
+                    ["-d", "-c", temp.name, "-f", "whatever", "echo", "SUCCESS"],
+                    env={
+                        "UID": "1001",
+                        "SSH_ORIGINAL_COMMAND": "ls",
+                        "MOTD_FILE": motd_file.name,
+                    },
+                    preload_script=os.path.join(TESTDIR, "login_duo.py"),
+                )
+                process.sendline(b"1")
             self.assertEqual(process.expect([test_motd, pexpect.EOF], timeout=5), 1)
 
     def test_motd_users_bypass(self):
@@ -677,18 +687,20 @@ class TestMOTD(unittest.TestCase):
             groups="users",
             motd="yes",
         )
-
+        test_motd = "test_motd"
         with TempConfig(bypass_config) as temp:
-            process = login_duo_interactive(
-                ["-d", "-c", temp.name, "-f", "preauth-allow", "echo", "SUCCESS"],
-                env={
-                    "UID": "1004",
-                },
-                preload_script=os.path.join(TESTDIR, "groups.py"),
-            )
-            process.sendline(b"1")
-            self.assertEqual(process.expect("test_string", timeout=10), 0)
-            self.assertEqual(process.expect("SUCCESS", timeout=10), 0)
+            with TempConfig(test_motd + "\n") as motd_file:
+                process = login_duo_interactive(
+                    ["-d", "-c", temp.name, "-f", "preauth-allow", "echo", "SUCCESS"],
+                    env={
+                        "UID": "1004",
+                        "MOTD_FILE": motd_file.name,
+                    },
+                    preload_script=os.path.join(TESTDIR, "groups.py"),
+                )
+                process.sendline(b"1")
+                self.assertEqual(process.expect(test_motd, timeout=10), 0)
+                self.assertEqual(process.expect("SUCCESS", timeout=10), 0)
 
 
 if __name__ == "__main__":
