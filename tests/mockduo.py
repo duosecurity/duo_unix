@@ -3,7 +3,6 @@
 import cgi
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Dict, Union
 
 try:
     from hashlib import sha1
@@ -50,7 +49,6 @@ tx_msgs = {
 class MockDuoHandler(BaseHTTPRequestHandler):
     server_version = "MockDuo/1.0"
     protocol_version = "HTTP/1.1"
-    ret: Dict[str, Union[str, Dict]]
 
     def _verify_sig(self):
         authz = base64.b64decode(self.headers["Authorization"].split()[1]).decode(

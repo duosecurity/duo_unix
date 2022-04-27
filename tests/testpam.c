@@ -88,12 +88,6 @@ die(pam_handle_t *pamh, int errnum)
         exit(EXIT_FAILURE);
 }
 
-static char*
-service_name() {
-    char *t = getenv("PAM_SERVICE");
-    return (t ? t : "testpam");
-}
-
 int
 main(int argc, char *argv[])
 {
@@ -109,7 +103,7 @@ main(int argc, char *argv[])
     if (argc > 2)
         host = argv[2];
 
-    if ((ret = pam_start(service_name(), user, &conv, &pamh)) != PAM_SUCCESS) {
+    if ((ret = pam_start("test_duo_unix_service", user, &conv, &pamh)) != PAM_SUCCESS) {
                 die(pamh, ret);
     }
     if (host != NULL) {

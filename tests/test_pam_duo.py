@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import getpass
 import os
 import subprocess
@@ -232,7 +232,7 @@ class TestPamSpecificEnv(unittest.TestCase):
         with TempConfig(MOCKDUO_CONF) as temp:
             result = pam_duo(
                 ["-d", "-c", temp.name],
-                env={"PAM_SERVICE": "su", "NO_USER": "1"},
+                env={"SIMULATE_SERVICE": "su", "NO_USER": "1"},
             )
             self.assertEqual(result["returncode"], 1)
 
@@ -251,7 +251,7 @@ class TestPamDuoInteractive(CommonSuites.Interactive):
         with TempConfig(MOCKDUO_CONF) as temp:
             process = self.call_binary(
                 ["-d", "-c", temp.name, "-f", "foobar", "true"],
-                env={"PAM_SERVICE": "su"},
+                env={"SIMULATE_SERVICE": "su"},
             )
             # This is here to prevent race conditions with character entry
             process.expect(CommonSuites.Interactive.PROMPT_REGEX, timeout=10)

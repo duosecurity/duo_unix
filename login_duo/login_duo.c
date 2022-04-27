@@ -167,7 +167,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         }
         return (EXIT_FAILURE);
     }
-    
+
 
 #ifdef OPENSSL_FIPS
     /*
@@ -179,12 +179,12 @@ do_auth(struct login_ctx *ctx, const char *cmd)
      * example, when integrating directly with the OpenSSL FIPS Object Module).
      */
     if(!FIPS_mode_set(cfg.fips_mode)) {
-        /* The smallest size buff can be according to the openssl docs */ 
+        /* The smallest size buff can be according to the openssl docs */
         char buff[256];
         int error = ERR_get_error();
         ERR_error_string_n(error, buff, sizeof(buff));
         duo_syslog(LOG_ERR, "Unable to start fips_mode: %s", buff);
-	 
+
        return (EXIT_FAILURE);
     }
 #else

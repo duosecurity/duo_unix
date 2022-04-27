@@ -96,7 +96,7 @@ $ sudo apt-get install python
 
 To run all the automated tests simply run
 ```
-$ make check
+$ sudo make check
 ```
 To run an individual test file
 ```

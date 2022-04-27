@@ -29,7 +29,6 @@ from mockduo_context import NORMAL_CERT, SELFSIGNED_CERT, WRONGHOST_CERT, MockDu
 
 TESTDIR = os.path.realpath(os.path.dirname(__file__))
 
-
 def fips_available():
     returncode = subprocess.call(
         [os.path.join(TESTDIR, "is_fips_supported.sh")],
