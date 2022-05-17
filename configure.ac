@@ -40,7 +40,7 @@ AC_PROG_MKDIR_P
 LT_INIT
 
 # Set third party library versions
-unity_version=Unity-2.4.3
+unity_version=Unity-2.5.2
 AC_DEFINE_DIR([UNITY_VERSION], [unity_version], [Unity directory name])
 
 
@@ -201,6 +201,6 @@ AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy vsyslog strnlen])
 AC_SEARCH_LIBS(inet_ntoa, nsl)
 AC_SEARCH_LIBS(socket, socket)
 
-AC_CONFIG_FILES(Makefile compat/Makefile duo_unix_support/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile tests/Makefile tests/unity_tests/Makefile tests/unity_tests/Unity-2.4.3/Makefile)
+AC_CONFIG_FILES(Makefile compat/Makefile duo_unix_support/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile tests/Makefile tests/unity_tests/Makefile tests/unity_tests/Unity-2.5.2/Makefile)
 
 AC_OUTPUT

@@ -2,6 +2,9 @@
 #include "src/unity.h"
 #include "util.h"
 
+extern void setUp(void) {};
+extern void tearDown(void) {};
+
 /* Testing adding a groupname with duo_common_ini_handler(cfg, section, name, var) */
 void test_groupname() {
     struct duo_config cfg = {0};

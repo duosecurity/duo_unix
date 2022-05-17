@@ -4,6 +4,9 @@
 #include "util.h"
 #include "src/unity.h"
 
+extern void setUp(void) {};
+extern void tearDown(void) {};
+
 static void test_pam_config_NULL() {
     const char *config = NULL;
     const char *argv[] = {"conf=hi"};
