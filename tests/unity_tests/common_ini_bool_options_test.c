@@ -1,11 +1,14 @@
 #include "common_ini_test.h"
 
+extern void setUp(void) {};
+extern void tearDown(void) {};
+
 /* Testing  duo_set_boolean_option(val) */
 static void test_set_boolean_option_yes() {
     char *value = "yes";
-    
+
     TEST_ASSERT_TRUE(duo_set_boolean_option(value));
-}   
+}
 
 static void test_set_boolean_option_one() {
     char *value = "1";
@@ -34,7 +37,7 @@ static void test_set_boolean_option_off() {
 static void test_set_boolean_option_random() {
     char *value = "random";
 
-    TEST_ASSERT_FALSE(duo_set_boolean_option(value)); 
+    TEST_ASSERT_FALSE(duo_set_boolean_option(value));
 }
 
 static void test_set_boolean_option_empty() {
@@ -47,23 +50,23 @@ static void test_set_boolean_option_null() {
 
 /* Test duo_common_ini_handler pushinfo flag */
 static void test_pushinfo_true() {
-    struct duo_config cfg = {0}; 
+    struct duo_config cfg = {0};
     char *name = "pushinfo";
-    char *value = "true"; 
+    char *value = "true";
     int expected_cfg_value = 1;
-    
+
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.pushinfo);    
+    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.pushinfo);
 }
 
 static void test_pushinfo_false() {
-    struct duo_config cfg = {0}; 
+    struct duo_config cfg = {0};
     char *name = "pushinfo";
     char *value = "false";
     int expected_cfg_value = 0;
 
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.pushinfo);    
+    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.pushinfo);
 }
 
 /* Test duo_common_ini_handler noverify flag */
@@ -74,7 +77,7 @@ static void test_noverify_true() {
     int expected_cfg_value = 1;
 
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.noverify);    
+    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.noverify);
 }
 
 static void test_noverify_false() {
@@ -84,10 +87,10 @@ static void test_noverify_false() {
     int expected_cfg_value = 0;
 
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.noverify);    
+    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.noverify);
 }
 
-/* Test duo_common_ini_handler autopush flag */ 
+/* Test duo_common_ini_handler autopush flag */
 static void test_autopush_true() {
     struct duo_config cfg = {0};
     char *name = "autopush";
@@ -95,7 +98,7 @@ static void test_autopush_true() {
     int expected_cfg_value = 1;
 
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.autopush);    
+    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.autopush);
 }
 
 static void test_autopush_false() {
@@ -105,8 +108,8 @@ static void test_autopush_false() {
     int expected_cfg_value = 0;
 
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.autopush);    
-} 
+    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.autopush);
+}
 
 /* Test duo_common_ini_handler accept_env_factor flag */
 static void test_accept_env_true() {
@@ -116,7 +119,7 @@ static void test_accept_env_true() {
     int expected_cfg_value = 1;
 
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.accept_env);    
+    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.accept_env);
 }
 
 static void test_accept_env_false() {
@@ -126,7 +129,7 @@ static void test_accept_env_false() {
     int expected_cfg_value = 0;
 
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.accept_env);    
+    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.accept_env);
 }
 
 /* Test duo_common_ini_handler fallback_local_ip flag */
@@ -137,7 +140,7 @@ static void test_fallback_local_ip_true() {
     int expected_cfg_value = 1;
 
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.local_ip_fallback);    
+    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.local_ip_fallback);
 }
 
 static void test_fallback_local_ip_false() {
@@ -145,9 +148,9 @@ static void test_fallback_local_ip_false() {
     char *name = "fallback_local_ip";
     char *value = "false";
     int expected_cfg_value = 0;
-    
+
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.local_ip_fallback);    
+    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.local_ip_fallback);
 }
 
 /* Test dev_fips_mode flag */
@@ -158,7 +161,7 @@ static void test_dev_fips_mode_true() {
     int expected_cfg_value = 1;
 
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.fips_mode);    
+    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.fips_mode);
 }
 
 static void test_dev_fips_mode_false() {
@@ -168,7 +171,7 @@ static void test_dev_fips_mode_false() {
     int expected_cfg_value = 0;
 
     duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.fips_mode);    
+    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.fips_mode);
 }
 
 int main() {

@@ -9,9 +9,12 @@ enum {
     DUO_FAIL_SECURE
 };
 
+extern void setUp(void) {};
+extern void tearDown(void) {};
+
 /* Testing the function duo_add_param(ctx, name, value) */
-static void test_add_param() { 
-    struct duo_ctx ctx = {0}; 
+static void test_add_param() {
+    struct duo_ctx ctx = {0};
     const char *name_str = "testing";
     const char *value_str = "value";
     const char *expected_str = "testing=value";
@@ -21,12 +24,12 @@ static void test_add_param() {
     TEST_ASSERT_EQUAL_STRING(expected_str, ctx.argv[ctx.argc - 1]);
 }
 
-static void test_add_param_empty_str() {	
+static void test_add_param_empty_str() {
     struct duo_ctx ctx = {0};
     const char *full_str = "value";
     const char *empty_str = "";
 
-    TEST_ASSERT_EQUAL(DUO_CLIENT_ERROR, duo_add_param(&ctx, empty_str, full_str));	
+    TEST_ASSERT_EQUAL(DUO_CLIENT_ERROR, duo_add_param(&ctx, empty_str, full_str));
     TEST_ASSERT_EQUAL(DUO_CLIENT_ERROR, duo_add_param(&ctx, full_str, empty_str));
     TEST_ASSERT_EQUAL(DUO_CLIENT_ERROR, duo_add_param(&ctx, empty_str, empty_str));
 }
@@ -83,7 +86,7 @@ static void test_add_opt_null() {
     TEST_ASSERT_EQUAL(0, ctx.argc);
 }
 
-/* Testing _duo_add_failmode_param(ctx, failmode) */ 
+/* Testing _duo_add_failmode_param(ctx, failmode) */
 static void test_add_failclosed() {
     struct duo_ctx ctx = {0};
     char *expected_str = "failmode=closed";
@@ -102,7 +105,7 @@ static void test_add_failopen() {
 
 int main() {
     UNITY_BEGIN();
-    
+
     RUN_TEST(test_add_param);
     RUN_TEST(test_add_param_empty_str);
     RUN_TEST(test_add_param_null_str);

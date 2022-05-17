@@ -2,6 +2,9 @@
 #include "src/unity.h"
 #include "duo.h"
 
+extern void setUp(void) {};
+extern void tearDown(void) {};
+
 void test_placeholder() {
     TEST_ASSERT_EQUAL(1, 1);
 }

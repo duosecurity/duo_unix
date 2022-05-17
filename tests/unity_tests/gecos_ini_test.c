@@ -1,5 +1,8 @@
 #include "common_ini_test.h"
 
+extern void setUp(void) {};
+extern void tearDown(void) {};
+
 static void test_send_gecos_true() {
     struct duo_config cfg = {0};
     char *name = "send_gecos";
@@ -15,7 +18,7 @@ static void test_send_gecos_false() {
     char *name = "send_gecos";
     char *value = "false";
     int expected_output = 0;
-    
+
     duo_common_ini_handler(&cfg, SECTION, name, value);
     TEST_ASSERT_EQUAL(expected_output, cfg.send_gecos);
 }
@@ -24,7 +27,7 @@ static void test_send_gecos_false() {
 static void test_gecos_parsed() {
     struct duo_config cfg = {0};
     char *name = "gecos_parsed";
-    
+
     TEST_ASSERT_TRUE(duo_common_ini_handler(&cfg, SECTION, name, EMPTY_STR));
 }
 
@@ -84,7 +87,7 @@ static void test_gecos_username_pos_negative_one() {
     char *position = "-1";
 
     TEST_ASSERT_FALSE(duo_common_ini_handler(&cfg, SECTION, name, position));
-} 
+}
 
 static void test_gecos_username_pos_one() {
     struct duo_config cfg = {0};
@@ -93,7 +96,7 @@ static void test_gecos_username_pos_one() {
     int expected_pos = 0;
 
     duo_common_ini_handler(&cfg, SECTION, name, position);
-    TEST_ASSERT_EQUAL(expected_pos, cfg.gecos_username_pos); 
+    TEST_ASSERT_EQUAL(expected_pos, cfg.gecos_username_pos);
 }
 
 static void test_gecos_username_pos_two() {
@@ -101,9 +104,9 @@ static void test_gecos_username_pos_two() {
     char *name = "gecos_username_pos";
     char *position = "2";
     int expected_pos = 1;
-    
+
     duo_common_ini_handler(&cfg, SECTION, name, position);
-    TEST_ASSERT_EQUAL(expected_pos, cfg.gecos_username_pos); 
+    TEST_ASSERT_EQUAL(expected_pos, cfg.gecos_username_pos);
 }
 
 int main() {

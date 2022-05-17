@@ -1,5 +1,8 @@
 #include "common_ini_test.h"
 
+extern void setUp(void) {};
+extern void tearDown(void) {};
+
 /* Test adding ikey to duo_config */
 static void test_ikey() {
     struct duo_config cfg = {0};

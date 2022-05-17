@@ -1,6 +1,9 @@
 #include "common_ini_test.h"
 
-/* Test setting https_timeout for duo_config */ 
+extern void setUp(void) {};
+extern void tearDown(void) {};
+
+/* Test setting https_timeout for duo_config */
 static void test_https_timeout_negitive_one() {
     struct duo_config cfg = {0};
     char *name = "https_timeout";
@@ -31,7 +34,7 @@ static void test_https_timeout_one() {
     TEST_ASSERT_EQUAL(expected_timeout, cfg.https_timeout);
 }
 
-static void test_https_timeout_four() { 
+static void test_https_timeout_four() {
     struct duo_config cfg = {0};
     char *name = "https_timeout";
     char *value = "4";
