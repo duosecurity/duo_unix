@@ -43,3 +43,4 @@ test.conf
 __pycache__/
 Vagrantfile
 .isort.cfg
+.vagrant/
