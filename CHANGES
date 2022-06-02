@@ -1,3 +1,11 @@
+duo_unix-1.12.1:
+- Updated Unity to 2.5.2
+- Added support for Fedora 34
+- Removed support for Centos 8
+- Added support for Centos Stream 8
+- Added support for Centos Stream 9
+- Added support for Ubuntu 22.04
+
 duo_unix-1.12.0:
 - Switched from BSON to JSON as a data interchange format
 - Switched from Cram to python `unittest` for testing
