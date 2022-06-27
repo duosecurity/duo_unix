@@ -27,7 +27,7 @@ jobs:
         run: ./bootstrap && ./configure --with-pam --prefix=/usr && make CC=${{ matrix.cc }}
 
       - name: Run tests
-        run: sudo make check
+        run: sudo make distcheck
 
       - name: Static analysis
         run: cppcheck --quiet --force -i tests --suppressions-list=.false_positive.txt --error-exitcode=1 .
