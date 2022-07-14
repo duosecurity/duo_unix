@@ -29,10 +29,11 @@ from config import (
     TempConfig,
 )
 from mockduo_context import MockDuo
-from paths import topbuilddir
+from paths import build, topbuilddir
 
 BUILDDIR = topbuilddir
 TESTDIR = os.path.realpath(os.path.dirname(__file__))
+sigpipe_path = os.path.join(BUILDDIR, "tests", "sigpipe")
 
 
 class LoginDuoTimeoutException(Exception):
@@ -701,6 +702,33 @@ class TestMOTD(unittest.TestCase):
                 process.sendline(b"1")
                 self.assertEqual(process.expect(test_motd, timeout=10), 0)
                 self.assertEqual(process.expect("SUCCESS", timeout=10), 0)
+
+
+class TestSigpipe(unittest.TestCase):
+    def run(self, result=None):
+        with MockDuo(NORMAL_CERT):
+            return super(TestSigpipe, self).run(result)
+
+    def test_sigpipe(self):
+        with TempConfig(MOCKDUO_CONF) as temp:
+            self.assertEqual(
+                b"Success!\n",
+                subprocess.check_output(
+                    [
+                        sigpipe_path,
+                        "run",
+                        os.path.join(BUILDDIR, "login_duo", "login_duo"),
+                        "-d",
+                        "-c",
+                        temp.name,
+                        "-f",
+                        "preauth-allow",
+                        sigpipe_path,
+                        "test",
+                    ],
+                    cwd=TESTDIR,
+                ),
+            )
 
 
 if __name__ == "__main__":
