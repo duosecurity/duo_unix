@@ -423,6 +423,8 @@ main(int argc, char *argv[])
     int c, stat;
     pid_t wait_res;
 
+    duo_syslog(LOG_INFO, "starting Duo Unix: Login Duo");
+
     memset(ctx, 0, sizeof(ctx));
 
     while ((c = getopt(argc, argv, "vc:df:h:?")) != -1) {
