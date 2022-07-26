@@ -5,6 +5,7 @@
  * All rights reserved, all wrongs reversed.
  */
 
+#include <sys/syslog.h>
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -124,6 +125,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 
     int i, flags, pam_err, matched;
 
+    duo_syslog(LOG_INFO, "starting Duo Unix: PAM Duo");
     duo_config_default(&cfg);
 
     /* Parse configuration */
