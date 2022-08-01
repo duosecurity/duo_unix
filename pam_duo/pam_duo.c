@@ -200,12 +200,15 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     } else if (strcmp(service, "sudo") == 0) {
         cmd = getenv("SUDO_COMMAND");
     } else if (strcmp(service, "su") == 0 || strcmp(service, "su-l") == 0) {
-        /* Check calling user for Duo auth, just like sudo */
-        if ((pw = getpwuid(getuid())) == NULL) {
-            close_config(&cfg);
-            return (PAM_USER_UNKNOWN);
+        /* Check if target user is "root" */
+        if(pw->pw_uid == 0) {
+            /* If so, check calling user for Duo auth, just like sudo */
+            if ((pw = getpwuid(getuid())) == NULL) {
+                close_config(&cfg);
+                return (PAM_USER_UNKNOWN);
+            }
+            user = pw->pw_name;
         }
-        user = pw->pw_name;
     }
     /* Check group membership */
     matched = duo_check_groups(pw, cfg.groups, cfg.groups_cnt);
