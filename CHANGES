@@ -1,3 +1,9 @@
+duo_unix-2.0.0:
+- Changed the behavior of `su` when the target user is not root.  The target user will need to complete 2FA rather than the original user.
+- login_duo resets the SIGPIPE handler when it closes its connection.
+- Added logging when Duo is invoked, to assist troubleshooting.
+- Updated package signing to SHA512
+
 duo_unix-1.12.1:
 - Updated Unity to 2.5.2
 - Added support for Fedora 34
