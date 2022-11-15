@@ -657,7 +657,7 @@ https_send(struct https_request *req, const char *method, const char *uri,
 {
     BIO *b64;
     HMAC_CTX *hmac;
-    unsigned char MD[SHA_DIGEST_LENGTH];
+    unsigned char MD[SHA512_DIGEST_LENGTH];
     char *qs, *p;
     int i, n, is_get;
 
@@ -694,7 +694,7 @@ https_send(struct https_request *req, const char *method, const char *uri,
         ctx.errstr = strerror(errno);
         return (HTTPS_ERR_LIB);
     }
-    HMAC_Init(hmac, skey, strlen(skey), EVP_sha1());
+    HMAC_Init(hmac, skey, strlen(skey), EVP_sha512());
     HMAC_Update(hmac, (unsigned char *)p, strlen(p));
     HMAC_Final(hmac, MD, NULL);
     HMAC_CTX_free(hmac);
