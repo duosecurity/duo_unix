@@ -5,9 +5,9 @@ import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 try:
-    from hashlib import sha1
+    from hashlib import sha512
 except ImportError:
-    import sha as sha1
+    import sha as sha512
 
 import base64
 import hmac
@@ -67,7 +67,7 @@ class MockDuoHandler(BaseHTTPRequestHandler):
                 )
             )
         canon.append("&".join(l))
-        h = hmac.new(SKEY, ("\n".join(canon)).encode("utf8"), digestmod="sha1")
+        h = hmac.new(SKEY, ("\n".join(canon)).encode("utf8"), digestmod="sha512")
 
         return sig == h.hexdigest()
 
