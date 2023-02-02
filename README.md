@@ -162,6 +162,10 @@ $ cppcheck --quiet --force -i tests --suppressions-list=.false_positive.txt --er
 
 For production deployments Duo recommends using our stable release tarballs or packages. Instructions can be found on our documentation page [Duo Unix Docs](https://duo.com/docs/duounix)
 
+### TLS 1.2 and 1.3 Support
+
+Duo Unix uses the system's OpenSSL library for TLS operations.  It will use the highest TLS version available when making API calls to Duo.  TLS 1.2 support requires OpenSSL 1.0.1 or higher; TLS 1.3 support requires OpenSSL 1.1.1 or higher.
+
 ## Contributing
 
 Please read [CODEOFCONDUCT.md](CODEOFCONDUCT.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests to us.
