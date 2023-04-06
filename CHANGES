@@ -1,3 +1,7 @@
+duo_unix-2.0.1:
+- The support script collects a few additional files for troubleshooting
+- Duo API calls now use SHA512 instead of SHA1 as the HMAC algorithm
+
 duo_unix-2.0.0:
 - Changed the behavior of `su` when the target user is not root.  The target user will need to complete 2FA rather than the original user.
 - login_duo resets the SIGPIPE handler when it closes its connection.
