@@ -10,6 +10,7 @@ on:
 
 jobs:
   nix_ci:
+    name: Duo Unix - test
     runs-on: ubuntu-latest
 
     strategy:
