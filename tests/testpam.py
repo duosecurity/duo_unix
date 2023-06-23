@@ -36,8 +36,6 @@ class TempPamConfig(object):
             ) from e
 
     def __enter__(self):
-        if sys.platform == "sunos5":
-            self.file.write(PAM_SERVICE.decode("utf8") + b" ")
         self.file.write(self.config.encode("utf-8"))
         self.file.flush()
         return self.file

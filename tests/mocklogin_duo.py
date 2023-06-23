@@ -8,6 +8,11 @@ import pexpect
 
 PROMPT = ".* or option \(1-4\): $"
 
+if sys.platform == "sunos5":
+    EOF = pexpect.TIMEOUT
+else:
+    EOF = pexpect.EOF
+
 
 def _login_duo(confs):
     p = pexpect.spawn(paths.login_duo + " -d -c" + confs + " -f foobar echo SUCCESS")
@@ -30,7 +35,7 @@ def main():
     print "===> %r" % p.match.group(0)
 
     p.sendline("A" * 500)
-    p.expect(pexpect.EOF)
+    p.expect(EOF)
     print "===> %r" % p.before
 
     # menu options
@@ -45,13 +50,13 @@ def main():
     print "===> %r" % p.match.group(0)
 
     p.sendline("1")
-    p.expect(pexpect.EOF)
+    p.expect(EOF)
     print "===> %r" % p.before
 
     p = _login_duo(confs)
 
     p.sendline("2")
-    p.expect(pexpect.EOF)
+    p.expect(EOF)
     print "===> %r" % p.before
 
 

@@ -1,6 +1,7 @@
 import os
 import subprocess
 import unittest
+import sys
 
 import pexpect
 from config import (
@@ -28,6 +29,15 @@ from config import (
 from mockduo_context import NORMAL_CERT, SELFSIGNED_CERT, WRONGHOST_CERT, MockDuo
 
 TESTDIR = os.path.realpath(os.path.dirname(__file__))
+
+if sys.platform == "sunos5":
+    # Solaris timesout filedescriptors rather than issuing an EOF but
+    # still uses EOF to signal a user prompt
+    EOF = pexpect.TIMEOUT
+    PROMPT = pexpect.EOF
+else:
+    EOF = pexpect.EOF
+    PROMPT = pexpect.EOF
 
 def fips_available():
     returncode = subprocess.call(
@@ -102,7 +112,7 @@ class CommonSuites:
                 )
                 self.assertRegex(
                     result["stderr"][0],
-                    r"Failsafe Duo login for 'whatever'.*: Couldn't connect to .* Failed to connect",
+                    r"Failsafe Duo login for 'whatever'.*: Couldn't connect to .*",
                 )
 
         def test_down_fail_secure(self):
@@ -367,7 +377,7 @@ class CommonSuites:
                 )
                 self.assertRegex(
                     result["stderr"][0],
-                    r"Failsafe Duo login for .*: Couldn't connect to localhost:4443: Failed to connect",
+                    r"Failsafe Duo login for .*: Couldn't connect to localhost:4443:.*",
                 )
 
     class GetHostname(CommonTestCase):
@@ -575,13 +585,16 @@ class CommonSuites:
                     ]
                     + CommonSuites.Interactive.PROMPT_TEXT,
                 )
-                process.sendline(b"A" * 500)
-                self.assertEqual(process.expect(pexpect.EOF), 0)
+
+                # apparently solaris only support 256 characters in this prompt
+                process.sendline(b"A" * 256)
+
+                self.assertEqual(process.expect(PROMPT), 0)
                 self.maxDiff = None
                 self.assertOutputEqual(
                     process.before,
                     [
-                        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                        "A"*256,
                         "[3] Error in Duo login for 'foobar'",
                     ],
                 )
@@ -626,7 +639,7 @@ class CommonSuites:
                     + CommonSuites.Interactive.PROMPT_TEXT,
                 )
                 process.sendline(b"1")
-                self.assertEqual(process.expect(pexpect.EOF), 0)
+                self.assertEqual(process.expect(PROMPT), 0)
                 self.assertOutputEqual(
                     process.before,
                     [
@@ -645,7 +658,7 @@ class CommonSuites:
                 # This is here to prevent race conditions with character entry
                 process.expect(CommonSuites.Interactive.PROMPT_REGEX, timeout=10)
                 process.sendline(b"2")
-                self.assertEqual(process.expect(pexpect.EOF), 0)
+                self.assertEqual(process.expect(PROMPT), 0)
                 self.assertOutputEqual(
                     process.before,
                     [

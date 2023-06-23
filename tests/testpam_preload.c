@@ -36,13 +36,19 @@
 # define _PATH_LIBC       "libc.so"
 #endif
 
+#ifdef __sun
+typedef void **pam_item;
+#else
+typedef const void **pam_item;
+#endif
+
 int (*_sys_open)(const char *pathname, int flags, ...);
 int (*_sys_open64)(const char *pathname, int flags, ...);
 FILE *(*_sys_fopen)(const char *filename, const char *mode);
 FILE *(*_sys_fopen64)(const char *filename, const char *mode);
 char *(*_sys_inet_ntoa)(struct in_addr in);
 struct passwd *(* _getpwuid)(uid_t uid);
-int (*_pam_get_item)(const pam_handle_t *pamh, int item_type, const void **item);
+int (*_pam_get_item)(const pam_handle_t *pamh, int item_type, pam_item item);
 
 void modify_gecos(const char *username, struct passwd *pass);
 
@@ -122,7 +128,7 @@ getpwnam(const char *name)
     return &ret;
 }
 
-int pam_get_item(const pam_handle_t *pamh, int item_type, const void **item) {
+int pam_get_item(const pam_handle_t *pamh, int item_type, pam_item item) {
     if(item_type == PAM_SERVICE) {
         char *s = getenv("SIMULATE_SERVICE");
         if(s) {

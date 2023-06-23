@@ -256,10 +256,13 @@ class MockDuoHandler(BaseHTTPRequestHandler):
 
         return self._send(200, buf)
 
+class HTTPServerV6(HTTPServer):
+    address_family = socket.AF_INET6
 
 def main():
     port = 4443
-    host = "localhost"
+    host = "::"
+    # XXX need to add support for IPv6 for solaris
     if len(sys.argv) == 1:
         cafile = os.path.realpath(
             "{0}/certs/mockduo.pem".format(os.path.dirname(__file__))
@@ -270,7 +273,7 @@ def main():
         print("Usage: {0} [certfile]\n".format(sys.argv[0]), file=sys.stderr)
         sys.exit(1)
 
-    httpd = HTTPServer((host, port), MockDuoHandler)
+    httpd = HTTPServerV6((host, port), MockDuoHandler)
 
     httpd.socket = ssl.wrap_socket(httpd.socket, certfile=cafile, server_side=True)
 
