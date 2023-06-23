@@ -262,7 +262,6 @@ class HTTPServerV6(HTTPServer):
 def main():
     port = 4443
     host = "::"
-    # XXX need to add support for IPv6 for solaris
     if len(sys.argv) == 1:
         cafile = os.path.realpath(
             "{0}/certs/mockduo.pem".format(os.path.dirname(__file__))
