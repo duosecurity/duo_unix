@@ -16,6 +16,11 @@
 #
 # If no directory is given, it scans the directory the current directory.
 #
+#
+case "$OSTYPE" in
+  solaris*) GREP="ggrep" ;;
+  *) GREP="grep" ;;
+esac
 
 echo "Starting scan ..."
 
@@ -133,7 +138,7 @@ errorFile="fips_scanner.sh.err"
 fipsScanner="fips_scanner.sh"
 testCrypto="test_crypto-0*"
 for cipher in ${CIPHER_LIST[@]} ; do
-    if grep -R ${cipher} ${DIR} --exclude={$fipsScanner,$testCrypto,$errorFile} ; then
+    if $GREP -R ${cipher} ${DIR} --exclude={$fipsScanner,$testCrypto,$errorFile} ; then
       echo "Found potential calls for ${cipher}"
       EXITCODE=1
     fi
@@ -159,7 +164,7 @@ DIGEST_LIST=("SHA1_Init"
 echo -e "\nChecking for low-level digest calls"
 echo -e "===================================\n"
 for digest in ${DIGEST_LIST[@]} ; do
-    if grep -R ${digest} ${DIR} --exclude={$fipsScanner,$testCrypto,$errorFile} ; then
+    if $GREP -R ${digest} ${DIR} --exclude={$fipsScanner,$testCrypto,$errorFile} ; then
       echo "Found potential calls for ${digest}"
       EXITCODE=1
     fi    

@@ -4,9 +4,10 @@ import os
 import subprocess
 import time
 import unittest
+import sys
 
 import pexpect
-from common_suites import NORMAL_CERT, CommonSuites
+from common_suites import NORMAL_CERT, CommonSuites, EOF
 from config import (
     MOCKDUO_CONF,
     MOCKDUO_GECOS_DEFAULT_DELIM_6_POS,
@@ -27,6 +28,11 @@ from paths import topbuilddir
 from testpam import TempPamConfig, testpam
 
 TESTDIR = os.path.realpath(os.path.dirname(__file__))
+SOLARIS_ISSUE = """
+    Right now these tests require superuser to run and modify LD_PRELOAD with an insecure
+    path. Solaris doesn't like this and prevents the preload from occur which breaks the
+    test. So for now we're skipping them.
+"""
 
 
 class PamDuoTimeoutException(Exception):
@@ -117,6 +123,7 @@ def pam_duo(args, env={}, timeout=2):
     }
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamDuoHelp(unittest.TestCase):
     def test_help(self):
         result = pam_duo(["-h"])
@@ -126,61 +133,73 @@ class TestPamDuoHelp(unittest.TestCase):
         )
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamDuoConfigs(CommonSuites.Configuration):
     def call_binary(self, *args):
         return pam_duo(*args)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamDuoDown(CommonSuites.DuoDown):
     def call_binary(self, *args):
         return pam_duo(*args)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamSelfSignedCerts(CommonSuites.DuoSelfSignedCert):
     def call_binary(self, *args):
         return pam_duo(*args)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamDuoBadCN(CommonSuites.DuoBadCN):
     def call_binary(self, *args):
         return pam_duo(*args)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamValidCerts(CommonSuites.WithValidCert):
     def call_binary(self, *args):
         return pam_duo(*args)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamPreauthStates(CommonSuites.PreauthStates):
     def call_binary(self, *args):
         return pam_duo(*args)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamHosts(CommonSuites.Hosts):
     def call_binary(self, *args, **kwargs):
         return pam_duo(timeout=15, *args, **kwargs)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamHTTPProxy(CommonSuites.HTTPProxy):
     def call_binary(self, *args, **kwargs):
         return pam_duo(*args, **kwargs)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamFIPS(CommonSuites.FIPS):
     def call_binary(self, *args, **kwargs):
         return pam_duo(*args, **kwargs)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamGetHostname(CommonSuites.GetHostname):
     def call_binary(self, *args, **kwargs):
         return pam_duo(*args, **kwargs)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamBSON(CommonSuites.InvalidBSON):
     def call_binary(self, *args, **kwargs):
         return pam_duo(*args, **kwargs)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamPrompts(unittest.TestCase):
     def run(self, result=None):
         with MockDuo(NORMAL_CERT):
@@ -212,11 +231,13 @@ class TestPamPrompts(unittest.TestCase):
                 )
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamEnv(CommonSuites.Env):
     def call_binary(self, *args, **kwargs):
         return pam_duo(*args, **kwargs)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamSpecificEnv(unittest.TestCase):
     def run(self, result=None):
         with MockDuo(NORMAL_CERT):
@@ -237,11 +258,13 @@ class TestPamSpecificEnv(unittest.TestCase):
             self.assertEqual(result["returncode"], 1)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamPreauthFailures(CommonSuites.PreauthFailures):
     def call_binary(self, *args):
         return pam_duo(*args)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamDuoInteractive(CommonSuites.Interactive):
     def call_binary(self, *args, **kwargs):
         return pam_duo_interactive(*args, **kwargs)
@@ -256,7 +279,7 @@ class TestPamDuoInteractive(CommonSuites.Interactive):
             # This is here to prevent race conditions with character entry
             process.expect(CommonSuites.Interactive.PROMPT_REGEX, timeout=10)
             process.sendline(b"2")
-            self.assertEqual(process.expect(pexpect.EOF), 0)
+            self.assertEqual(process.expect(EOF), 0)
             user = getpass.getuser()
             self.assertOutputEqual(
                 process.before,
@@ -270,6 +293,7 @@ class TestPamDuoInteractive(CommonSuites.Interactive):
             )
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamdConf(unittest.TestCase):
     def test_invalid_argument(self):
         with TempConfig(MOCKDUO_CONF) as duo_config:
@@ -284,6 +308,7 @@ class TestPamdConf(unittest.TestCase):
                 self.assertEqual(process.returncode, 1)
 
 
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamGECOS(unittest.TestCase):
     def run(self, result=None):
         with MockDuo(NORMAL_CERT):

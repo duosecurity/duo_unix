@@ -7,7 +7,7 @@ import unittest
 from tempfile import NamedTemporaryFile
 
 import pexpect
-from common_suites import NORMAL_CERT, CommonSuites, fips_available
+from common_suites import NORMAL_CERT, CommonSuites, fips_available, EOF
 from config import (
     MOCKDUO_ADMINS_NO_USERS,
     MOCKDUO_AUTOPUSH,
@@ -200,6 +200,7 @@ class TestLoginBSON(CommonSuites.InvalidBSON):
 
 
 class TestLoginDuoConfig(unittest.TestCase):
+    @unittest.skipIf(sys.platform == "sunos5", "Solaris ignores empty quotes in argument. Probably a difference in the getopt call")
     def test_empty_args(self):
         """Test to see how login_duo handles an empty string argument (we do need a valid argument also)"""
         result = login_duo(["", "-h"])
@@ -385,9 +386,16 @@ class TestLoginDuoShell(unittest.TestCase):
     def test_default_shell(self):
         """Test that we fallback to /bin/sh if there is no shell specified for the user"""
         with TempConfig(MOCKDUO_AUTOPUSH) as temp:
+            env = {
+                "UID": "1015"
+            }
+            if sys.platform != "sunos5":
+                # Solaris doesn't like it when you mess with the PS1
+                env["PS1"] = "$"
+
             process = login_duo_interactive(
                 ["-d", "-c", temp.name],
-                env={"PS1": "$ ", "UID": "1015"},
+                env=env,
                 preload_script=os.path.join(TESTDIR, "login_duo.py"),
             )
             # this double escaping is needed to check for a literal "$"
@@ -677,7 +685,7 @@ class TestMOTD(unittest.TestCase):
                     preload_script=os.path.join(TESTDIR, "login_duo.py"),
                 )
                 process.sendline(b"1")
-            self.assertEqual(process.expect([test_motd, pexpect.EOF], timeout=5), 1)
+            self.assertEqual(process.expect([test_motd, EOF], timeout=5), 1)
 
     def test_motd_users_bypass(self):
         bypass_config = DuoUnixConfig(
