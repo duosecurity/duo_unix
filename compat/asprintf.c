@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: MIT
+ *
  * Copyright (c) 2004 Darren Tucker.
  *
  * Based originally on asprintf.c from OpenBSD:

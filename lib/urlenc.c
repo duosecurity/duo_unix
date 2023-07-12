@@ -1,7 +1,9 @@
 /*
   urlenc.c
 
-  Copyright (c) 2010 Duo Security
+  SPDX-License-Identifier: ICU
+
+  Copyright (c) 2023 Cisco Systems, Inc. and/or its affilliates
   Copyright (c) 1996 - 2010, Daniel Stenberg, <daniel@haxx.se>.
   
   All rights reserved.

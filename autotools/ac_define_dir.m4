@@ -1,5 +1,7 @@
 dnl @synopsis AC_DEFINE_DIR(VARNAME, DIR [, DESCRIPTION])
 dnl
+dnl  SPDX-License-Identifier: FSFAP
+dnl
 dnl This macro sets VARNAME to the expansion of the DIR variable,
 dnl taking care of fixing up ${prefix} and such.
 dnl

@@ -2,6 +2,8 @@
 # gettext-0.15's AC_LIB_PREPARE_MULTILIB macro in the lib-prefix.m4 file
 # so that the correct paths can be used for 64-bit libraries.
 #
+dnl SPDX-License-Identifier: FSFULLR
+dnl
 dnl Copyright (C) 2001-2005 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,

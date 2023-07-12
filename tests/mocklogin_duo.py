@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+#
+# SPDX-License-Identifier: GPL-2.0-with-classpath-exception
+#
+# Copyright (c) 2023 Cisco Systems, Inc. and/or its affilliates
+# All rights reserved.
+#
+# mocklogin_duo.py
+#
 
 import os
 import sys

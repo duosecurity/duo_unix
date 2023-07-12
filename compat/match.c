@@ -1,5 +1,7 @@
 /* $OpenBSD: match.c,v 1.27 2008/06/10 23:06:19 djm Exp $ */
 /*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved

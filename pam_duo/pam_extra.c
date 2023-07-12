@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-3-Clause OR GPL-1.0
+ *
  * Adapted from Linux-PAM
  *
  * Redistribution and use in source and binary forms, with or without

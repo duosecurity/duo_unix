@@ -1,7 +1,7 @@
-/* Based on src/http/ngx_http_parse.c from NGINX copyright Igor Sysoev
+/*
+ * SPDX-License-Identifier: MIT
  *
- * Additional changes are licensed under the same terms as NGINX and
- * copyright Joyent, Inc. and other Node contributors. All rights reserved.
+ * Copyright Joyent, Inc. and other Node contributors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to

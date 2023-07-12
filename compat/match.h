@@ -1,6 +1,8 @@
 /* $OpenBSD: match.h,v 1.15 2010/02/26 20:29:54 djm Exp $ */
 
 /*
+ * SPDX-License-Identifier: SSH-short
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved

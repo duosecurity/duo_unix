@@ -1,4 +1,7 @@
 # lib-link.m4 serial 18 (gettext-0.18)
+#
+dnl SPDX-License-Identifier: FSFULLR
+dnl
 dnl Copyright (C) 2001-2009 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
