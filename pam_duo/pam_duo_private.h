@@ -1,5 +1,5 @@
 /*
- * SPDX-License-Identifier: GPL-2.0-with-classpath-exception
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * pam_duo_private.h
  *

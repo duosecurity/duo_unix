@@ -18,7 +18,7 @@ endif
 SUBDIRS += tests
 SUBDIRS += tests/unity_tests
 
-dist_doc_DATA = README.md CONTRIBUTING.md AUTHORS CHANGES LICENSE
+dist_doc_DATA = README.md CONTRIBUTING.md AUTHORS CHANGES LICENSES
 
 # XXX - get around our default non-prefix-preserving paths for distcheck
 DISTCHECK_CONFIGURE_FLAGS = --sysconfdir='$${prefix}/etc/duo'
