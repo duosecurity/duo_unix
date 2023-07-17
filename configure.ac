@@ -203,6 +203,6 @@ AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy vsyslog strnlen])
 AC_SEARCH_LIBS(inet_ntoa, nsl)
 AC_SEARCH_LIBS(socket, socket)
 
-AC_CONFIG_FILES(Makefile compat/Makefile duo_unix_support/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile tests/Makefile tests/unity_tests/Makefile tests/unity_tests/Unity-2.5.2/Makefile)
+AC_CONFIG_FILES(Makefile compat/Makefile duo_unix_support/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile tests/Makefile tests/unity_tests/Makefile tests/unity_tests/Unity-2.5.2/Makefile LICENSES/Makefile)
 
 AC_OUTPUT
