@@ -1,7 +1,7 @@
 /*	$OpenBSD: strnlen.c,v 1.9 2019/01/25 00:19:25 millert Exp $	*/
 
 /*
- * SPDX-License-Identifier: ISC
+ * SPDX-License-Identifier: MIT
  *
  * Copyright (c) 2010 Todd C. Miller <millert@openbsd.org>
  */
