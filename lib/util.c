@@ -4,7 +4,7 @@
  * util.c
  *
  * Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
- * All rights reserved, all wrongs reversed
+ * All rights reserved.
  */
 #include "config.h"
 

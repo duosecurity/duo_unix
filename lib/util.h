@@ -4,7 +4,7 @@
  * util.h
  *
  * Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
- * All rights reserved, all wrongs reversed
+ * All rights reserved.
  */
 
 #ifndef DUO_UTIL_H
