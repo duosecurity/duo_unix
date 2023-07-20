@@ -1,8 +1,10 @@
 /*
+ * SPDX-License-Identifier: GPL-2.0-with-classpath-exception
+ *
  * util.h
  *
- * Copyright (c) 2013 Duo Security
- * All rights reserved, all wrongs reversed
+ * Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
+ * All rights reserved.
  */
 
 #ifndef DUO_UTIL_H

@@ -1,4 +1,10 @@
 #!/bin/bash
+#
+# SPDX-License-Identifier: GPL-2.0-with-classpath-exception
+#
+# Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
+# All rights reserved.
+#
 # Script that will check if the current distro/distro version we're running in
 # is capable of running FIPS tests.
 # Returns 0 if it's capable of doing so, 1 otherwise.

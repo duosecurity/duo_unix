@@ -1,4 +1,7 @@
 # lib-prefix.m4 serial 6 (gettext-0.18)
+#
+dnl SPDX-License-Identifier: FSFULLR
+dnl
 dnl Copyright (C) 2001-2005, 2008 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,

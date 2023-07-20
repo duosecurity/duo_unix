@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 """Pexpect is a Python module for spawning child applications and controlling
 them automatically. Pexpect can be used for automating interactive applications
 such as ssh, ftp, passwd, telnet, etc. It can be used to a automate setup
@@ -29,6 +30,7 @@ For example::
 
 This works even for commands that ask for passwords or other input outside of
 the normal stdio streams.
+
 
 Credits: Noah Spurrier, Richard Holden, Marco Molteni, Kimberley Burchett,
 Robert Stone, Hartmut Goebel, Chad Schroeder, Erick Tryzelaar, Dave Kirby, Ids

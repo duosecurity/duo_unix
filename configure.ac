@@ -1,6 +1,8 @@
 #
-# Copyright 2013 Duo Security
-# All rights reserved, all wrongs reversed
+# SPDX-License-Identifier: GPL-2.0-with-classpath-exception
+#
+# Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
+# All rights reserved.
 
 # Minimum autoconf version
 AC_PREREQ(2.65)
@@ -201,6 +203,6 @@ AC_REPLACE_FUNCS([asprintf getgrouplist strlcpy vsyslog strnlen])
 AC_SEARCH_LIBS(inet_ntoa, nsl)
 AC_SEARCH_LIBS(socket, socket)
 
-AC_CONFIG_FILES(Makefile compat/Makefile duo_unix_support/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile tests/Makefile tests/unity_tests/Makefile tests/unity_tests/Unity-2.5.2/Makefile)
+AC_CONFIG_FILES(Makefile compat/Makefile duo_unix_support/Makefile lib/Makefile lib/libduo.pc login_duo/Makefile pam_duo/Makefile tests/Makefile tests/unity_tests/Makefile tests/unity_tests/Unity-2.5.2/Makefile LICENSES/Makefile)
 
 AC_OUTPUT

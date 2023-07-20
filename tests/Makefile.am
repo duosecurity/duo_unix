@@ -1,3 +1,12 @@
+#
+# SPDX-License-Identifier: GPL-2.0-with-classpath-exception
+#
+# Makefile.am
+#
+# Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
+# All rights reserved.
+#
+
 TESTS_ENVIRONMENT = env BUILDDIR=$(abs_top_builddir) $(PYTHON)
 
 TESTS = test_login_duo.py test_crypto.py test_duo_split_at.py

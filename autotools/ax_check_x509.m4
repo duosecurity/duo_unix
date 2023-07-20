@@ -1,6 +1,8 @@
 #
-#   Copyright (c) 2014 Duo Security
-#   All rights reserved, all wrongs reversed
+# SPDX-License-Identifier: GPL-2.0-with-classpath-exception
+#
+#   Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
+#   All rights reserved.
 #
 # SYNOPSIS
 #

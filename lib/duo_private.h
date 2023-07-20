@@ -1,3 +1,12 @@
+/*
+ * SPDX-License-Identifier: GPL-2.0-with-classpath-exception
+ *
+ * duo_private.h
+ *
+ * Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
+ * All rights reserved.
+ */
+
 #include "https.h"
 #include <stdlib.h>
 

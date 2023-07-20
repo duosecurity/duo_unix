@@ -1,3 +1,11 @@
+//
+// SPDX-License-Identifier: GPL-2.0-with-classpath-exception
+//
+// Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
+// All rights reserved.
+//
+// groups_preload.c
+//
 
 #include "config.h"
 

@@ -1,3 +1,12 @@
+/*
+ * SPDX-License-Identifier: GPL-2.0-with-classpath-exception
+ *
+ * add_param_test.c
+ *
+ * Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
+ * All rights reserved.
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include "src/unity.h"

@@ -1,3 +1,7 @@
+/*
+ * SPDX-License-Identifier: BSD-3-Clause OR GPL-1.0-only
+ */
+
 #ifndef PAM_EXTRA_H
 #define PAM_EXTRA_H
 

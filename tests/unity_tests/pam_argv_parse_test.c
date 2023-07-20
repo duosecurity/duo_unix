@@ -1,3 +1,12 @@
+/*
+ * SPDX-License-Identifier: GPL-2.0-with-classpath-exception
+ *
+ * pam_argv_parse_test.c
+ *
+ * Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
+ * All rights reserved.
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include "pam_duo_private.h"

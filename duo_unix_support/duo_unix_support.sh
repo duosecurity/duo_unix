@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+#
+# SPDX-License-Identifier: GPL-2.0-with-classpath-exception
+#
+# duo_unix_support.sh
+#
+# Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
+# All rights reserved.
+#
+
 
 # Users can have login_duo installed in different locations by defining a --prefix flag at compile time
 PREFIX="/usr"

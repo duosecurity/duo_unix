@@ -1,8 +1,10 @@
 /*
+ * SPDX-License-Identifier: GPL-2.0-with-classpath-exception
+ *
  * login_duo.c
  *
- * Copyright (c) 2010 Duo Security
- * All rights reserved, all wrongs reversed.
+ * Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
+ * All rights reserved.
  */
 
 #ifdef HAVE_CONFIG_H

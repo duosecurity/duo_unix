@@ -1,4 +1,7 @@
 # autobuild.m4 serial 7
+#
+dnl SPDX-License-Identifier: FSFULLR
+dnl
 dnl Copyright (C) 2004, 2006, 2007, 2008, 2009, 2010 Free Software Foundation,
 dnl Inc.
 dnl This file is free software; the Free Software Foundation
