@@ -3,7 +3,7 @@
  *
  * common_ini_bool_options_test.c
  *
- * Copyright (c) 2023 Cisco Systems, Inc. and/or its affilliates
+ * Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
  * All rights reserved.
  */
 
