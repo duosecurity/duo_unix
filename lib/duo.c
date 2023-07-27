@@ -121,10 +121,15 @@ duo_parse_config(const char *filename,
         close(fd);
         return (-1);
     }
+// Windows permissions don't work like unix permissions, so lets not
+// try this like this - we'll trust the user to get it right for now...
+// eventually this should be replaced with a path that actually does this right
+#ifndef WIN32
     if ((st.st_mode & (S_IRGRP|S_IROTH)) != 0) {
         fclose(fp);
         return (-2);
     }
+#endif
     ret = ini_parse(fp, callback, arg);
     fclose(fp);
     return (ret);

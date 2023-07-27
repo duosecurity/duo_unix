@@ -367,11 +367,15 @@ do_exec(struct login_ctx *ctx, const char *cmd)
     }
 
     /* Check to see if we have a shell from getpwuid() */
-    if (NULL == pw->pw_shell) {
+    #ifdef WIN32
       user_shell = _DEFAULT_SHELL; /* No shell so use the default. */
-    } else {
-      user_shell = pw->pw_shell; /* Use the shell provided by getpwuid() */
-    }
+    #else
+      if (NULL == pw->pw_shell) {
+        user_shell = _DEFAULT_SHELL; /* No shell so use the default. */
+      } else {
+        user_shell = pw->pw_shell; /* Use the shell provided by getpwuid() */
+      }
+    #endif
     if ((shell0 = strrchr(user_shell, '/')) != NULL) {
         shell0++;
     } else {

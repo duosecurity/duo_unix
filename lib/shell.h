@@ -12,7 +12,11 @@
 
 /* Which shell should we use by default if there's not one provided by getpwuid(3)? */
 #ifndef _DEFAULT_SHELL
-#define _DEFAULT_SHELL "/bin/sh"
+  #if defined(WIN32)
+    #define _DEFAULT_SHELL  "c:\\windows\\system32\\WindowsPowerShell\\v1.0\\powershell.exe"
+  #else
+    #define _DEFAULT_SHELL "/bin/sh"
+  #endif
 #endif
 
 #endif

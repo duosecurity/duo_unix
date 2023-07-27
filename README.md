@@ -1,3 +1,10 @@
+Duo Unix foir Windows
+===
+
+This is a port of the duo_unix tools to be buildable on windows.  This allows you to use the same duo auth for windows SSH as linux, via `ForceCommand`.  The default paths are modified to be c:/ProgramData/duo/etc for the configuration, and powershell for the shell.
+
+It builds using the stnadard configure mechanism
+
 Duo Unix
 ===
 [![Build Status](https://travis-ci.org/duosecurity/duo_unix.svg?branch=master)](https://travis-ci.org/duosecurity/duo_unix)

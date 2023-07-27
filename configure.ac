@@ -24,8 +24,15 @@ AB_INIT
 # Init header
 AC_CONFIG_HEADER(config.h)
 
-# Default sysconfdir to /etc/duo
-test "$sysconfdir" = '${prefix}/etc' && sysconfdir=/etc/duo
+if test $host_os = 'mingw32'; then
+    # on windows, c:/ProgramData/etc/duo
+    test "$sysconfdir" = '${prefix}/etc' && sysconfdir='c:/ProgramData/duo'
+    AC_DEFINE_UNQUOTED([WIN32], [1], [Host OS])
+else
+    # Default sysconfdir to /etc/duo
+    test "$sysconfdir" = '${prefix}/etc' && sysconfdir=/etc/duo
+fi
+
 AC_DEFINE_DIR([DUO_CONF_DIR], [sysconfdir], [Configuration directory])
 
 # Determine platform
