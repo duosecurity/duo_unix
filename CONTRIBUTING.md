@@ -29,7 +29,7 @@ Once you are ready to make a pull request
 1. Check your style matches our [style guidelines](#style-guidelines).
 2. Make sure you have included tests to cover your change. Check out our[README.md](README.md) for information about our tests.
 3. Follow the instructions in the pull request template.
-4. Make sure that your diff passes the TravisCI tests.
+4. Make sure that your pr passes the TravisCI tests.
 
 ## Style Guidelines
 Our C programming style guidelines are a work in progress right now.
