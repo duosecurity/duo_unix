@@ -1,10 +1,3 @@
-Duo Unix foir Windows
-===
-
-This is a port of the duo_unix tools to be buildable on windows.  This allows you to use the same duo auth for windows SSH as linux, via `ForceCommand`.  The default paths are modified to be c:/ProgramData/duo/etc for the configuration, and powershell for the shell.
-
-It builds using the stnadard configure mechanism
-
 Duo Unix
 ===
 [![Build Status](https://travis-ci.org/duosecurity/duo_unix.svg?branch=master)](https://travis-ci.org/duosecurity/duo_unix)
@@ -20,11 +13,14 @@ Duo Unix includes a PAM module or alternatively a stand alone executable that ca
 This repository is meant to be used for development or cutting edge versions of Duo Unix.
 For production deployments Duo recommends using our stable release tarballs or packages. Instructions can be found on our documentation page [Duo Unix Docs](https://duo.com/docs/duounix)
 
+Note that windows support is experimental.  msys2 is a requirement for building, however not for running.  In particular, since there is no pam on windows, pam_duo does not usefully work - but login_duo will work with the openssh ForceCommand configuration
+
 
 ## Getting Started
 
 These instructions are geared towards getting you up and running on your local machine for development and testing purposes.
 See the deployment section for notes on how to deploy Duo Unix in production.
+
 
 ### Prerequisites
 
@@ -49,6 +45,20 @@ $ sudo yum install autoconf libtool pam-devel openssl-devel
 - RHEL 7 and CentOS 7 systems with SELinux enabled
 ```
 $ sudo yum install selinux-policy-devel bzip2
+```
+
+- Windows systems
+
+```
+inside msys2:
+$ pacman -S openssl-devel base-devel autoconf automake libtool
+$ ./configure
+$ make
+```
+
+To run without msys2, copy out the following files:
+```
+cp login_duo/.libs/login_duo.exe /usr/lib/msys-2.0.dll /usr/lib/msys-crypto-3.dll /usr/lib/msys-ssl-3.dll c:/duo-staging
 ```
 
 Clone the Duo Unix project down and enter the directory
