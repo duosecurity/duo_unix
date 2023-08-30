@@ -13,7 +13,7 @@ Duo Unix includes a PAM module or alternatively a stand alone executable that ca
 This repository is meant to be used for development or cutting edge versions of Duo Unix.
 For production deployments Duo recommends using our stable release tarballs or packages. Instructions can be found on our documentation page [Duo Unix Docs](https://duo.com/docs/duounix)
 
-Note that windows support is experimental.  msys2 is a requirement for building, however not for running.  In particular, since there is no pam on windows, pam_duo does not usefully work - but login_duo will work with the openssh ForceCommand configuration
+Note that windows support is experimental.  msys2 is a requirement for building, however not for running.  In particular, since there is no pam on windows, pam_duo does not usefully work - but login_duo will work with the openssh ForceCommand configuration.  It uses powershell as the default shell instead of bash, and places configuration files in c:/ProgramData/duo rather than /etc.
 
 
 ## Getting Started
