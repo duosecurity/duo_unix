@@ -112,6 +112,14 @@ else
     echo "Could not find version of Duo Unix (login_duo was not found)" > configuration.txt
 fi
 
+if [ "$OS" = "solaris" ]; then
+    if type ggrep >/dev/null; then
+        GREP=ggrep
+    fi
+else
+    GREP=grep
+fi
+
 echo "operating_system=${OS}" >> configuration.txt
 echo "version=${VER}" >> configuration.txt
 echo "kernel=${KERNEL}" >> configuration.txt
@@ -121,11 +129,11 @@ echo -e "\nGathering logs and pam configs"
 # Check if the user has gcc and make
 if type gcc >/dev/null; then
    GCC_VER=$(gcc --version)
-   echo "gcc=$GCC_VER" | grep "gcc" >> configuration.txt
+   echo "gcc=$GCC_VER" | $GREP "gcc" >> configuration.txt
 fi
 if type make >/dev/null; then
    MAKE_VER=$(make --version)
-   echo "make=$MAKE_VER" | grep "make" >> configuration.txt
+   echo "make=$MAKE_VER" | $GREP "make" >> configuration.txt
 fi
 
 # Copy over common configurations and scrub the skey from the configs
@@ -176,7 +184,13 @@ COPY_FILES=(
            "/var/log/messages"
            "/var/log/secure"
            "/var/log/syslog"
+           "/var/adm/messages"
+           "/var/adm/messages.0"
 )
+
+PAM_DUO_FILES=$($GREP -ilr "pam_duo.so" "/etc/pam.d")
+# There might be duplicates but that's fine
+COPY_FILES+=(${PAM_DUO_FILES[@]})
 
 for path in "${COPY_FILES[@]}"
 do
