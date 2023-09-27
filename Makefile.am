@@ -8,6 +8,7 @@
 #
 
 ACLOCAL_AMFLAGS = -I autotools
+SOURCE_DATE_EPOCH=$(shell cat $(builddir)/build-date)
 
 SUBDIRS = compat lib login_duo duo_unix_support
 
@@ -18,7 +19,7 @@ endif
 SUBDIRS += tests
 SUBDIRS += tests/unity_tests
 
-dist_doc_DATA = README.md CONTRIBUTING.md AUTHORS CHANGES $(wildcard sbom.spdx)
+dist_doc_DATA = README.md CONTRIBUTING.md AUTHORS CHANGES $(wildcard $(builddir)/build-date) $(wildcard sbom.spdx)
 
 LICENSES = $(wildcard LICENSES/*.txt)
 
@@ -30,3 +31,5 @@ DISTCHECK_CONFIGURE_FLAGS = --sysconfdir='$${prefix}/etc/duo'
 if PAM
 DISTCHECK_CONFIGURE_FLAGS += --with-pam='$${prefix}/lib/security'
 endif
+
+DISTCLEANFILES = $(builddir)/build-date
