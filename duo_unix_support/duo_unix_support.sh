@@ -113,7 +113,7 @@ else
 fi
 
 if [ "$OS" = "solaris" ]; then
-    if type ggrep >/dev/null; then
+    if type ggrep &>/dev/null; then
         GREP=ggrep
     fi
 else
@@ -127,11 +127,11 @@ echo "openssl_version=${OPENSSL_VER}" >> configuration.txt
 echo "ssh=$(ssh -V 2>&1)" &>> configuration.txt
 echo -e "\nGathering logs and pam configs"
 # Check if the user has gcc and make
-if type gcc >/dev/null; then
+if type gcc &>/dev/null; then
    GCC_VER=$(gcc --version)
    echo "gcc=$GCC_VER" | $GREP "gcc" >> configuration.txt
 fi
-if type make >/dev/null; then
+if type make &>/dev/null; then
    MAKE_VER=$(make --version)
    echo "make=$MAKE_VER" | $GREP "make" >> configuration.txt
 fi
