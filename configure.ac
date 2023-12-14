@@ -62,7 +62,8 @@ case "$host_os" in
         ;;
     *aix*)
         AC_MSG_NOTICE([-fstack-protector disabled on AIX])
-        CFLAGS="$CFLAGS -Wl,-lm"
+        AC_MSG_NOTICE([Compiler optimizations disabled on AIX])
+        CFLAGS="$CFLAGS -O0 -Wl,-lm"
         has_stack_protector=no
         IS_AIX=yes
         ;;
