@@ -24,8 +24,8 @@ AB_INIT
 # Init header
 AC_CONFIG_HEADER(config.h)
 
-# Default sysconfdir to /etc/duo
-test "$sysconfdir" = '${prefix}/etc' && sysconfdir=/etc/duo
+# Default sysconfdir to /etc
+test "$sysconfdir" = '${prefix}/etc' && sysconfdir=/etc
 AC_DEFINE_DIR([DUO_CONF_DIR], [sysconfdir], [Configuration directory])
 
 # Determine platform
