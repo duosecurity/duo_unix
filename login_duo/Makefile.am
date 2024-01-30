@@ -21,15 +21,15 @@ install-exec-hook:
 	 chmod 4755 $(DESTDIR)$(sbindir)/login_duo
 
 install-data-local:
-	$(MKDIR_P) $(DESTDIR)$(sysconfdir)
-	-@if [ ! -f $(DESTDIR)$(sysconfdir)/login_duo.conf ]; then \
-	  cp login_duo.conf $(DESTDIR)$(sysconfdir)/login_duo.conf; \
-	  echo "Created ${DESTDIR}$(sysconfdir)/login_duo.conf"; \
+	$(MKDIR_P) $(DESTDIR)$(sysconfdir)/duo
+	-@if [ ! -f $(DESTDIR)$(sysconfdir)/duo/login_duo.conf ]; then \
+	  cp login_duo.conf $(DESTDIR)$(sysconfdir)/duo/login_duo.conf; \
+	  echo "Created ${DESTDIR}$(sysconfdir)/duo/login_duo.conf"; \
 	  echo "Please edit it to add your Duo integration and secret keys"; \
 	else \
-	  echo "Found existing ${DESTDIR}$(sysconfdir)/login_duo.conf - updating permissions"; \
+	  echo "Found existing ${DESTDIR}$(sysconfdir)/duo/login_duo.conf - updating permissions"; \
 	fi
-	-chown $(DUO_PRIVSEP_USER) $(DESTDIR)$(sysconfdir)/login_duo.conf
-	-chmod 600 $(DESTDIR)$(sysconfdir)/login_duo.conf
+	-chown $(DUO_PRIVSEP_USER) $(DESTDIR)$(sysconfdir)/duo/login_duo.conf
+	-chmod 600 $(DESTDIR)$(sysconfdir)/duo/login_duo.conf
 
 EXTRA_DIST = login_duo.conf
