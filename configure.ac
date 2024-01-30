@@ -41,6 +41,36 @@ AC_PROG_INSTALL
 AC_PROG_MKDIR_P
 LT_INIT
 
+AC_MSG_NOTICE(checking if we can establish a build date)
+AC_PATH_TOOL(GIT,[git])
+AS_IF([test x"$GIT" != x], [
+    AC_MSG_CHECKING(are we configuring inside a git repository)
+    $GIT rev-parse 2>/dev/null
+    is_git_repo=$?
+    AS_IF([test $is_git_repo == 0], [
+       AC_MSG_RESULT(yes)
+       AC_MSG_CHECKING(is the current working tree clean)
+       $GIT update-index --really-refresh
+       $GIT diff-index --quiet HEAD
+       AS_IF([test $? == 0],
+           [
+               AC_MSG_RESULT(yes)
+               source_date_epoch=`$GIT show -s --format=%ct`
+               AC_MSG_NOTICE(setting build-date to $source_date_epoch)
+               echo "$source_date_epoch" > build-date
+           ],
+           [
+               AC_MSG_RESULT(no current working tree is dirty)
+               AC_MSG_NOTICE(removing build-date)
+               rm -f build-date
+           ]
+       )
+    ],
+    [
+       AC_MSG_RESULT(no)
+    ])
+])
+
 # Set third party library versions
 unity_version=Unity-2.5.2
 AC_DEFINE_DIR([UNITY_VERSION], [unity_version], [Unity directory name])
@@ -125,6 +155,20 @@ AS_IF([test "x$with_coverage" != "xno"], [
    CFLAGS="$CFLAGS -O0 --coverage"
    LFLAGS="$LFLAGS -lgcov --coverage"
    AC_MSG_NOTICE([--coverage enabled in CFLAGS])
+])
+
+AC_ARG_WITH(debug,
+  AS_HELP_STRING([--with-debug=DBG],[build with debug info]),
+  [],
+  [ with_debug=no ]
+)
+AM_CONDITIONAL([DEBUG], [ test "x$with_debug" != "xno" ])
+AS_IF([test "x$with_debug" != "xno"], [
+   CFLAGS="$CFLAGS -g2"
+   AC_MSG_NOTICE([debugging enabled in CFLAGS])
+])
+AS_IF([test "x$with_debug" == "xno"], [
+   CFLAGS="$CFLAGS -g0"
 ])
 
 # Check PAM

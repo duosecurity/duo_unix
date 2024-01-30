@@ -45,3 +45,4 @@ __pycache__/
 Vagrantfile
 .isort.cfg
 .vagrant/
+build-date
