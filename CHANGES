@@ -1,3 +1,9 @@
+duo_unix-2.0.3:
+- Fixed AIX compilation bug
+- Support script now fetches correct log and PAM files for Solaris and AIX
+- Removed support for Fedora 37
+- Removed support for Fedora 34
+
 duo_unix-2.0.2:
 - Make check now successfully runs on Solaris
 - Removed support for Ubuntu 18
