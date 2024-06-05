@@ -26,7 +26,7 @@ AC_CONFIG_HEADER(config.h)
 
 # Default sysconfdir to /etc
 test "$sysconfdir" = '${prefix}/etc' && sysconfdir=/etc
-AC_DEFINE_DIR([DUO_CONF_DIR], [sysconfdir], [Configuration directory])
+AC_DEFINE_DIR([DUO_CONF_DIR], [sysconfdir/duo], [Configuration directory])
 
 # Determine platform
 AC_CANONICAL_HOST
