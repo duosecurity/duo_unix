@@ -282,7 +282,9 @@ def main():
 
     httpd = HTTPServerV6((host, port), MockDuoHandler)
 
-    httpd.socket = ssl.wrap_socket(httpd.socket, certfile=cafile, server_side=True)
+    ctx = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(cafile)
+    httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
 
     httpd.serve_forever()
 
