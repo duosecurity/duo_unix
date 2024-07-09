@@ -1,3 +1,14 @@
+duo_unix-2.0.4:
+- Change sysconfdir to be more compliant with convention
+- Removed support for Fedora 38
+- Removed support for Debian 10
+- Removed support for CentOS 7
+- Removed support for CentOS Stream 8
+- Added support for Fedora 39
+- Added support for Fedora 40
+- Added support for Ubuntu 24
+- Added support for Amazon Linux 2023
+
 duo_unix-2.0.3:
 - Fixed AIX compilation bug
 - Support script now fetches correct log and PAM files for Solaris and AIX
