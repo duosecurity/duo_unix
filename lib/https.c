@@ -660,14 +660,18 @@ https_send(struct https_request *req, const char *method, const char *uri,
     BIO *b64;
     HMAC_CTX *hmac;
     unsigned char MD[SHA512_DIGEST_LENGTH];
-    char *qs, *p;
+    char *qs, *p, date[128];
     int i, n, is_get;
+    time_t t;
 
     req->done = 0;
 
+    t = time(NULL);
+    strftime(date, sizeof date, "%a, %d %b %Y %T %z", localtime(&t));
+
     /* Generate query string and canonical request to sign */
     if ((qs = _argv_to_qs(argc, argv)) == NULL ||
-        (asprintf(&p, "%s\n%s\n%s\n%s", method, req->host, uri, qs)) < 0) {
+        (asprintf(&p, "%s\n%s\n%s\n%s\n%s", date, method, req->host, uri, qs)) < 0) {
         free(qs);
         ctx.errstr = strerror(errno);
         return (HTTPS_ERR_LIB);
@@ -688,6 +692,7 @@ https_send(struct https_request *req, const char *method, const char *uri,
                "User-Agent: %s\r\n",
                useragent);
     /* Add signature */
+    BIO_printf(req->cbio, "X-Duo-Date: %s\r\n", date);
     BIO_puts(req->cbio, "Authorization: Basic ");
 
     if ((hmac = HMAC_CTX_new()) == NULL) {
