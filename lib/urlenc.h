@@ -12,6 +12,5 @@
 #define URLENC_H
 
 char *urlenc_encode(const char *string);
-char *urlenc_decode(const char *string, size_t *olen);
 
 #endif /* URLENC_H */

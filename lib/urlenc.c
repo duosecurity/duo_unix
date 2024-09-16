@@ -74,38 +74,3 @@ urlenc_encode(const char *string)
 	ns[strindex] = 0;
 	return (ns);
 }
-
-char *
-urlenc_decode(const char *string, size_t *olen)
-{
-	size_t alloc, strindex=0;
-	char *ns = NULL;
-	unsigned char in;
-	long hex;
-	
-	if (!string) return NULL;
-	alloc = strlen(string) + 1;
-	if ((ns = malloc(alloc)) == NULL)
-		return (NULL);
-	
-	while(--alloc > 0) {
-		in = *string;
-		if (('%' == in) && isxdigit(string[1]) && isxdigit(string[2])) {
-			char hexstr[3]; /* '%XX' */
-			hexstr[0] = string[1];
-			hexstr[1] = string[2];
-			hexstr[2] = 0;
-			hex = strtol(hexstr, NULL, 16);
-			in = (unsigned char)hex; /* hex is always < 256 */
-			string += 2;
-			alloc -= 2;
-		} else if ('+' == in) {
-			in = ' ';
-		}
-		ns[strindex++] = in;
-		string++;
-	}
-	ns[strindex] = 0;
-	if (olen) *olen = strindex;
-	return (ns);
-}
