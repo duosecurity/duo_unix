@@ -19,6 +19,9 @@ parse_argv(const char **config, int argc, const char *argv[])
         } else if (strcmp("debug", argv[i]) == 0) {
             /* duo_debug is a global variable defined in util.h */
             duo_debug = 1;
+        } else if (strcmp("quiet", argv[i]) == 0) {
+            /* duo_quiet is a global variable defined in util.h */
+            duo_quiet = 1;
         } else {
             duo_syslog(LOG_ERR, "Invalid pam_duo option: '%s'",
                 argv[i]);
