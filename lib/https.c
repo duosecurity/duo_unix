@@ -701,7 +701,7 @@ https_send(struct https_request *req, const char *method, const char *uri,
         ctx.errstr = strerror(errno);
         return (HTTPS_ERR_LIB);
     }
-    HMAC_Init(hmac, skey, strlen(skey), EVP_sha512());
+    HMAC_Init_ex(hmac, skey, strlen(skey), EVP_sha512(), NULL);
     HMAC_Update(hmac, (unsigned char *)p, strlen(p));
     HMAC_Final(hmac, MD, NULL);
     HMAC_CTX_free(hmac);
