@@ -237,7 +237,7 @@ class TestLoginDuoConfig(unittest.TestCase):
     def test_version_output(self):
         """Check version output"""
         result = login_duo(["-v"])
-        self.assertRegex(result["stderr"][0], "login_duo \d+\.\d+.\d+")
+        self.assertRegex(result["stderr"][0], "login_duo \\d+\\.\\d+.\\d+")
 
 
 class TestLoginDuoEnv(CommonSuites.Env):
