@@ -47,6 +47,7 @@ HTTPScode https_recv(
     int *code,
     const char **body,
     int *length,
+    time_t *retry_after,
     int msecs
 );
 
