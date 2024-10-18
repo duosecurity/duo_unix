@@ -264,18 +264,19 @@ def run(
                 child_result_list.append(child.before + child.after)
             else:  # child.after may have been a TIMEOUT or EOF, so don't cat those.
                 child_result_list.append(child.before)
-            if type(responses[index]) is str:
-                child.send(responses[index])
-            elif isinstance(responses[index], types.FunctionType):
-                callback_result = responses[index](locals())
-                sys.stdout.flush()
-                if type(callback_result) is str:
-                    child.send(callback_result)
-                elif callback_result:
-                    break
-            else:
-                raise TypeError("The callback must be a string or function type.")
-            event_count = event_count + 1
+            if responses is not None:
+                if type(responses[index]) is str:
+                    child.send(responses[index])
+                elif isinstance(responses[index], types.FunctionType):
+                    callback_result = responses[index](locals())
+                    sys.stdout.flush()
+                    if type(callback_result) is str:
+                        child.send(callback_result)
+                    elif callback_result:
+                        break
+                else:
+                    raise TypeError("The callback must be a string or function type.")
+                event_count = event_count + 1
         except TIMEOUT as e:
             child_result_list.append(child.before)
             break
