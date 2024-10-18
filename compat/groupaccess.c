@@ -64,10 +64,10 @@ ga_init(const char *user, gid_t base)
 #else
 	ngroups = NGROUPS_MAX;
 #  if defined(HAVE_SYSCONF) && defined(_SC_NGROUPS_MAX)
-#    ifndef MAX
-#      define MAX(a,b) (((a)>(b))?(a):(b))
-#    endif
-	ngroups = MAX(NGROUPS_MAX, sysconf(_SC_NGROUPS_MAX));
+	long sys_ngroups_max = sysconf(_SC_NGROUPS_MAX);
+	if (sys_ngroups_max > NGROUPS_MAX) {
+		ngroups = sys_ngroups_max;
+	}
 #  endif
 #endif
 
