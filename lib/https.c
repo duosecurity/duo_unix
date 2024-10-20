@@ -314,23 +314,29 @@ _establish_connection(struct https_request * const req,
         if (connected_socket == -1) {
             continue;
         }
-        sock_flags = fcntl(connected_socket, F_GETFL, 0);
-        fcntl(connected_socket, F_SETFL, sock_flags|O_NONBLOCK);
-
-        if (connect(connected_socket, cur_res->ai_addr, cur_res->ai_addrlen) != 0 &&
-                errno != EINPROGRESS) {
-            close(connected_socket);
-            connected_socket = -1;
-            continue;
+        if ((sock_flags = fcntl(connected_socket, F_GETFL, 0)) == -1) {
+            goto fail;
         }
+
+        if (fcntl(connected_socket, F_SETFL, sock_flags|O_NONBLOCK) == -1) {
+            goto fail;
+        }
+
+        if (connect(connected_socket, cur_res->ai_addr, cur_res->ai_addrlen) != 0
+                && errno != EINPROGRESS) {
+            goto fail;
+        }
+
         socket_error = _fd_wait(connected_socket, 10000);
         if (socket_error != 1) {
-            close(connected_socket);
-            connected_socket = -1;
-            continue;
+            goto fail;
         }
+
         /* Connected! */
         break;
+    fail:
+        close(connected_socket);
+        connected_socket = -1;
     }
     cur_res = NULL;
     freeaddrinfo(res);
