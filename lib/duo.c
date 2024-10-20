@@ -437,10 +437,7 @@ _duo_preauth(struct duo_ctx *ctx, const char *username,
     JSON_Object *response;
     _JSON_FIND_OBJECT(response, json_obj, "response", json);
     _JSON_FIND_STRING(p, response, "result", json);
-    if (p == NULL) {
-        _duo_seterr(ctx, "JSON invalid 'result': %s", p);
-        ret = DUO_SERVER_ERROR;
-    } else if (strcasecmp(p, "auth") != 0) {
+    if (strcasecmp(p, "auth") != 0) {
         char *output;
         _JSON_FIND_STRING(output, response, "status", json);
         if (strcasecmp(p, "allow") == 0) {
