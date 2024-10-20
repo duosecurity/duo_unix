@@ -53,9 +53,6 @@ int
 duo_common_ini_handler(struct duo_config *cfg, const char *section,
     const char *name, const char*val)
 {
-    char *buf, *currWord, *nextWord, *tmpString;
-    int int_val, new_length;
-
     if (strcmp(name, "ikey") == 0) {
         cfg->ikey = strdup(val);
     } else if (strcmp(name, "skey") == 0) {
@@ -67,30 +64,44 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
     } else if (strcmp(name, "http_proxy") == 0) {
         cfg->http_proxy = strdup(val);
     } else if (strcmp(name, "groups") == 0 || strcmp(name, "group") == 0) {
-        if ((buf = strdup(val)) == NULL) {
+        size_t len = strlen(val);
+        size_t j = 0;
+        int inEscape = 0;
+        char *currWord;
+        if ((currWord = malloc(len)) == NULL) {
             fprintf(stderr, "Out of memory parsing groups\n");
             return (0);
         }
-        for (currWord = strtok(buf, " "); currWord != NULL; currWord = strtok(NULL, " ")) {
-            if (cfg->groups_cnt >= MAX_GROUPS) {
-                fprintf(stderr, "Exceeded max %d groups\n",
-                    MAX_GROUPS);
-                cfg->groups_cnt = 0;
-                free(buf);
-                return (0);
+
+        for (size_t i = 0; i <= len; ++i) {
+            if (val[i] == '\\' && val[i + 1] == ' ' && !inEscape) {
+                inEscape = 1;
+                continue;
             }
-            /* Concatenate next word if current word ends with "\ " */
-            while (currWord[strlen(currWord) - 1] == '\\') {
-                currWord[strlen(currWord) - 1] = ' ';
-                nextWord = strtok(NULL, " ");
-                new_length = strlen(currWord) + strlen(nextWord) + 1;
-                tmpString = (char *) malloc(new_length);
-                strlcpy(tmpString, currWord, new_length);
-                strncat(tmpString, nextWord, new_length);
-                currWord = tmpString;
+
+            if (inEscape) {
+                currWord[j++] = ' ';
+                inEscape = 0;
+            } else if (val[i] == ' ' || val[i] == '\0') {
+                if (j > 0) {
+                    currWord[j] = '\0';
+                    cfg->groups[cfg->groups_cnt++] = strdup(currWord);
+                    if (cfg->groups_cnt >= MAX_GROUPS) {
+                        fprintf(stderr, "Exceeded max %d groups\n", MAX_GROUPS);
+                        cleanup_config_groups(cfg);
+                        free(currWord);
+                        return (0);
+                    }
+                    j = 0;
+                }
+                if (val[i] == '\0') {
+                    break;
+                }
+            } else {
+                currWord[j++] = val[i];
             }
-            cfg->groups[cfg->groups_cnt++] = currWord;
         }
+        free(currWord);
     } else if (strcmp(name, "failmode") == 0) {
         if (strcmp(val, "secure") == 0) {
             cfg->failmode = DUO_FAIL_SECURE;
@@ -105,7 +116,7 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
     } else if (strcmp(name, "noverify") == 0) {
         cfg->noverify = duo_set_boolean_option(val);
     } else if (strcmp(name, "prompts") == 0) {
-        int_val = atoi(val);
+        int int_val = atoi(val);
         /* Clamp the value into acceptable range */
         if (int_val <= 0) {
             int_val = 1;
@@ -189,7 +200,21 @@ close_config(struct duo_config *cfg)
         duo_zero_free(cfg->http_proxy, strlen(cfg->http_proxy));
         cfg->http_proxy = NULL;
     }
+    cleanup_config_groups(cfg);
 }
+
+void
+cleanup_config_groups(struct duo_config *cfg)
+{
+    for (int i = 0; i < MAX_GROUPS; ++i) {
+        if (cfg->groups[i] != NULL) {
+            free(cfg->groups[i]);
+            cfg->groups[i] = NULL;
+        }
+    }
+    cfg->groups_cnt = 0;
+}
+
 
 int
 duo_check_groups(struct passwd *pw, char **groups, int groups_cnt)

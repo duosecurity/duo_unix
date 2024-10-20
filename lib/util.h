@@ -62,6 +62,8 @@ int duo_common_ini_handler(
 /* Clean up config memory. */
 void close_config(struct duo_config *cfg);
 
+void cleanup_config_groups(struct duo_config *cfg);
+
 int duo_check_groups(struct passwd *pw, char **groups, int groups_cnt);
 
 void duo_log(
