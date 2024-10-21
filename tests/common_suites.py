@@ -43,9 +43,11 @@ if sys.platform == "sunos5":
     # Solaris timesout filedescriptors rather than issuing an EOF but
     # still uses EOF to signal a user prompt
     EOF = pexpect.TIMEOUT
+    # coverity[copy_paste_error,remediation]
     PROMPT = pexpect.EOF
 else:
     EOF = pexpect.EOF
+    # coverity[original]
     PROMPT = pexpect.EOF
 
 def fips_available():
