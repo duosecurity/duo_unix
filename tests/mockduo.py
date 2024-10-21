@@ -28,6 +28,7 @@ import urllib
 import urllib.parse
 
 IKEY = "DIXYZV6YM8IFYVWBINCA"
+# coverity[assign]
 SKEY = b"yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo"
 # Used to check if the FQDN is set to either the ipv4 or ipv6 address
 IPV6_LOOPBACK_ADDR = (
@@ -54,10 +55,12 @@ tx_msgs = {
 }
 
 
+# coverity[sink]
 class MockDuoHandler(BaseHTTPRequestHandler):
     server_version = "MockDuo/1.0"
     protocol_version = "HTTP/1.1"
 
+    # coverity[sink]
     def _verify_sig(self):
         authz = base64.b64decode(self.headers["Authorization"].split()[1]).decode(
             "utf-8"
@@ -81,6 +84,7 @@ class MockDuoHandler(BaseHTTPRequestHandler):
                 )
             )
         canon.append("&".join(l))
+        # coverity[pass,credentials_use,remediation]
         h = hmac.new(SKEY, ("\n".join(canon)).encode("utf8"), digestmod="sha512")
 
         return sig == h.hexdigest()
