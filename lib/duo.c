@@ -556,6 +556,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
     const char *client_ip, int flags, const char *command, const int failmode)
 {
     duo_code_t ret;
+    int size;
     char buf[256];
     char *pushinfo = NULL;
     char p[256];
@@ -599,13 +600,23 @@ duo_login(struct duo_ctx *ctx, const char *username,
     }
 
     /* Add pushinfo parameters */
-    local_ip = duo_local_ip();
-    if (asprintf(&pushinfo, "Server+IP=%s&Command=%s",
-        local_ip, command ? urlenc_encode(command) : "") < 0 ||
-        duo_add_param(ctx, "pushinfo", pushinfo) != DUO_OK) {
+    char *encoded_command = urlenc_encode(command);
+    if (encoded_command == NULL) {
         return (DUO_LIB_ERROR);
     }
+
+    local_ip = duo_local_ip();
+    size = asprintf(&pushinfo, "Server+IP=%s&Command=%s", local_ip, encoded_command);
+    free(encoded_command);
+    if (size < 0) {
+        return (DUO_LIB_ERROR);
+    }
+
+    ret = duo_add_param(ctx, "pushinfo", pushinfo);
     free(pushinfo);
+    if (ret != DUO_OK) {
+        return (DUO_LIB_ERROR);
+    }
 
     /* Try Duo authentication.  Only use the configured timeout if
      * the call is asynchronous, because async calls should return
@@ -694,8 +705,10 @@ duo_login(struct duo_ctx *ctx, const char *username,
                     result);
                 ret = DUO_SERVER_ERROR;
             }
+            _JSON_VALUE_FREE(json_new);
             break;
         }
+        _JSON_VALUE_FREE(json_new);
     }
     _JSON_VALUE_FREE(json);
     return (ret);
