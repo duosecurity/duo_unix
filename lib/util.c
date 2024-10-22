@@ -68,7 +68,7 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         size_t j = 0;
         int inEscape = 0;
         char *currWord;
-        if ((currWord = malloc(len)) == NULL) {
+        if ((currWord = malloc(len + 1)) == NULL) {
             fprintf(stderr, "Out of memory parsing groups\n");
             return (0);
         }
