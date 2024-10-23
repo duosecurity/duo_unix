@@ -65,7 +65,7 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         cfg->http_proxy = strdup(val);
     } else if (strcmp(name, "groups") == 0 || strcmp(name, "group") == 0) {
         size_t len = strlen(val);
-        size_t j = 0;
+        size_t i = 0, j = 0;
         int inEscape = 0;
         char *currWord;
         if ((currWord = malloc(len + 1)) == NULL) {
@@ -73,7 +73,7 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
             return (0);
         }
 
-        for (size_t i = 0; i <= len; ++i) {
+        for (i = 0; i <= len; ++i) {
             if (val[i] == '\\' && val[i + 1] == ' ' && !inEscape) {
                 inEscape = 1;
                 continue;
@@ -206,7 +206,8 @@ close_config(struct duo_config *cfg)
 void
 cleanup_config_groups(struct duo_config *cfg)
 {
-    for (int i = 0; i < MAX_GROUPS; ++i) {
+    int i = 0;
+    for (i = 0; i < MAX_GROUPS; ++i) {
         if (cfg->groups[i] != NULL) {
             free(cfg->groups[i]);
             cfg->groups[i] = NULL;
