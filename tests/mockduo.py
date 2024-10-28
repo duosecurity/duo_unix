@@ -66,13 +66,7 @@ class MockDuoHandler(BaseHTTPRequestHandler):
         if ikey != IKEY:
             return False
 
-        # first look for x-duo-date header
-        datestring = self.headers.get("x-duo-date")
-        if datestring is None:
-            # if it doesn't exist, try looking for Date header
-            datestring = self.headers.get("Date")
-        
-        canon = [datestring, self.method, self.headers["Host"].split(":")[0].lower(), self.path]
+        canon = [self.method, self.headers["Host"].split(":")[0].lower(), self.path]
         l = []
         for k in sorted(self.args.keys()):
             l.append(
