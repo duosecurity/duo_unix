@@ -9,6 +9,7 @@
 
 #include "config.h"
 
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -109,26 +110,47 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
 {
     X509 *cert;
     X509_NAME *subject;
-    const GENERAL_NAME *altname;
     STACK_OF(GENERAL_NAME) *altnames;
     ASN1_STRING *tmp;
     int i, n, match = -1;
-    const char *p;
+    struct in6_addr addr;
+    int hostnametype = GEN_DNS;
+    size_t addrsize;
+
     if (SSL_get_verify_mode(ssl) == SSL_VERIFY_NONE ||
         (cert = SSL_get_peer_certificate(ssl)) == NULL) {
         return (1);
     }
+
+    /* Check if hostname is an IP address */
+    if (inet_pton(AF_INET6, hostname, &addr) == 1) {
+        hostnametype = GEN_IPADD;
+        addrsize = sizeof(struct in6_addr);
+    } else if (inet_pton(AF_INET, hostname, &addr) == 1) {
+        hostnametype = GEN_IPADD;
+        addrsize = sizeof(struct in_addr);
+    }
+
     /* Check subjectAltName */
     if ((altnames = X509_get_ext_d2i(cert, NID_subject_alt_name,
                 NULL, NULL)) != NULL) {
         n = sk_GENERAL_NAME_num(altnames);
 
         for (i = 0; i < n && match != 1; i++) {
-            altname = sk_GENERAL_NAME_value(altnames, i);
-            p = (char *)ASN1_STRING_data(altname->d.ia5);
-            if (altname->type == GEN_DNS) {
-                match = (ASN1_STRING_length(altname->d.ia5) ==
-                    strlen(p) && match_pattern(hostname, p));
+            const GENERAL_NAME *altname = sk_GENERAL_NAME_value(altnames, i);
+            if (hostnametype == altname->type) {
+                char *altptr = (char *)ASN1_STRING_data(altname->d.ia5);
+                size_t altsize = (size_t)ASN1_STRING_length(altname->d.ia5);
+
+                if (altname->type == GEN_DNS) {
+                    match = (altsize == strlen(altptr) && match_pattern(hostname, altptr));
+                } else if (altname->type == GEN_IPADD) {
+                    if ((altsize == addrsize) && !memcpy(altptr, &addr, altsize)) {
+                        match = 1;
+                    } else {
+                        match = 0;
+                    }
+                }
             }
         }
         GENERAL_NAMES_free(altnames);
@@ -144,9 +166,15 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
             if ((tmp = X509_NAME_ENTRY_get_data(
                        X509_NAME_get_entry(subject, i))) != NULL &&
                 ASN1_STRING_type(tmp) == V_ASN1_UTF8STRING) {
-                p = (char *)ASN1_STRING_data(tmp);
-                match = (ASN1_STRING_length(tmp) ==
-                    strlen(p) && match_pattern(hostname, p));
+                const char *pattern = (char *)ASN1_STRING_data(tmp);
+                size_t patternsize = (size_t)ASN1_STRING_length(tmp);
+                if (patternsize == strlen(pattern)) {
+                    if (!strchr(pattern, '*')) {
+                        match = strcasecmp(hostname, pattern) == 0;
+                    } else if (hostnametype == GEN_DNS) {
+                        match = match_pattern(hostname, pattern);
+                    }
+                }
             }
         }
     }
