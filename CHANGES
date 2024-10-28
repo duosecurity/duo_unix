@@ -1,5 +1,7 @@
 duo_unix-2.0.4:
-- Change sysconfdir to be more compliant with convention
+- Fixed multiple memory allocation leaks
+- Removed some unused and unreachable code
+- Addressed multiple code cleanliness issues
 - Removed support for Fedora 38
 - Removed support for Debian 10
 - Removed support for CentOS 7
