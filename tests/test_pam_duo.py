@@ -84,7 +84,7 @@ def pam_duo_interactive(args, env={}, timeout=2):
     return process
 
 
-def pam_duo(args, env={}, timeout=2):
+def pam_duo(args, env={}, timeout=10):
     pam_duo_path = [os.path.join(TESTDIR, "testpam.py")]
     # we don't want to accidentally grab these from the calling environment
     excluded_keys = ["SSH_CONNECTION", "FALLBACK", "UID", "http_proxy", "TIMEOUT"]

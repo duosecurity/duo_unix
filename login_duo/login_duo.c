@@ -47,6 +47,9 @@ struct login_ctx {
 };
 
 static void
+die(const char *fmt, ...) __attribute__((noreturn));
+
+static void
 die(const char *fmt, ...)
 {
     va_list args;

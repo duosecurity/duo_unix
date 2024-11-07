@@ -57,6 +57,13 @@ struct https_ctx {
 
 struct https_ctx ctx;
 
+typedef enum
+{
+	CB_NONE = 0, /* First callback*/
+	CB_KEY,      /* Last was key */
+	CB_VAL       /* Last was value */
+} callback_status_t;
+
 struct https_request {
     BIO *cbio;
     BIO *body;
@@ -70,6 +77,14 @@ struct https_request {
 
     int sigpipe_ignored;
     struct sigaction old_sigpipe;
+
+    time_t retry_after;
+
+    char *value;
+    size_t value_size;
+    char* key; /* current header name */
+    size_t key_size; /* size of header name */
+    callback_status_t last_cb;
 };
 
 static int
@@ -80,13 +95,90 @@ __on_body(http_parser *p, const char *buf, size_t len)
     return (BIO_write(req->body, buf, len) != len);
 }
 
+time_t
+_parse_retry_after(const char *header_value)
+{
+    if (header_value == NULL) {
+        return (time_t)-1;
+    }
+
+    /* Try to parse as an integer (delay in seconds) */
+    char *endptr;
+    long delay_seconds = strtol(header_value, &endptr, 10);
+    if (*endptr == '\0') {
+        return time(NULL) + delay_seconds;
+    }
+
+    /* Try to parse as a date */
+    struct tm tm;
+    memset(&tm, 0, sizeof(struct tm));
+    if (strptime(header_value, "%a, %d %b %Y %H:%M:%S %Z", &tm) != NULL) {
+        return mktime(&tm);
+    }
+
+    return (time_t)-1;
+}
+
 static int
 __on_message_complete(http_parser *p)
 {
     struct https_request *req = (struct https_request *)p->data;
 
+    req->retry_after = _parse_retry_after(req->value);
+
+    free(req->value);
+    req->value = NULL;
+    req->value_size = 0;
+    free(req->key);
+    req->key = NULL;
+    req->key_size = 0;
+    req->last_cb = CB_NONE;
+
     req->done = 1;
     return (0);
+}
+
+static const char retry_after_header[] = "Retry-After";
+static const char x_retry_after_header[] = "X-Retry-After";
+
+static int
+__on_header_field(http_parser* p, const char* at, size_t length)
+{
+    struct https_request *client = p->data;
+
+    if (client->last_cb == CB_VAL)
+        client->key_size = 0;
+
+    client->key = realloc(client->key, client->key_size + length + 1);
+    memcpy(client->key + client->key_size, at, length);
+    client->key_size += length;
+    client->key[client->key_size] = 0;
+
+	client->last_cb = CB_KEY;
+
+	return 0;
+}
+
+static int
+__on_header_value(http_parser* p, const char* at, size_t length)
+{
+    struct https_request *client = p->data;
+
+    if (strcasecmp(client->key, retry_after_header) == 0
+        || strcasecmp(client->key, x_retry_after_header) == 0)
+    {
+        if (client->last_cb != CB_VAL)
+            client->value_size = 0;
+
+        client->value = realloc(client->value, client->value_size + length + 1);
+        memcpy(client->value + client->value_size, at, length);
+        client->value_size += length;
+        client->value[client->value_size] = 0;
+    }
+
+	client->last_cb = CB_VAL;
+
+	return 0;
 }
 
 static const char *
@@ -504,6 +596,8 @@ https_init(const char *cafile, const char *http_proxy)
     /* Set HTTP parser callbacks */
     ctx.parse_settings.on_body = __on_body;
     ctx.parse_settings.on_message_complete = __on_message_complete;
+    ctx.parse_settings.on_header_field = __on_header_field;
+    ctx.parse_settings.on_header_value = __on_header_value;
 
     return (0);
 }
@@ -774,7 +868,7 @@ https_send(struct https_request *req, const char *method, const char *uri,
 
 HTTPScode
 https_recv(struct https_request *req, int *code, const char **body, int *len,
-        int msecs)
+        time_t *retry_after, int msecs)
 {
     int n, err;
 
@@ -799,6 +893,8 @@ https_recv(struct https_request *req, int *code, const char **body, int *len,
     }
     *len = BIO_get_mem_data(req->body, (char **)body);
     *code = req->parser->status_code;
+    if (retry_after)
+        *retry_after = req->retry_after;
 
     return (HTTPS_OK);
 }
