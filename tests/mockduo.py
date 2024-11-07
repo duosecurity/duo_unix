@@ -58,6 +58,11 @@ class MockDuoHandler(BaseHTTPRequestHandler):
     server_version = "MockDuo/1.0"
     protocol_version = "HTTP/1.1"
 
+    def __init__(self, *args, **kwargs):
+        self._rl_req_clock = 0
+        self._rl_req_num = 0
+        super().__init__(*args, **kwargs)
+
     def _verify_sig(self):
         authz = base64.b64decode(self.headers["Authorization"].split()[1]).decode(
             "utf-8"
@@ -119,9 +124,12 @@ class MockDuoHandler(BaseHTTPRequestHandler):
         time.sleep(int(secs))
         return rsp
 
-    def _send(self, code, buf=b""):
+    def _send(self, code, buf=b"", headers=None):
         self.send_response(code)
         self.send_header("Content-length", str(len(buf)))
+        if headers:
+            for key, value in headers.items():
+                self.send_header(key, value)
         if buf:
             self.send_header("Content-type", "application/json")
             self.end_headers()
@@ -230,6 +238,30 @@ class MockDuoHandler(BaseHTTPRequestHandler):
                 ret["response"] = {"result": "enroll", "status": "please enroll"}
             elif self.args["user"] == "bad-json":
                 buf = b""
+            elif self.args["user"] == "retry-after-3-preauth-allow":
+                if self._rl_req_num == 0:
+                    self._rl_req_num = 1
+                    return self._send(429, headers={"X-Retry-After": "3"})
+                else:
+                    self._rl_req_num = 0
+                    ret["response"] = {"result": "allow", "status": "preauth-allowed"}
+            elif self.args["user"] == "retry-after-date-preauth-allow":
+                if self._rl_req_num == 0:
+                    self._rl_req_num = 1
+                    timestr = time.strftime("%a, %d %b %Y %H:%M:%S %Z", time.localtime(time.time()+3))
+                    return self._send(429, headers={"Retry-After": timestr})
+                else:
+                    self._rl_req_num = 0
+                    ret["response"] = {"result": "allow", "status": "preauth-allowed"}
+            elif self.args["user"] == "rate-limited-preauth-allow":
+                if self._rl_req_num in [0,1]:
+                    self._rl_req_num += 1
+                    return self._send(429)
+                elif self._rl_req_num == 2:
+                    self._rl_req_num = 0
+                    ret["response"] = {"result": "allow", "status": "preauth-allowed"}
+                else:
+                    return self._send(500, "Wrong timeout")
             else:
                 ret["response"] = {
                     "result": "auth",

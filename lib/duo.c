@@ -343,6 +343,47 @@ _duo_json_response(struct duo_ctx *ctx) {
     return code;
 }
 
+int
+_duo_https_exchange(struct duo_ctx *ctx, const char *method, const char *uri, int msecs, int *code)
+{
+    const int max_int_digits = (241 * sizeof(int) / 100 + 1);
+    const int max_backoff_wait_secs = 32;
+    const int initial_backof_wait_secs = 1;
+    const int backoff_factor = 2;
+
+    static const char fmt[] = "Rate-limiting response received from server. Waiting for %d seconds before retrying.";
+    char msg[(sizeof fmt) + max_int_digits];
+    int wait_secs = initial_backof_wait_secs;
+
+    while (1) {
+        HTTPScode rc;
+        time_t retry_after;
+
+        rc = https_send(ctx->https, method, uri,
+            ctx->argc, ctx->argv, ctx->ikey, ctx->skey, ctx->useragent);
+        if (rc != HTTPS_OK)
+            return rc;
+        rc = https_recv(ctx->https, code, &ctx->body, &ctx->body_len, &retry_after, msecs);
+        if (retry_after != (time_t)-1)
+            wait_secs = retry_after - time(NULL);
+
+        if (rc != HTTPS_OK || *code != 429 || wait_secs > max_backoff_wait_secs)
+            return rc;
+
+        struct timespec timeout = {
+            .tv_sec = wait_secs,
+            .tv_nsec = (float)rand() / RAND_MAX * 1000000000
+        };
+
+        snprintf(msg, sizeof(msg), fmt, timeout.tv_sec);
+        if (ctx->conv_status)
+            ctx->conv_status(NULL, msg);
+        nanosleep(&timeout, NULL);
+        if (retry_after == (time_t)-1)
+            wait_secs *= backoff_factor;
+    }
+}
+
 static duo_code_t
 duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
 {
@@ -361,12 +402,8 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
             }
             break;
         }
-        if ((err = https_send(ctx->https, method, uri,
-                    ctx->argc, ctx->argv, ctx->ikey, ctx->skey, ctx->useragent)) == HTTPS_OK &&
-            (err = https_recv(ctx->https, &code,
-                &ctx->body, &ctx->body_len, msecs)) == HTTPS_OK) {
+        if (_duo_https_exchange(ctx, method, uri, msecs, &code) == HTTPS_OK)
             break;
-        }
         https_close(&ctx->https);
     }
     duo_reset(ctx);

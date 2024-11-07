@@ -9,6 +9,7 @@
 
 import os
 import subprocess
+import time
 import unittest
 import sys
 
@@ -325,6 +326,33 @@ class CommonSuites:
                 "preauth-allow-bad_response", "JSON missing valid 'status'"
             )
 
+        def test_preauth_allow_retry_after(self):
+            start_time = time.time()
+            self.check_preauth_state(
+                "retry-after-3-preauth-allow", "preauth-allowed", prefix="Skipped"
+            )
+            execution_time = time.time() - start_time
+            # 3.x seconds executed twice
+            self.assertGreater(execution_time, 6)
+
+        def test_preauth_allow_retry_after_date(self):
+            start_time = time.time()
+            self.check_preauth_state(
+                "retry-after-date-preauth-allow", "preauth-allowed", prefix="Skipped"
+            )
+            execution_time = time.time() - start_time
+            # 3.x seconds executed twice
+            self.assertGreater(execution_time, 6)
+ 
+        def test_preauth_allow_rate_limited(self):
+            start_time = time.time()
+            self.check_preauth_state(
+                "rate-limited-preauth-allow", "preauth-allowed", prefix="Skipped"
+            )
+            execution_time = time.time() - start_time
+            # 1.x seconds + 2.x seconds executed twice
+            self.assertGreater(execution_time, 6)
+
     class Hosts(CommonTestCase):
         def run(self, result=None):
             with MockDuo(NORMAL_CERT):
@@ -538,7 +566,7 @@ class CommonSuites:
                 )
 
     class Interactive(CommonTestCase):
-        PROMPT_REGEX = ".* or option \(1-4\): $"
+        PROMPT_REGEX = ".* or option \\(1-4\\): $"
         PROMPT_TEXT = [
             "Duo login for foobar",
             "Choose or lose:",
