@@ -16,7 +16,7 @@ import unittest
 from tempfile import NamedTemporaryFile
 
 import pexpect
-from common_suites import NORMAL_CERT, CommonSuites, fips_available, EOF
+from common_suites import NORMAL_CERT, CommonSuites, CommonTestCase, fips_available, EOF
 from config import (
     MOCKDUO_ADMINS_NO_USERS,
     MOCKDUO_AUTOPUSH,
@@ -208,13 +208,16 @@ class TestLoginBSON(CommonSuites.InvalidBSON):
         return login_duo(*args, **kwargs)
 
 
-class TestLoginDuoConfig(unittest.TestCase):
-    @unittest.skipIf(sys.platform == "sunos5", "Solaris ignores empty quotes in argument. Probably a difference in the getopt call")
+class TestLoginDuoConfig(CommonTestCase):
+    @unittest.skipIf(
+        sys.platform == "sunos5",
+        "Solaris ignores empty quotes in argument. Probably a difference in the getopt call",
+    )
     def test_empty_args(self):
         """Test to see how login_duo handles an empty string argument (we do need a valid argument also)"""
         result = login_duo(["", "-h"])
-        self.assertRegex(
-            result["stderr"][0], ".*login_duo: option requires an argument.*"
+        self.assertRegexSomeline(
+            result["stderr"], ".*login_duo: option requires an argument.*"
         )
         self.assertEqual(
             result["stderr"][1],
@@ -225,8 +228,8 @@ class TestLoginDuoConfig(unittest.TestCase):
     def test_help_output(self):
         """Basic help output"""
         result = login_duo(["-h"])
-        self.assertRegex(
-            result["stderr"][0], ".*login_duo: option requires an argument.*"
+        self.assertRegexSomeline(
+            result["stderr"], ".*login_duo: option requires an argument.*"
         )
         self.assertEqual(
             result["stderr"][1],
@@ -237,7 +240,7 @@ class TestLoginDuoConfig(unittest.TestCase):
     def test_version_output(self):
         """Check version output"""
         result = login_duo(["-v"])
-        self.assertRegex(result["stderr"][0], "login_duo \\d+\\.\\d+.\\d+")
+        self.assertRegexSomeline(result["stderr"], "login_duo \\d+\\.\\d+.\\d+")
 
 
 class TestLoginDuoEnv(CommonSuites.Env):
@@ -245,7 +248,7 @@ class TestLoginDuoEnv(CommonSuites.Env):
         return login_duo(*args)
 
 
-class TestLoginDuoSpecificEnv(unittest.TestCase):
+class TestLoginDuoSpecificEnv(CommonTestCase):
     def run(self, result=None):
         with MockDuo(NORMAL_CERT):
             return super(TestLoginDuoSpecificEnv, self).run(result)
@@ -259,8 +262,8 @@ class TestLoginDuoSpecificEnv(unittest.TestCase):
                 },
                 preload_script=os.path.join(TESTDIR, "login_duo.py"),
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Who are you?",
             )
 
@@ -299,7 +302,7 @@ class TestLoginDuoSpecificEnv(unittest.TestCase):
             self.assertEqual(process.expect("SUCCESS", timeout=10), 0)
 
 
-class TestLoginDuoUIDMismatch(unittest.TestCase):
+class TestLoginDuoUIDMismatch(CommonTestCase):
     def run(self, result=None):
         with MockDuo(NORMAL_CERT):
             return super(TestLoginDuoUIDMismatch, self).run(result)
@@ -314,8 +317,8 @@ class TestLoginDuoUIDMismatch(unittest.TestCase):
                 },
                 preload_script=os.path.join(TESTDIR, "login_duo.py"),
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Only root may specify -c or -f",
             )
 
@@ -324,8 +327,8 @@ class TestLoginDuoUIDMismatch(unittest.TestCase):
             result = login_duo(
                 ["-d", "-c", temp.name, "-f", "whatever", "true"],
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Successful Duo login for 'whatever'",
             )
 
@@ -340,8 +343,8 @@ class TestLoginDuoUIDMismatch(unittest.TestCase):
                 preload_script=os.path.join(TESTDIR, "login_duo.py"),
                 timeout=10,
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"couldn't drop privileges:",
             )
 
@@ -357,13 +360,13 @@ class TestLoginDuoUIDMismatch(unittest.TestCase):
                 preload_script=os.path.join(TESTDIR, "login_duo.py"),
                 timeout=10,
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"User .* not found",
             )
 
 
-class TestLoginDuoTimeout(unittest.TestCase):
+class TestLoginDuoTimeout(CommonTestCase):
     def run(self, result=None):
         with MockDuo(NORMAL_CERT):
             return super(TestLoginDuoTimeout, self).run(result)
@@ -379,10 +382,11 @@ class TestLoginDuoTimeout(unittest.TestCase):
                 preload_script=os.path.join(TESTDIR, "login_duo.py"),
                 timeout=10,
             )
-            for line in result["stderr"][:3]:
+            for line in result["stderr"][2:5]:
                 self.assertEqual(line, "Attempting connection")
-            self.assertRegex(
-                result["stderr"][3],
+
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Failsafe Duo login for 'timeout': Couldn't connect to localhost:4443: Failed to connect",
             )
 
@@ -395,9 +399,7 @@ class TestLoginDuoShell(unittest.TestCase):
     def test_default_shell(self):
         """Test that we fallback to /bin/sh if there is no shell specified for the user"""
         with TempConfig(MOCKDUO_AUTOPUSH) as temp:
-            env = {
-                "UID": "1015"
-            }
+            env = {"UID": "1015"}
             if sys.platform != "sunos5":
                 # Solaris doesn't like it when you mess with the PS1
                 env["PS1"] = "$"
@@ -420,7 +422,7 @@ class TestLoginDuoShell(unittest.TestCase):
             self.assertEqual(process.expect("-c echo SUCCESS", timeout=10), 0)
 
 
-class TestLoginDuoGroups(unittest.TestCase):
+class TestLoginDuoGroups(CommonTestCase):
     def run(self, result=None):
         with MockDuo(NORMAL_CERT):
             return super(TestLoginDuoGroups, self).run(result)
@@ -435,8 +437,8 @@ class TestLoginDuoGroups(unittest.TestCase):
                     },
                     preload_script=os.path.join(TESTDIR, "groups.py"),
                 )
-                self.assertRegex(
-                    result["stderr"][0],
+                self.assertRegexSomeline(
+                    result["stderr"],
                     r"Skipped Duo login for 'preauth-allow': preauth-allowed",
                 )
 
@@ -450,8 +452,8 @@ class TestLoginDuoGroups(unittest.TestCase):
                     },
                     preload_script=os.path.join(TESTDIR, "groups.py"),
                 )
-                self.assertRegex(
-                    result["stderr"][0],
+                self.assertRegexSomeline(
+                    result["stderr"],
                     r"Skipped Duo login for 'preauth-allow': preauth-allowed",
                 )
 
@@ -464,8 +466,8 @@ class TestLoginDuoGroups(unittest.TestCase):
                 },
                 preload_script=os.path.join(TESTDIR, "groups.py"),
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Skipped Duo login for 'preauth-allow': preauth-allowed",
             )
 
@@ -476,8 +478,8 @@ class TestLoginDuoGroups(unittest.TestCase):
                 env={"UID": "1004"},
                 preload_script=os.path.join(TESTDIR, "groups.py"),
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"User preauth-allow bypassed Duo 2FA due to user's UNIX group",
             )
 
@@ -487,7 +489,7 @@ class TestLoginDuoInteractive(CommonSuites.Interactive):
         return login_duo_interactive(*args, **kwargs)
 
 
-class TestLoginDuoGECOS(unittest.TestCase):
+class TestLoginDuoGECOS(CommonTestCase):
     def run(self, result=None):
         with MockDuo(NORMAL_CERT):
             return super(TestLoginDuoGECOS, self).run(result)
@@ -499,8 +501,8 @@ class TestLoginDuoGECOS(unittest.TestCase):
                 env={"UID": "1010"},
                 preload_script=os.path.join(TESTDIR, "login_duo.py"),
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Successful Duo login for '1/2/3/4/5/gecos_user_gecos_field6'",
             )
 
@@ -511,12 +513,12 @@ class TestLoginDuoGECOS(unittest.TestCase):
                 env={"UID": "1010"},
                 preload_script=os.path.join(TESTDIR, "login_duo.py"),
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"The gecos_parsed configuration item for Duo Unix is deprecated and no longer has any effect. Use gecos_delim and gecos_username_pos instead",
             )
-            self.assertRegex(
-                result["stderr"][1],
+            self.assertRegexSomeline(
+                result["stderr"],
                 "Skipped Duo login for 'gecos/6': gecos/6",
             )
 
@@ -527,8 +529,8 @@ class TestLoginDuoGECOS(unittest.TestCase):
                 env={"UID": "1012"},
                 preload_script=os.path.join(TESTDIR, "login_duo.py"),
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 "Skipped Duo login for 'gecos_user_gecos_field6': gecos-user-gecos-field6-allowed",
             )
 
@@ -539,8 +541,8 @@ class TestLoginDuoGECOS(unittest.TestCase):
                 env={"UID": "1011"},
                 preload_script=os.path.join(TESTDIR, "login_duo.py"),
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Skipped Duo login for 'gecos_user_gecos_field3': gecos-user-gecos-field3-allowed",
             )
 
@@ -551,8 +553,8 @@ class TestLoginDuoGECOS(unittest.TestCase):
                 env={"UID": "1012"},
                 preload_script=os.path.join(TESTDIR, "login_duo.py"),
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Could not parse GECOS field",
             )
 
@@ -563,8 +565,8 @@ class TestLoginDuoGECOS(unittest.TestCase):
                 env={"UID": "1016"},
                 preload_script=os.path.join(TESTDIR, "login_duo.py"),
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Empty GECOS field",
             )
 
@@ -573,16 +575,16 @@ class TestLoginDuoGECOS(unittest.TestCase):
             result = login_duo(
                 ["-d", "-c", temp.name, "true"],
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Invalid character option length. Character fields must be 1 character long: ',,'",
             )
-            self.assertRegex(
-                result["stderr"][1],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Invalid login_duo option: 'gecos_delim'",
             )
-            self.assertRegex(
-                result["stderr"][2],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Parse error in {config}, line \d+".format(config=temp.name),
             )
 
@@ -595,18 +597,18 @@ class TestLoginDuoGECOS(unittest.TestCase):
                 result = login_duo(
                     ["-d", "-c", temp.name, "true"],
                 )
-                self.assertEqual(
-                    result["stderr"][0],
+                self.assertSomeline(
+                    result["stderr"],
                     "Invalid gecos_delim '{delim}' (delimiter must be punctuation other than ':')".format(
                         delim=config["gecos_delim"]
                     ),
                 )
-                self.assertRegex(
-                    result["stderr"][1],
+                self.assertRegexSomeline(
+                    result["stderr"],
                     r"Invalid login_duo option: 'gecos_delim'",
                 )
-                self.assertRegex(
-                    result["stderr"][2],
+                self.assertRegexSomeline(
+                    result["stderr"],
                     r"Parse error in {config}, line \d+".format(config=temp.name),
                 )
 
@@ -616,15 +618,15 @@ class TestLoginDuoGECOS(unittest.TestCase):
                 ["-d", "-c", temp.name, "true"],
             )
             self.assertEqual(
-                result["stderr"][0],
+                result["stderr"][2],
                 "Invalid character option length. Character fields must be 1 character long: ''",
             )
-            self.assertRegex(
-                result["stderr"][1],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Invalid login_duo option: 'gecos_delim'",
             )
-            self.assertRegex(
-                result["stderr"][2],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Parse error in {config}, line \d+".format(config=temp.name),
             )
 
@@ -634,15 +636,15 @@ class TestLoginDuoGECOS(unittest.TestCase):
                 ["-d", "-c", temp.name, "true"],
             )
             self.assertEqual(
-                result["stderr"][0],
+                result["stderr"][2],
                 "Gecos position starts at 1",
             )
-            self.assertRegex(
-                result["stderr"][1],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Invalid login_duo option: 'gecos_username_pos'",
             )
-            self.assertRegex(
-                result["stderr"][2],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Parse error in {config}, line \d+".format(config=temp.name),
             )
 

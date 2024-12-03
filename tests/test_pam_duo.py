@@ -16,7 +16,7 @@ import unittest
 import sys
 
 import pexpect
-from common_suites import NORMAL_CERT, CommonSuites, EOF
+from common_suites import NORMAL_CERT, CommonSuites, EOF, CommonTestCase
 from config import (
     MOCKDUO_CONF,
     MOCKDUO_GECOS_DEFAULT_DELIM_6_POS,
@@ -133,11 +133,11 @@ def pam_duo(args, env={}, timeout=10):
 
 
 @unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
-class TestPamDuoHelp(unittest.TestCase):
+class TestPamDuoHelp(CommonTestCase):
     def test_help(self):
         result = pam_duo(["-h"])
-        self.assertRegex(
-            result["stderr"][0],
+        self.assertRegexSomeline(
+            result["stderr"],
             r"Usage: .*/tests/testpam.py \[-d\] \[-c config\] \[-f user\] \[-h host\]",
         )
 
@@ -209,7 +209,7 @@ class TestPamBSON(CommonSuites.InvalidBSON):
 
 
 @unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
-class TestPamPrompts(unittest.TestCase):
+class TestPamPrompts(CommonTestCase):
     def run(self, result=None):
         with MockDuo(NORMAL_CERT):
             return super(TestPamPrompts, self).run(result)
@@ -217,11 +217,15 @@ class TestPamPrompts(unittest.TestCase):
     def test_max_prompts_equals_one(self):
         with TempConfig(MOCKDUO_PROMPTS_1) as temp:
             result = pam_duo(["-d", "-f", "pam_prompt", "-c", temp.name, "true"])
-            self.assertRegex(result["stderr"][0], "Failed Duo login for 'pam_prompt'")
-            self.assertRegex(
-                result["stdout"][0], "Autopushing login request to phone..."
+            self.assertRegexSomeline(
+                result["stderr"], "Failed Duo login for 'pam_prompt'"
             )
-            self.assertRegex(result["stdout"][1], "Invalid passcode, please try again.")
+            self.assertRegexSomeline(
+                result["stdout"], "Autopushing login request to phone..."
+            )
+            self.assertRegexSomeline(
+                result["stdout"], "Invalid passcode, please try again."
+            )
 
     def test_max_prompts_equals_maximum(self):
         with TempConfig(MOCKDUO_PROMPTS_DEFAULT) as temp:
@@ -318,7 +322,7 @@ class TestPamdConf(unittest.TestCase):
 
 
 @unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
-class TestPamGECOS(unittest.TestCase):
+class TestPamGECOS(CommonTestCase):
     def run(self, result=None):
         with MockDuo(NORMAL_CERT):
             return super(TestPamGECOS, self).run(result)
@@ -328,8 +332,8 @@ class TestPamGECOS(unittest.TestCase):
             result = pam_duo(
                 ["-d", "-c", temp.name, "-f", "fullgecos", "true"],
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Skipped Duo login for 'full_gecos_field': full-gecos-field",
             )
 
@@ -338,12 +342,12 @@ class TestPamGECOS(unittest.TestCase):
             result = pam_duo(
                 ["-d", "-c", temp.name, "-f", "gecos/6", "true"],
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"The gecos_parsed configuration item for Duo Unix is deprecated and no longer has any effect. Use gecos_delim and gecos_username_pos instead",
             )
-            self.assertRegex(
-                result["stderr"][1],
+            self.assertRegexSomeline(
+                result["stderr"],
                 "Skipped Duo login for 'gecos/6': gecos/6",
             )
 
@@ -352,8 +356,8 @@ class TestPamGECOS(unittest.TestCase):
             result = pam_duo(
                 ["-d", "-c", temp.name, "-f", "gecos,6", "true"],
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 "Skipped Duo login for 'gecos_user_gecos_field6': gecos-user-gecos-field6-allowed",
             )
 
@@ -362,8 +366,8 @@ class TestPamGECOS(unittest.TestCase):
             result = pam_duo(
                 ["-d", "-c", temp.name, "-f", "gecos/3", "true"],
             )
-            self.assertRegex(
-                result["stderr"][0],
+            self.assertRegexSomeline(
+                result["stderr"],
                 r"Skipped Duo login for 'gecos_user_gecos_field3': gecos-user-gecos-field3-allowed",
             )
 
@@ -395,17 +399,17 @@ class TestPamGECOS(unittest.TestCase):
                     ["-d", "-c", temp.name, "true"],
                 )
                 self.assertEqual(
-                    result["stderr"][0],
+                    result["stderr"][1],
                     "Invalid gecos_delim '{delim}' (delimiter must be punctuation other than ':')".format(
                         delim=config["gecos_delim"]
                     ),
                 )
-                self.assertRegex(
-                    result["stderr"][1],
+                self.assertRegexSomeline(
+                    result["stderr"],
                     r"Invalid pam_duo option: 'gecos_delim'",
                 )
-                self.assertRegex(
-                    result["stderr"][2],
+                self.assertRegexSomeline(
+                    result["stderr"],
                     r"Parse error in {config}, line \d+".format(config=temp.name),
                 )
 
@@ -415,15 +419,15 @@ class TestPamGECOS(unittest.TestCase):
                 ["-d", "-c", temp.name, "true"],
             )
             self.assertEqual(
-                result["stderr"][0],
+                result["stderr"][1],
                 "Invalid character option length. Character fields must be 1 character long: ''",
             )
             self.assertRegex(
-                result["stderr"][1],
+                result["stderr"][2],
                 r"Invalid pam_duo option: 'gecos_delim'",
             )
             self.assertRegex(
-                result["stderr"][2],
+                result["stderr"][3],
                 r"Parse error in {config}, line \d+".format(config=temp.name),
             )
 
@@ -433,15 +437,15 @@ class TestPamGECOS(unittest.TestCase):
                 ["-d", "-c", temp.name, "true"],
             )
             self.assertEqual(
-                result["stderr"][0],
+                result["stderr"][1],
                 "Gecos position starts at 1",
             )
             self.assertRegex(
-                result["stderr"][1],
+                result["stderr"][2],
                 r"Invalid pam_duo option: 'gecos_username_pos'",
             )
             self.assertRegex(
-                result["stderr"][2],
+                result["stderr"][3],
                 r"Parse error in {config}, line \d+".format(config=temp.name),
             )
 
