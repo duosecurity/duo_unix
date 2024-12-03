@@ -142,6 +142,8 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     config = ctx->config ? ctx->config : DUO_CONF;
     flags = 0;
 
+    duo_syslog(LOG_INFO, "Loading config file %s\n", config);
+
     duo_config_default(&cfg);
 
     /* Load our private config. */
