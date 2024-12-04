@@ -437,15 +437,15 @@ class TestPamGECOS(CommonTestCase):
                 ["-d", "-c", temp.name, "true"],
             )
             self.assertEqual(
-                result["stderr"][1],
+                result["stderr"][0],
                 "Gecos position starts at 1",
             )
             self.assertRegex(
-                result["stderr"][2],
+                result["stderr"][1],
                 r"Invalid pam_duo option: 'gecos_username_pos'",
             )
             self.assertRegex(
-                result["stderr"][3],
+                result["stderr"][2],
                 r"Parse error in {config}, line \d+".format(config=temp.name),
             )
 
