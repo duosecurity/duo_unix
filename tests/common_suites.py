@@ -587,6 +587,9 @@ class CommonSuites:
 
     class Interactive(CommonTestCase):
         PROMPT_REGEX = ".* or option \\(1-4\\): $"
+        INITIAL_TEXT = [
+            ".*Loading config file .*",
+        ]
         PROMPT_TEXT = [
             "Duo login for foobar",
             "Choose or lose:",
@@ -598,7 +601,7 @@ class CommonSuites:
         ]
 
         def remove_header_lines(self, s):
-            return "\r\n".join(s.split("\r\n")[1:])
+            return s
 
         def assertOutputEqual(self, output, expected):
             processed_output = [line for line in output.split("\r\n") if line != ""]
@@ -629,7 +632,7 @@ class CommonSuites:
                 )
                 self.assertOutputEqual(
                     self.remove_header_lines(process.match.group(0)),
-                    CommonSuites.Interactive.PROMPT_TEXT,
+                    self.INITIAL_TEXT + CommonSuites.Interactive.PROMPT_TEXT,
                 )
                 process.sendline(b"123456")
                 self.assertEqual(
@@ -681,7 +684,7 @@ class CommonSuites:
                 )
                 self.assertOutputEqual(
                     self.remove_header_lines(process.match.group(0)),
-                    CommonSuites.Interactive.PROMPT_TEXT,
+                    self.INITIAL_TEXT + CommonSuites.Interactive.PROMPT_TEXT,
                 )
                 process.sendline(b"3")
                 self.assertEqual(
