@@ -279,6 +279,8 @@ class TestPamPreauthFailures(CommonSuites.PreauthFailures):
 
 @unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamDuoInteractive(CommonSuites.Interactive):
+    INITIAL_TEXT = []
+
     def call_binary(self, *args, **kwargs):
         return pam_duo_interactive(*args, **kwargs)
 
