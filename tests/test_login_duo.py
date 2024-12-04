@@ -382,7 +382,7 @@ class TestLoginDuoTimeout(CommonTestCase):
                 preload_script=os.path.join(TESTDIR, "login_duo.py"),
                 timeout=10,
             )
-            for line in result["stderr"][2:5]:
+            for line in result["stderr"][1:4]:
                 self.assertEqual(line, "Attempting connection")
 
             self.assertRegexSomeline(
@@ -617,8 +617,8 @@ class TestLoginDuoGECOS(CommonTestCase):
             result = login_duo(
                 ["-d", "-c", temp.name, "true"],
             )
-            self.assertEqual(
-                result["stderr"][2],
+            self.assertRegexSomeline(
+                result["stderr"],
                 "Invalid character option length. Character fields must be 1 character long: ''",
             )
             self.assertRegexSomeline(
@@ -635,8 +635,8 @@ class TestLoginDuoGECOS(CommonTestCase):
             result = login_duo(
                 ["-d", "-c", temp.name, "true"],
             )
-            self.assertEqual(
-                result["stderr"][2],
+            self.assertRegexSomeline(
+                result["stderr"],
                 "Gecos position starts at 1",
             )
             self.assertRegexSomeline(
