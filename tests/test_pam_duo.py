@@ -398,8 +398,8 @@ class TestPamGECOS(CommonTestCase):
                 result = pam_duo(
                     ["-d", "-c", temp.name, "true"],
                 )
-                self.assertEqual(
-                    result["stderr"][1],
+                self.assertRegexSomeline(
+                    result["stderr"],
                     "Invalid gecos_delim '{delim}' (delimiter must be punctuation other than ':')".format(
                         delim=config["gecos_delim"]
                     ),
@@ -419,15 +419,15 @@ class TestPamGECOS(CommonTestCase):
                 ["-d", "-c", temp.name, "true"],
             )
             self.assertEqual(
-                result["stderr"][1],
+                result["stderr"][0],
                 "Invalid character option length. Character fields must be 1 character long: ''",
             )
             self.assertRegex(
-                result["stderr"][2],
+                result["stderr"][1],
                 r"Invalid pam_duo option: 'gecos_delim'",
             )
             self.assertRegex(
-                result["stderr"][3],
+                result["stderr"][2],
                 r"Parse error in {config}, line \d+".format(config=temp.name),
             )
 
