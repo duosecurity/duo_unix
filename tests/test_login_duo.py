@@ -597,11 +597,11 @@ class TestLoginDuoGECOS(CommonTestCase):
                 result = login_duo(
                     ["-d", "-c", temp.name, "true"],
                 )
-                self.assertSomeline(
-                    result["stderr"],
+                self.assertIn(
                     "Invalid gecos_delim '{delim}' (delimiter must be punctuation other than ':')".format(
                         delim=config["gecos_delim"]
                     ),
+                    result["stderr"],
                 )
                 self.assertRegexSomeline(
                     result["stderr"],

@@ -69,15 +69,6 @@ class CommonTestCase(unittest.TestCase):
 
         self.assertTrue(found, f"Regex '{regex}' not found in any lines of {result}")
 
-    def assertSomeline(self, result: list[str], s: str):
-        found = False
-        for line in result:
-            if line == s:
-                found = True
-                break
-
-        self.assertTrue(found, f"Line '{s}' not found in any lines of {result}")
-
     def call_binary(self, *args, **kwargs):
         raise NotImplementedError
 
