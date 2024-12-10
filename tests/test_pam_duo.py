@@ -400,7 +400,7 @@ class TestPamGECOS(CommonTestCase):
                 result = pam_duo(
                     ["-d", "-c", temp.name, "true"],
                 )
-                self.assertSomeline(
+                self.assertIn(
                     result["stderr"],
                     "Invalid gecos_delim '{delim}' (delimiter must be punctuation other than ':')".format(
                         delim=config["gecos_delim"]
