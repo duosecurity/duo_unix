@@ -401,10 +401,10 @@ class TestPamGECOS(CommonTestCase):
                     ["-d", "-c", temp.name, "true"],
                 )
                 self.assertIn(
-                    result["stderr"],
                     "Invalid gecos_delim '{delim}' (delimiter must be punctuation other than ':')".format(
                         delim=config["gecos_delim"]
                     ),
+                    result["stderr"],
                 )
                 self.assertRegexSomeline(
                     result["stderr"],
