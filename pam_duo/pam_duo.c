@@ -88,7 +88,9 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 static void
 __duo_status(void *arg, const char *msg)
 {
-    pam_info((pam_handle_t *)arg, "%s", msg);
+    if (!duo_quiet) {
+        pam_info((pam_handle_t *)arg, "%s", msg);
+    }
 }
 
 static char *
