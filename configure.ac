@@ -138,11 +138,12 @@ AX_CHECK_OPENSSL([], AC_MSG_FAILURE([OpenSSL not found]))
 AX_CHECK_X509(AC_DEFINE([HAVE_X509_TEA_SET_STATE],[1],[Define if X509_set_state exists]), [])
 # Default PAM install dir
 case "$host" in
-     *darwin*)         PAM_DIR="/usr/lib/pam" ;;
-     *freebsd*)        PAM_DIR="/usr/lib" ;;
-     *x86_64-*-linux*) PAM_DIR="/lib64/security" ;;
-     *linux*)          PAM_DIR="/lib/security" ;;
-     *)                PAM_DIR="/usr/lib/security" ;; # NetBSD, Solaris, AIX, HP-UX
+     *darwin*)          PAM_DIR="/usr/lib/pam" ;;
+     *freebsd*)         PAM_DIR="/usr/lib" ;;
+     *aarch64-*-linux*) PAM_DIR="/lib64/security" ;;
+     *x86_64-*-linux*)  PAM_DIR="/lib64/security" ;;
+     *linux*)           PAM_DIR="/lib/security" ;;
+     *)                 PAM_DIR="/usr/lib/security" ;; # NetBSD, Solaris, AIX, HP-UX
 esac
 
 AC_ARG_WITH(coverage,
