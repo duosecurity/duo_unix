@@ -595,7 +595,7 @@ class CommonSuites:
             return s
 
         def assertOutputEqual(self, output, expected):
-            processed_output = [line for line in output.split("\r\n") if line != ""]
+            processed_output = [line for line in output.decode().split("\r\n") if line != ""]
             for index, line in enumerate(processed_output):
                 if line == expected[index]:
                     continue
