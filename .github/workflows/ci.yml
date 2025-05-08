@@ -19,13 +19,16 @@ jobs:
 
     steps:
       - name: Install packages
-        run: sudo apt-get update && sudo apt-get install -y autoconf libtool libpam-dev libssl-dev automake python3 cppcheck
+        run: sudo apt-get update && sudo apt-get install -y autoconf libtool libpam-dev libssl-dev automake python3 python3-pip cppcheck
 
       - name: Checkout repo
         uses: actions/checkout@v2
 
       - name: Build
         run: ./bootstrap && ./configure --with-pam --prefix=/usr && make CC=${{ matrix.cc }}
+
+      - name: Install test dependencies
+        run: pip3 install -r test_requirements.in
 
       - name: Run tests
         run: sudo make distcheck
