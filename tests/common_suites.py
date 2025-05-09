@@ -39,6 +39,8 @@ from config import (
 )
 from mockduo_context import NORMAL_CERT, SELFSIGNED_CERT, WRONGHOST_CERT, MockDuo
 
+from typing import Sequence
+
 TESTDIR = os.path.realpath(os.path.dirname(__file__))
 
 if sys.platform == "sunos5":
@@ -60,7 +62,7 @@ def fips_available():
 
 
 class CommonTestCase(unittest.TestCase):
-    def assertRegexSomeline(self, result: list[str], regex: str):
+    def assertRegexSomeline(self, result: Sequence[str], regex: str):
         found = False
         for line in result:
             if re.search(regex, line):
