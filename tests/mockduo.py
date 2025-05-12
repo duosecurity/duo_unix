@@ -248,7 +248,7 @@ class MockDuoHandler(BaseHTTPRequestHandler):
             elif self.args["user"] == "retry-after-date-preauth-allow":
                 if self._rl_req_num == 0:
                     self._rl_req_num = 1
-                    timestr = time.strftime("%a, %d %b %Y %H:%M:%S %Z", time.localtime(time.time()+3))
+                    timestr = time.strftime("%a, %d %b %Y %H:%M:%S %Z", time.gmtime(time.time()+3))
                     return self._send(429, headers={"Retry-After": timestr})
                 else:
                     self._rl_req_num = 0

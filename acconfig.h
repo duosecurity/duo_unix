@@ -33,3 +33,8 @@ size_t	strlcpy(char *dst, const char *src, size_t size);
 
 size_t strnlen(const char *str, size_t maxlen);
 #endif
+
+#ifndef HAVE_TIMEGM
+
+time_t timegm(struct tm *tm);
+#endif
