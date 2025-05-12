@@ -113,7 +113,7 @@ _parse_retry_after(const char *header_value)
     struct tm tm;
     memset(&tm, 0, sizeof(struct tm));
     if (strptime(header_value, "%a, %d %b %Y %H:%M:%S %Z", &tm) != NULL) {
-        return mktime(&tm);
+        return timegm(&tm);
     }
 
     return (time_t)-1;
