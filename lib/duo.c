@@ -246,7 +246,7 @@ _duo_seterr(struct duo_ctx *ctx, const char *fmt, ...)
 static void
 _duo_get_hostname(char *dns_fqdn, size_t dns_fqdn_size)
 {
-    struct addrinfo hints, *info, *p;
+    struct addrinfo hints, *info;
     char hostname[HOST_NAME_MAX + 1];
 
     /* gethostname may not insert a null terminator when it needs to truncate the hostname.
@@ -312,7 +312,7 @@ static duo_code_t
 _duo_json_response(struct duo_ctx *ctx) {
     JSON_Value *json;
     JSON_Object *json_obj;
-    char *p;
+    const char *p;
     int code = DUO_SERVER_ERROR;
 
     json = json_parse_string(ctx->body);
@@ -327,7 +327,7 @@ _duo_json_response(struct duo_ctx *ctx) {
         code = DUO_OK;
     }
     if (strcasecmp(p, "FAIL") == 0) {
-        char *message;
+        const char *message;
         code = json_object_get_number(json_obj, "code");
         // json_object_get_number will return 0 if "code" not found
         if (code == 0) {
@@ -351,7 +351,7 @@ _duo_https_exchange(struct duo_ctx *ctx, const char *method, const char *uri, in
     const int initial_backof_wait_secs = 1;
     const int backoff_factor = 2;
 
-    static const char fmt[] = "Rate-limiting response received from server. Waiting for %d seconds before retrying.";
+    static const char fmt[] = "Rate-limiting response received from server. Waiting for %ld seconds before retrying.";
     char msg[(sizeof fmt) + max_int_digits];
     int wait_secs = initial_backof_wait_secs;
 
@@ -375,7 +375,7 @@ _duo_https_exchange(struct duo_ctx *ctx, const char *method, const char *uri, in
             .tv_nsec = (float)rand() / RAND_MAX * 1000000000
         };
 
-        snprintf(msg, sizeof(msg), fmt, timeout.tv_sec);
+        snprintf(msg, sizeof msg, fmt, (long)timeout.tv_sec);
         if (ctx->conv_status)
             ctx->conv_status(NULL, msg);
         nanosleep(&timeout, NULL);
@@ -475,7 +475,7 @@ _duo_preauth(struct duo_ctx *ctx, const char *username,
     _JSON_FIND_OBJECT(response, json_obj, "response", json);
     _JSON_FIND_STRING(p, response, "result", json);
     if (strcasecmp(p, "auth") != 0) {
-        char *output;
+        const char *output;
         _JSON_FIND_STRING(output, response, "status", json);
         if (strcasecmp(p, "allow") == 0) {
                         _duo_seterr(ctx, "%s", output);
