@@ -45,6 +45,7 @@
 #define AUTOPHONE_MSG       "Calling your phone..."
 #define AUTODEFAULT_MSG     "Using default second-factor authentication."
 #define ENV_VAR_MSG         "Reading $DUO_PASSCODE..."
+static const char DUO_AUTH_PING_ENDPOINT[] = "/auth/v2/ping";
 
 /*
  * Finding the maximum length for the machine's hostname
@@ -359,8 +360,10 @@ _duo_https_exchange(struct duo_ctx *ctx, const char *method, const char *uri, in
         HTTPScode rc;
         time_t retry_after;
 
+        int sign_request = strcmp(uri, DUO_AUTH_PING_ENDPOINT);
         rc = https_send(ctx->https, method, uri,
-            ctx->argc, ctx->argv, ctx->ikey, ctx->skey, ctx->useragent);
+            ctx->argc, ctx->argv, ctx->ikey, ctx->skey, ctx->useragent,
+            ctx->time_offset, sign_request);
         if (rc != HTTPS_OK)
             return rc;
         rc = https_recv(ctx->https, code, &ctx->body, &ctx->body_len, &retry_after, msecs);
@@ -602,8 +605,13 @@ duo_login(struct duo_ctx *ctx, const char *username,
         return (DUO_CLIENT_ERROR);
     }
 
+    ret = duo_sync_time_offset(ctx);
+
+    if (ret == DUO_OK) {
+        ret = _duo_preauth(ctx, username, client_ip, failmode);
+    }
     /* Check preauth status */
-    if ((ret = _duo_preauth(ctx, username, client_ip, failmode)) != DUO_CONTINUE) {
+    if (ret != DUO_CONTINUE) {
         if(ret == DUO_SERVER_ERROR || ret == DUO_CONN_ERROR || ret == DUO_CLIENT_ERROR) {
             return (failmode == DUO_FAIL_SAFE) ? (DUO_FAIL_SAFE_ALLOW) : (DUO_FAIL_SECURE_DENY);
         }
@@ -746,4 +754,55 @@ duo_login(struct duo_ctx *ctx, const char *username,
     }
     _JSON_VALUE_FREE(json);
     return (ret);
+}
+
+duo_code_t
+duo_sync_time_offset(struct duo_ctx *ctx) {
+    const char *body = NULL;
+    int body_len = 0;
+    long duo_time = 0;
+    long local_time = 0;
+    JSON_Value *json = NULL;
+    JSON_Object *json_obj = NULL;
+    JSON_Object *response_obj = NULL;
+    duo_code_t ret;
+
+    ctx->argc = 0; /* no params */
+    ret = duo_call(ctx, "GET", DUO_AUTH_PING_ENDPOINT, ctx->https_timeout);
+    if (ret != DUO_OK) {
+        return ret;
+    }
+    body = ctx->body;
+    body_len = ctx->body_len;
+    if (!body || body_len == 0) {
+        _duo_seterr(ctx, "No response body from server");
+        return DUO_SERVER_ERROR;
+    }
+    json = json_parse_string(body);
+    if (!json) {
+        _duo_seterr(ctx, "invalid JSON response");
+        return DUO_SERVER_ERROR;
+    }
+    json_obj = json_value_get_object(json);
+    if (!json_obj) {
+        _duo_seterr(ctx, "No JSON object in response");
+        json_value_free(json);
+        return DUO_SERVER_ERROR;
+    }
+    response_obj = json_object_get_object(json_obj, "response");
+    if (!response_obj) {
+        _duo_seterr(ctx, "JSON missing valid 'response'");
+        json_value_free(json);
+        return DUO_SERVER_ERROR;
+    }
+    duo_time = (long)json_object_get_number(response_obj, "time");
+    if (duo_time == 0) {
+        _duo_seterr(ctx, "JSON missing valid 'time'");
+        json_value_free(json);
+        return DUO_SERVER_ERROR;
+    }
+    local_time = (long)time(NULL);
+    ctx->time_offset = duo_time - local_time;
+    json_value_free(json);
+    return DUO_OK;
 }

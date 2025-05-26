@@ -13,6 +13,9 @@ import subprocess
 import time
 import unittest
 import sys
+import urllib.request
+import urllib.parse
+import ssl
 
 import pexpect
 from config import (
@@ -782,4 +785,60 @@ class CommonSuites:
                 self.assertRegexSomeline(
                     result["stderr"],
                     r"invalid JSON response",
+                )
+
+    class DuoTimeSync(CommonTestCase):
+        def run(self, result=None):
+            with MockDuo(NORMAL_CERT):
+                return super(CommonSuites.DuoTimeSync, self).run(result)
+
+        def test_time_sync_success(self):
+            """Test successful time sync with /auth/v2/ping"""
+            with TempConfig(MOCKDUO_CONF) as temp:
+                result = self.call_binary([
+                    "-d", "-c", temp.name, "-f", "foobar", "true"
+                ])
+                self.assertRegexSomeline(
+                    result["stderr"],
+                    r"Successful Duo login for 'foobar'",
+                )
+                # Optionally, check for log message about time sync if available
+
+        def test_time_sync_with_skew(self):
+            """Test time sync with server time skew (offset is used)"""
+            with TempConfig(MOCKDUO_CONF) as temp:
+                # Set the server time skew to +400 seconds permanently
+                params = {"skew": 400, "mode": "permanent"}
+                query = urllib.parse.urlencode(params)
+                url = f"https://localhost:4443/mockduo/set-skew?{query}"
+                context = ssl._create_unverified_context()
+                with urllib.request.urlopen(url, context=context) as response:
+                    response.read()
+                result = self.call_binary(["-d", "-c", temp.name, "-f", "foobar", "true"])
+                self.assertRegexSomeline(
+                    result["stderr"],
+                    r"Successful Duo login for 'foobar'",
+                )
+                # Reset skew after test
+                params = {"skew": 0, "mode": "permanent"}
+                query = urllib.parse.urlencode(params)
+                url = f"https://localhost:4443/mockduo/set-skew?{query}"
+                with urllib.request.urlopen(url, context=context) as response:
+                    response.read()
+
+        def test_time_sync_with_skew_failed(self):
+            """Test time sync with server time skew (offset is used)"""
+            with TempConfig(MOCKDUO_CONF) as temp:
+                # Set skew to 400 for the next request only (ping)
+                params = {"skew": 400, "mode": "once"}
+                query = urllib.parse.urlencode(params)
+                url = f"https://localhost:4443/mockduo/set-skew?{query}"
+                context = ssl._create_unverified_context()
+                with urllib.request.urlopen(url, context=context) as response:
+                    response.read()
+                # The client will sync to +400, but the next auth will have 0 skew
+                result = self.call_binary(["-d", "-c", temp.name, "-f", "foobar", "true"])
+                self.assertRegexSomeline(
+                    result["stderr"],
+                    r"Failsafe Duo login for 'foobar': Invalid ikey or skey",
                 )

@@ -783,7 +783,7 @@ _argv_to_qs(int argc, char *argv[])
 
 HTTPScode
 https_send(struct https_request *req, const char *method, const char *uri,
-    int argc, char *argv[], const char *ikey, const char *skey, const char *useragent)
+    int argc, char *argv[], const char *ikey, const char *skey, const char *useragent, long time_offset, int sign_request)
 {
     BIO *b64;
     HMAC_CTX *hmac;
@@ -794,18 +794,54 @@ https_send(struct https_request *req, const char *method, const char *uri,
 
     req->done = 0;
 
-    t = time(NULL);
+    t = time(NULL) + time_offset; /* adjust time by offset */
     strftime(date, sizeof date, "%a, %d %b %Y %T %z", localtime(&t));
 
     /* Generate query string and canonical request to sign */
-    if ((qs = _argv_to_qs(argc, argv)) == NULL ||
-        (asprintf(&p, "%s\n%s\n%s\n%s\n%s", date, method, req->host, uri, qs)) < 0) {
-        free(qs);
+    if ((qs = _argv_to_qs(argc, argv)) == NULL) {
         ctx.errstr = strerror(errno);
         return (HTTPS_ERR_LIB);
     }
     /* Format request */
-    if ((is_get = (strcmp(method, "GET") == 0))) {
+    is_get = (strcmp(method, "GET") == 0);
+
+    if (!sign_request) {
+        if (is_get) {
+            BIO_printf(req->cbio, "GET %s?%s HTTP/1.1\r\n", uri, qs);
+        } else {
+            BIO_printf(req->cbio, "%s %s HTTP/1.1\r\n", method, uri);
+        }
+        if (strcmp(req->port, "443") == 0) {
+            BIO_printf(req->cbio, "Host: %s\r\n", req->host);
+        } else {
+            BIO_printf(req->cbio, "Host: %s:%s\r\n", req->host, req->port);
+        }
+        BIO_printf(req->cbio, "User-Agent: %s\r\n", useragent);
+        BIO_printf(req->cbio, "X-Duo-Date: %s\r\n", date);
+        if (!is_get) {
+            BIO_printf(req->cbio,
+                "\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: %d\r\n\r\n%s",
+                (int)strlen(qs), qs);
+        } else {
+            BIO_puts(req->cbio, "\r\n\r\n");
+        }
+        while (BIO_flush(req->cbio) != 1) {
+            if ((n = _BIO_wait(req->cbio, -1)) != 1) {
+                ctx.errstr = n ? _SSL_strerror() : "Write timed out";
+                free(qs);
+                return (HTTPS_ERR_SERVER);
+            }
+        }
+        free(qs);
+        return (HTTPS_OK);
+    }
+
+    if ((asprintf(&p, "%s\n%s\n%s\n%s\n%s", date, method, req->host, uri, qs)) < 0) {
+        free(qs);
+        ctx.errstr = strerror(errno);
+        return (HTTPS_ERR_LIB);
+    }
+    if (is_get) {
         BIO_printf(req->cbio, "GET %s?%s HTTP/1.1\r\n", uri, qs);
     } else {
         BIO_printf(req->cbio, "%s %s HTTP/1.1\r\n", method, uri);

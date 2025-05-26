@@ -78,4 +78,6 @@ const char *duo_geterr(duo_t *d);
 /* Close API handle. */
 duo_t *duo_close(duo_t *d);
 
+duo_code_t duo_sync_time_offset(duo_t *ctx);
+
 #endif /* DUO_H */

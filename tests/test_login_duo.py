@@ -63,7 +63,7 @@ class LoginDuoTimeoutException(Exception):
             stdout_output = ""
 
         return "Timeout waiting for 'login_duo' to execute\n{message}\n{stdout}\n{stderr}".format(
-            mesage=self.message,
+            message=self.message,
             stderr=stderr_output,
             stdout=stdout_output,
         )
@@ -748,6 +748,11 @@ class TestSigpipe(unittest.TestCase):
                     cwd=TESTDIR,
                 ),
             )
+
+
+class TestLoginDuoTimeSync(CommonSuites.DuoTimeSync):
+    def call_binary(self, *args, **kwargs):
+        return login_duo(*args, **kwargs)
 
 
 if __name__ == "__main__":

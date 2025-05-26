@@ -35,7 +35,9 @@ HTTPScode https_send(
     char *params[],
     const char *ikey,
     const char *skey,
-    const char *useragent
+    const char *useragent,
+    long time_offset,
+    int sign_request
 );
 
 /* Read response, return HTTP status code, set body and length if available.

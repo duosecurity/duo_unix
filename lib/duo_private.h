@@ -31,6 +31,7 @@ struct duo_ctx {
     char *(*conv_prompt)(void *arg, const char *pr, char *buf, size_t sz);
     void  (*conv_status)(void *arg, const char *msg);
     void   *conv_arg;
+    long time_offset; /* time difference in seconds between Duo's current time and the local system time */
 };
 
 duo_code_t
