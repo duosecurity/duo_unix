@@ -11,6 +11,8 @@
 import cgi
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
+import email.utils
+import calendar
 
 try:
     from hashlib import sha512
@@ -58,10 +60,26 @@ class MockDuoHandler(BaseHTTPRequestHandler):
     server_version = "MockDuo/1.0"
     protocol_version = "HTTP/1.1"
 
+    # Class variables for skew simulation
+    _skew_permanent = 0
+    _skew_once = None
+
     def __init__(self, *args, **kwargs):
         self._rl_req_clock = 0
         self._rl_req_num = 0
+        self.path = ""
+        self.qs = ""
+        self.args = {}
+        self.method = ""
         super().__init__(*args, **kwargs)
+
+    def _get_skew(self):
+        # Return one-time skew if set, then clear it
+        if type(self)._skew_once is not None:
+            skew = type(self)._skew_once
+            type(self)._skew_once = None
+            return skew
+        return type(self)._skew_permanent
 
     def _verify_sig(self):
         authz = base64.b64decode(self.headers["Authorization"].split()[1]).decode(
@@ -76,7 +94,27 @@ class MockDuoHandler(BaseHTTPRequestHandler):
         if datestring is None:
             # if it doesn't exist, try looking for Date header
             datestring = self.headers.get("Date")
-        
+
+        if datestring is None:
+            return False
+
+        # Parse the date header and check if it's within a reasonable window
+        datetuple = email.utils.parsedate_tz(datestring)
+        if datetuple is None:
+            return False
+        try:
+            date = calendar.timegm(datetuple[:9])
+        except Exception:
+            return False
+        if datetuple[9] is not None:
+            date -= datetuple[9]
+        # Use special skew for test usernames
+        skew = self._get_skew()
+        now = time.time() + skew
+        sig_window = 300  # 5 minutes
+        if abs(date - now) > sig_window:
+            return False
+
         canon = [datestring, self.method, self.headers["Host"].split(":")[0].lower(), self.path]
         l = []
         for k in sorted(self.args.keys()):
@@ -139,13 +177,37 @@ class MockDuoHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         self.method = "GET"
-        self.path, self.qs = self.path.split("?", 1)
-        self.args = self._get_args()
+        if "?" in self.path:
+            self.path, self.qs = self.path.split("?", 1)
+            self.args = self._get_args()
+        else:
+            self.qs = ""
+            self.args = {}
+
+        # Special endpoint to set skew
+        if self.path == "/mockduo/set-skew":
+            try:
+                skew = int(self.args.get("skew", "0"))
+                mode = self.args.get("mode", "permanent")
+                if mode == "once":
+                    type(self)._skew_once = skew
+                else:
+                    type(self)._skew_permanent = skew
+                self._send(200, json.dumps({"stat": "OK", "skew": skew, "mode": mode}))
+            except Exception as e:
+                self._send(400, json.dumps({"stat": "FAIL", "error": str(e)}))
+            return self._send(200)
+
+        ret = {"stat": "OK"}
+
+        if self.path == "/auth/v2/ping":
+            skew = self._get_skew()
+            ret["response"] = {"time": int(time.time()) + skew}
+            buf = json.dumps(ret)
+            return self._send(200, buf)
 
         if not self._verify_sig():
             return self._send(401)
-
-        ret = {"stat": "OK"}
 
         if self.path == "/rest/v1/status.json":
             ret["response"] = self._get_tx_response(self.args["txid"], 1)
