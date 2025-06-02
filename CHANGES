@@ -1,3 +1,10 @@
+duo_unix-2.1.0:
+- Improves certificate validation for IP hostnames to mitigate CVE-2014-0139
+- Duo Unix obeys rate limiting replies from the Duo cloud service
+- The full path to the configuration file is logged out when Duo Unix is invoked
+- API calls to Duo will account for possible time drift between Duo and the local server
+- Adds support for new Duo certificate authorities
+
 duo_unix-2.0.4:
 - Fixed multiple memory allocation leaks
 - Removed some unused and unreachable code
