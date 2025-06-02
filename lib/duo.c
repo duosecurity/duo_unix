@@ -360,10 +360,9 @@ _duo_https_exchange(struct duo_ctx *ctx, const char *method, const char *uri, in
         HTTPScode rc;
         time_t retry_after;
 
-        int sign_request = strcmp(uri, DUO_AUTH_PING_ENDPOINT);
         rc = https_send(ctx->https, method, uri,
             ctx->argc, ctx->argv, ctx->ikey, ctx->skey, ctx->useragent,
-            ctx->time_offset, sign_request);
+            ctx->time_offset);
         if (rc != HTTPS_OK)
             return rc;
         rc = https_recv(ctx->https, code, &ctx->body, &ctx->body_len, &retry_after, msecs);
