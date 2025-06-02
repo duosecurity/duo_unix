@@ -10,6 +10,8 @@
 #ifndef HTTPS_H
 #define HTTPS_H
 
+#include <time.h>
+
 typedef struct https_request https_t;
 
 typedef enum {
@@ -36,8 +38,7 @@ HTTPScode https_send(
     const char *ikey,
     const char *skey,
     const char *useragent,
-    long time_offset,
-    int sign_request
+    long time_offset
 );
 
 /* Read response, return HTTP status code, set body and length if available.
