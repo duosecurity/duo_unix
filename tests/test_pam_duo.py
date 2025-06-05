@@ -245,6 +245,20 @@ class TestPamPrompts(CommonTestCase):
 
 
 @unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
+class TestPamQuiet(unittest.TestCase):
+    def run(self, result=None):
+        with MockDuo(NORMAL_CERT):
+            return super(TestPamQuiet, self).run(result)
+
+    def test_quiet(self):
+        with TempConfig(MOCKDUO_PROMPTS_1) as temp:
+            result = pam_duo(["-d", "-f", "pam_prompt", "-c", temp.name, "-q", "true"])
+            self.assertRegex(result["stderr"][0], "Failed Duo login for 'pam_prompt'")
+            self.assertEqual(len(result["stdout"]), 1)
+            self.assertRegex(result["stdout"][0], "^$")
+
+
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamEnv(CommonSuites.Env):
     def call_binary(self, *args, **kwargs):
         return pam_duo(*args, **kwargs)
@@ -321,6 +335,21 @@ class TestPamdConf(unittest.TestCase):
                     ["-d", "-c", duo_config.name, "-f", "whatever"], pam_config.name
                 )
                 self.assertEqual(process.returncode, 1)
+
+
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
+class TestPamdConfQuiet(unittest.TestCase):
+    def test_quiet_argument(self):
+        with TempConfig(MOCKDUO_CONF) as duo_config:
+            pamd_conf = "auth  required  {libpath}/pam_duo.so conf={duo_config_path} quiet".format(
+                libpath=os.path.join(topbuilddir, "pam_duo", ".libs"),
+                duo_config_path=duo_config.name,
+            )
+            with TempPamConfig(pamd_conf) as pam_config:
+                process = testpam(
+                    ["-d", "-c", duo_config.name, "-f", "whatever"], pam_config.name
+                )
+                self.assertEqual(process.returncode, 0)
 
 
 @unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)

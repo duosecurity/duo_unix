@@ -24,6 +24,7 @@
 #include "groupaccess.h"
 
 int duo_debug = 0;
+int duo_quiet = 0;
 
 void
 duo_config_default(struct duo_config *cfg)
