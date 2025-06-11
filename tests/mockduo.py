@@ -154,11 +154,11 @@ class MockDuoHandler(BaseHTTPRequestHandler):
             secs, msg = tx_msgs[txid][-1].split(":", 1)
 
         if msg.startswith("Success"):
-            rsp = {"result": "allow", "status": msg}
+            rsp = {"result": "allow", "status_msg": msg}
         elif is_async and not last:
-            rsp = {"status": msg}
+            rsp = {"result": "waiting", "status_msg": msg}
         else:
-            rsp = {"result": "deny", "status": msg}
+            rsp = {"result": "deny", "status_msg": msg}
         time.sleep(int(secs))
         return rsp
 
@@ -209,7 +209,7 @@ class MockDuoHandler(BaseHTTPRequestHandler):
         if not self._verify_sig():
             return self._send(401)
 
-        if self.path == "/rest/v1/status.json":
+        if self.path == "/auth/v2/auth_status":
             ret["response"] = self._get_tx_response(self.args["txid"], 1)
             buf = json.dumps(ret)
             return self._send(200, buf)
@@ -235,115 +235,116 @@ class MockDuoHandler(BaseHTTPRequestHandler):
             return self._send(401)
 
         try:
-            return self._send(int(self.args["user"]))
+            return self._send(int(self.args["username"]))
         except:
             ret = {"stat": "OK"}
 
-        if self.path == "/rest/v1/preauth.json":
-            if self.args["user"] == "preauth-ok-missing_response":
+        if self.path == "/auth/v2/preauth":
+            if self.args["username"] == "preauth-ok-missing_response":
                 pass
-            elif self.args["user"] == "preauth-fail-missing_response":
+            elif self.args["username"] == "preauth-fail-missing_response":
                 ret["stat"] = "FAIL"
-            elif self.args["user"] == "preauth-bad-stat":
+            elif self.args["username"] == "preauth-bad-stat":
                 ret["stat"] = "BAD_STATUS"
-            elif self.args["user"] == "preauth-fail":
+            elif self.args["username"] == "preauth-fail":
                 ret = {
                     "stat": "FAIL",
                     "code": 1000,
                     "message": "Pre-authentication failed",
                 }
-            elif self.args["user"] == "preauth-deny":
-                ret["response"] = {"result": "deny", "status": "preauth-denied"}
-            elif self.args["user"] == "preauth-allow":
-                ret["response"] = {"result": "allow", "status": "preauth-allowed"}
-            elif self.args["user"] == "preauth-allow-bad_response":
+            elif self.args["username"] == "preauth-deny":
+                ret["response"] = {"result": "deny", "status_msg": "preauth-denied"}
+            elif self.args["username"] == "preauth-allow":
+                ret["response"] = {"result": "allow", "status_msg": "preauth-allowed"}
+            elif self.args["username"] == "preauth-allow-bad_response":
                 ret["response"] = {
                     "result": "allow",
                     "xxx": "preauth-allowed-bad-response",
                 }
-            elif self.args["user"] == "hostname":
+            elif self.args["username"] == "hostname":
                 if self.hostname_check(self.args["hostname"].lower()):
-                    ret["response"] = {"result": "deny", "status": "correct hostname"}
+                    ret["response"] = {"result": "deny", "status_msg": "correct hostname"}
                 else:
                     response = (
-                        "hostname recieved: "
+                        "hostname received: "
                         + self.args["hostname"]
                         + " found: "
                         + socket.getfqdn()
                     )
-                    ret["response"] = {"result": "deny", "status": response}
-            elif self.args["user"] == "failopen":
+                    ret["response"] = {"result": "deny", "status_msg": response}
+            elif self.args["username"] == "failopen":
                 if self.args["failmode"] == "open":
-                    ret["response"] = {"result": "deny", "status": "correct failmode"}
+                    ret["response"] = {"result": "deny", "status_msg": "correct failmode"}
                 else:
-                    ret["response"] = {"result": "deny", "status": "incorrect failmode"}
-            elif self.args["user"] == "failclosed":
+                    ret["response"] = {"result": "deny", "status_msg": "incorrect failmode"}
+            elif self.args["username"] == "failclosed":
                 if self.args["failmode"] == "closed":
-                    ret["response"] = {"result": "deny", "status": "correct failmode"}
+                    ret["response"] = {"result": "deny", "status_msg": "correct failmode"}
                 else:
-                    ret["response"] = {"result": "deny", "status": "incorrect failmode"}
-            elif self.args["user"] == "gecos_user_gecos_field6":
+                    ret["response"] = {"result": "deny", "status_msg": "incorrect failmode"}
+            elif self.args["username"] == "gecos_user_gecos_field6":
                 ret["response"] = {
                     "result": "allow",
-                    "status": "gecos-user-gecos-field6-allowed",
+                    "status_msg": "gecos-user-gecos-field6-allowed",
                 }
-            elif self.args["user"] == "gecos_user_gecos_field3":
+            elif self.args["username"] == "gecos_user_gecos_field3":
                 ret["response"] = {
                     "result": "allow",
-                    "status": "gecos-user-gecos-field3-allowed",
+                    "status_msg": "gecos-user-gecos-field3-allowed",
                 }
-            elif self.args["user"] == "full_gecos_field":
-                ret["response"] = {"result": "allow", "status": "full-gecos-field"}
-            elif self.args["user"] == "gecos/6":
-                ret["response"] = {"result": "allow", "status": "gecos/6"}
-            elif self.args["user"] == "enroll":
-                ret["response"] = {"result": "enroll", "status": "please enroll"}
-            elif self.args["user"] == "bad-json":
+            elif self.args["username"] == "full_gecos_field":
+                ret["response"] = {"result": "allow", "status_msg": "full-gecos-field"}
+            elif self.args["username"] == "gecos/6":
+                ret["response"] = {"result": "allow", "status_msg": "gecos/6"}
+            elif self.args["username"] == "enroll":
+                ret["response"] = {"result": "enroll", "status_msg": "please enroll"}
+            elif self.args["username"] == "bad-json":
                 buf = b""
-            elif self.args["user"] == "retry-after-3-preauth-allow":
+            elif self.args["username"] == "retry-after-3-preauth-allow":
                 if self._rl_req_num == 0:
                     self._rl_req_num = 1
                     return self._send(429, headers={"X-Retry-After": "3"})
                 else:
                     self._rl_req_num = 0
-                    ret["response"] = {"result": "allow", "status": "preauth-allowed"}
-            elif self.args["user"] == "retry-after-date-preauth-allow":
+                    ret["response"] = {"result": "allow", "status_msg": "preauth-allowed"}
+            elif self.args["username"] == "retry-after-date-preauth-allow":
                 if self._rl_req_num == 0:
                     self._rl_req_num = 1
                     timestr = time.strftime("%a, %d %b %Y %H:%M:%S %Z", time.gmtime(time.time()+3))
                     return self._send(429, headers={"Retry-After": timestr})
                 else:
                     self._rl_req_num = 0
-                    ret["response"] = {"result": "allow", "status": "preauth-allowed"}
-            elif self.args["user"] == "rate-limited-preauth-allow":
+                    ret["response"] = {"result": "allow", "status_msg": "preauth-allowed"}
+            elif self.args["username"] == "rate-limited-preauth-allow":
                 if self._rl_req_num in [0,1]:
                     self._rl_req_num += 1
                     return self._send(429)
                 elif self._rl_req_num == 2:
                     self._rl_req_num = 0
-                    ret["response"] = {"result": "allow", "status": "preauth-allowed"}
+                    ret["response"] = {"result": "allow", "status_msg": "preauth-allowed"}
                 else:
                     return self._send(500, "Wrong timeout")
             else:
-                ret["response"] = {
-                    "result": "auth",
-                    "prompt": "Duo login for {0}\n\n".format(self.args["user"])
-                    + "Choose or lose:\n\n"
-                    + "  1. Push 1\n  2. Phone 1\n"
-                    + "  3. SMS 1 (deny)\n  4. Phone 2 (deny)\n\n"
-                    + "Passcode or option (1-4): ",
-                    "factors": {
-                        "default": "push1",
-                        "1": "push1",
-                        "2": "voice1",
-                        "3": "smsrefresh1",
-                        "4": "voice2",
-                    },
-                }
-        elif self.path == "/rest/v1/auth.json":
-            if self.args["factor"] == "auto":
-                txid = "tx" + self.args["auto"].upper()
-                if self.args["user"] == "pam_prompt":
+                ret["response"] = { "result": "auth" }
+                if self.args["text_prompt"]:
+                    ret["response"]["prompt"] = {
+                        "text": "Duo login for {0}\n\n".format(self.args["username"])
+                        + "Choose or lose:\n\n"
+                        + "  1. Push 1\n  2. Phone 1\n"
+                        + "  3. SMS 1 (deny)\n  4. Phone 2 (deny)\n\n"
+                        + "Passcode or option (1-4): ",
+                        "factors": {
+                            "default": "push1",
+                            "1": "push1",
+                            "2": "voice1",
+                            "3": "smsrefresh1",
+                            "4": "voice2",
+                        }
+                    }
+        elif self.path == "/auth/v2/auth":
+            if self.args["factor"] == "prompt":
+                txid = "tx" + self.args["prompt"].upper()
+                if self.args["username"] == "pam_prompt":
                     ret["response"] = {"txid": "wrongFactor1"}
                 elif self.args["async"] == "1":
                     ret["response"] = {"txid": txid}
@@ -352,9 +353,9 @@ class MockDuoHandler(BaseHTTPRequestHandler):
             else:
                 ret["response"] = {
                     "result": "deny",
-                    "status": "no {0}".format(self.args["factor"]),
+                    "status_msg": "no {0}".format(self.args["factor"]),
                 }
-            if self.args["user"] == "auth_timeout":
+            if self.args["username"] == "auth_timeout":
                 return self._send(500)
         else:
             return self._send(404)

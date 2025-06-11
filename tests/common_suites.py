@@ -339,7 +339,7 @@ class CommonSuites:
 
         def test_preauth_allow_bad_response(self):
             self.check_preauth_state(
-                "preauth-allow-bad_response", "JSON missing valid 'status'"
+                "preauth-allow-bad_response", "JSON missing valid 'status_msg'"
             )
 
         def test_preauth_allow_retry_after(self):
