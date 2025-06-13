@@ -40,12 +40,11 @@
 #include "urlenc.h"
 
 #define DUO_LIB_VERSION     "libduo/" PACKAGE_VERSION
-#define DUO_API_VERSION     "/rest/v1"
+#define DUO_API_VERSION     "/auth/v2"
 #define AUTOPUSH_MSG        "Autopushing login request to phone..."
 #define AUTOPHONE_MSG       "Calling your phone..."
 #define AUTODEFAULT_MSG     "Using default second-factor authentication."
 #define ENV_VAR_MSG         "Reading $DUO_PASSCODE..."
-static const char DUO_AUTH_PING_ENDPOINT[] = "/auth/v2/ping";
 
 /*
  * Finding the maximum length for the machine's hostname
@@ -449,7 +448,11 @@ _duo_preauth(struct duo_ctx *ctx, const char *username,
     JSON_Object *json_obj;
 
     /* Check preauth result */
-    if (duo_add_param(ctx, "user", username) != DUO_OK) {
+    if (duo_add_param(ctx, "text_prompt", "1") != DUO_OK) {
+        return (DUO_LIB_ERROR);
+    }
+
+    if (duo_add_param(ctx, "username", username) != DUO_OK) {
         return (DUO_LIB_ERROR);
     }
 
@@ -465,7 +468,7 @@ _duo_preauth(struct duo_ctx *ctx, const char *username,
         return (DUO_LIB_ERROR);
     }
 
-    if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/preauth.json", ctx->https_timeout)) != DUO_OK ||
+    if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/preauth", ctx->https_timeout)) != DUO_OK ||
          (ret = _duo_json_response(ctx)) != DUO_OK)
     {
         return (ret);
@@ -478,7 +481,7 @@ _duo_preauth(struct duo_ctx *ctx, const char *username,
     _JSON_FIND_STRING(p, response, "result", json);
     if (strcasecmp(p, "auth") != 0) {
         const char *output;
-        _JSON_FIND_STRING(output, response, "status", json);
+        _JSON_FIND_STRING(output, response, "status_msg", json);
         if (strcasecmp(p, "allow") == 0) {
                         _duo_seterr(ctx, "%s", output);
             ret = DUO_OK;
@@ -525,13 +528,15 @@ _duo_prompt(struct duo_ctx *ctx, int flags, char *buf,
         /* Find default OOB factor for automatic login */
         JSON_Value *json = json_parse_string(ctx->body);
         JSON_Object *json_obj = json_value_get_object(json);
-        JSON_Object *response;
-        JSON_Object *factors;
-        _JSON_FIND_OBJECT(response, json_obj, "response", json);
-        _JSON_FIND_OBJECT(factors, response, "factors", json);
+        JSON_Object *response_obj;
+        _JSON_FIND_OBJECT(response_obj, json_obj, "response", json);
+        JSON_Object *prompt_obj;
+        _JSON_FIND_OBJECT(prompt_obj, response_obj, "prompt", json);
+        JSON_Object *factors_obj;
+        _JSON_FIND_OBJECT(factors_obj, prompt_obj, "factors", json);
 
         const char* default_factor;
-        _JSON_FIND_STRING(default_factor, factors, "default", json);
+        _JSON_FIND_STRING(default_factor, factors_obj, "default", json);
         if (ctx->conv_status) {
             if ((pos = strstr(default_factor, "push"))) {
                 ctx->conv_status(ctx->conv_arg, AUTOPUSH_MSG);
@@ -556,11 +561,13 @@ _duo_prompt(struct duo_ctx *ctx, int flags, char *buf,
         }
         JSON_Value *json = json_parse_string(ctx->body);
         JSON_Object *json_obj = json_value_get_object(json);
-        JSON_Object *response;
-        _JSON_FIND_OBJECT(response, json_obj, "response", json);
+        JSON_Object *response_obj;
+        _JSON_FIND_OBJECT(response_obj, json_obj, "response", json);
+        JSON_Object *prompt_obj;
+        _JSON_FIND_OBJECT(prompt_obj, response_obj, "prompt", json);
 
         const char* prompt;
-        _JSON_FIND_STRING(prompt, response, "prompt", json);
+        _JSON_FIND_STRING(prompt, prompt_obj, "text", json);
 
         if (ctx->conv_prompt(ctx->conv_arg, prompt, buf, sz) == NULL) {
             _duo_seterr(ctx, "Error gathering user response");
@@ -569,12 +576,12 @@ _duo_prompt(struct duo_ctx *ctx, int flags, char *buf,
         }
         strtok(buf, "\r\n");
 
-        JSON_Object *factors;
-        _JSON_FIND_OBJECT(factors, response, "factors", json);
+        JSON_Object *factors_obj;
+        _JSON_FIND_OBJECT(factors_obj, prompt_obj, "factors", json);
 
         // buf might not exist in factors JSON_Object, like if the user input
         // a passcode
-        const char *factor_str = json_object_get_string(factors, buf);
+        const char *factor_str = json_object_get_string(factors_obj, buf);
         if (factor_str == NULL) {
             factor_str = buf;
         }
@@ -623,9 +630,9 @@ duo_login(struct duo_ctx *ctx, const char *username,
     }
 
     /* Add request parameters */
-    if (duo_add_param(ctx, "user", username) != DUO_OK ||
-        duo_add_param(ctx, "factor", "auto") != DUO_OK ||
-        duo_add_param(ctx, "auto", p) != DUO_OK ||
+    if (duo_add_param(ctx, "username", username) != DUO_OK ||
+        duo_add_param(ctx, "factor", "prompt") != DUO_OK ||
+        duo_add_param(ctx, "prompt", p) != DUO_OK ||
         duo_add_param(ctx, "async",
         (flags & DUO_FLAG_SYNC) ? "0" : "1") != DUO_OK) {
         return (DUO_LIB_ERROR);
@@ -663,7 +670,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
      * the call is asynchronous, because async calls should return
      * immediately.
      */
-    if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/auth.json",
+    if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/auth",
                    flags & DUO_FLAG_SYNC ? DUO_NO_TIMEOUT : ctx->https_timeout)) != DUO_OK ||
          (ret = _duo_json_response(ctx)) != DUO_OK) {
         return (ret);
@@ -675,11 +682,11 @@ duo_login(struct duo_ctx *ctx, const char *username,
         JSON_Object *json_obj = json_value_get_object(json);
         JSON_Object *json_response;
         _JSON_FIND_OBJECT(json_response, json_obj, "response", json);
-        const char *status;
-        _JSON_FIND_STRING(status, json_response, "status", json);
+        const char *status_msg;
+        _JSON_FIND_STRING(status_msg, json_response, "status_msg", json);
         if (ctx->conv_status != NULL) {
             ctx->conv_status(ctx->conv_arg,
-            status);
+            status_msg);
         }
         const char* result;
         _JSON_FIND_STRING(result, json_response, "result", json);
@@ -716,7 +723,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
     for (i = 0; i < 20; i++) {
         if ((ret = duo_add_param(ctx, "txid", buf)) != DUO_OK ||
             (ret = duo_call(ctx, "GET",
-            DUO_API_VERSION "/status.json", DUO_NO_TIMEOUT)) != DUO_OK ||
+            DUO_API_VERSION "/auth_status", DUO_NO_TIMEOUT)) != DUO_OK ||
             (ret = _duo_json_response(ctx)) != DUO_OK) {
             break;
         }
@@ -726,7 +733,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
         JSON_Object *json_response_new;
         _JSON_FIND_OBJECT(json_response_new, json_obj_new, "response", json);
         const char *status_json_obj;
-        _JSON_FIND_STRING(status_json_obj, json_response_new, "status", json);
+        _JSON_FIND_STRING(status_json_obj, json_response_new, "status_msg", json);
         if (status_json_obj != NULL) {
             if (ctx->conv_status != NULL) {
                 ctx->conv_status(ctx->conv_arg, status_json_obj);
@@ -735,8 +742,9 @@ duo_login(struct duo_ctx *ctx, const char *username,
 
         //We might not have 'result' defined but we don't want to quit the program
         //if it's not in our object yet
-        const char* result = json_object_get_string(json_response_new, "result");
-        if (result != NULL) {
+        const char* result;
+        _JSON_FIND_STRING(result, json_response_new, "result", json);
+        if (strcasecmp(result, "waiting") != 0) {
             if (strcasecmp(result, "allow") == 0) {
                 ret = DUO_OK;
             } else if (strcasecmp(result, "deny") == 0) {
@@ -767,7 +775,7 @@ duo_sync_time_offset(struct duo_ctx *ctx) {
     duo_code_t ret;
 
     ctx->argc = 0; /* no params */
-    ret = duo_call(ctx, "GET", DUO_AUTH_PING_ENDPOINT, ctx->https_timeout);
+    ret = duo_call(ctx, "GET", DUO_API_VERSION "/ping", ctx->https_timeout);
     if (ret != DUO_OK) {
         return ret;
     }
