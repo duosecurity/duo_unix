@@ -147,9 +147,9 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     duo_config_default(&cfg);
 
     /* Load our private config. */
-    if ((i = duo_parse_config(config, __ini_handler, &cfg)) != 0 ||
-            (!cfg.apihost || !cfg.apihost[0] || !cfg.skey || !cfg.skey[0] ||
-                !cfg.ikey || !cfg.ikey[0])) {
+    i = duo_parse_config(config, __ini_handler, &cfg);
+    if (i != 0 || !cfg.apihost || !cfg.apihost[0] || !cfg.skey || !cfg.skey[0] ||
+        !cfg.ikey || !cfg.ikey[0] || (cfg.autopush && cfg.verified_push)) {
         switch (i) {
         case -2:
             fprintf(stderr, "%s must be readable only by "
@@ -160,12 +160,15 @@ do_auth(struct login_ctx *ctx, const char *cmd)
                 config, strerror(errno));
             break;
         case 0:
-            fprintf(stderr, "Missing host, ikey, or skey in %s\n",
-                config);
+            if (cfg.autopush && cfg.verified_push) {
+                fprintf(stderr, "autopush and verified_push cannot both be enabled in %s\n",
+                    config);
+            } else {
+                fprintf(stderr, "Missing host, ikey, or skey in %s\n", config);
+            }
             break;
         default:
-            fprintf(stderr, "Parse error in %s, line %d\n",
-                config, i);
+            fprintf(stderr, "Parse error in %s, line %d\n", config, i);
             break;
         }
         /* Implicit "safe" failmode for local configuration errors */
@@ -280,6 +283,11 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     if (cfg.accept_env) {
         flags |= DUO_FLAG_ENV;
     }
+
+    if (cfg.verified_push) {
+        flags |= DUO_FLAG_VERIFIED_PUSH;
+    }
+
 
     ret = EXIT_FAILURE;
 

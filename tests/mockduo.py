@@ -36,8 +36,13 @@ IPV6_LOOPBACK_ADDR = (
     "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa"
 )
 IPV4_LOOPBACK_ADDR = "1.0.0.127.in-addr.arpa"
+VERIFIED_PUSH_TXID = "verified-push-txid"
 
 tx_msgs = {
+    VERIFIED_PUSH_TXID: [
+        "0:Please enter verification code 376 into Duo Mobile...",
+        "1:Success. Logging you in...",
+    ],
     "txPUSH1": [
         "0:Pushed a login request to your phone.",
         "1:Success. Logging you in...",
@@ -240,6 +245,9 @@ class MockDuoHandler(BaseHTTPRequestHandler):
             ret = {"stat": "OK"}
 
         if self.path == "/auth/v2/preauth":
+            # text_prompt should always be set
+            if not bool(self.args.get("text_prompt")):
+                ret = {"stat": "FAIL", "code": 1000, "message": "No text prompt was requested"}
             if self.args["username"] == "preauth-ok-missing_response":
                 pass
             elif self.args["username"] == "preauth-fail-missing_response":
@@ -326,6 +334,9 @@ class MockDuoHandler(BaseHTTPRequestHandler):
                     return self._send(500, "Wrong timeout")
             else:
                 ret["response"] = { "result": "auth" }
+                client_supports_verified_push = bool(
+                    self.args.get("client_supports_verified_push", False)
+                ) and self.args["username"] != "client-supports-verified-push-ignored"
                 if self.args["text_prompt"]:
                     ret["response"]["prompt"] = {
                         "text": "Duo login for {0}\n\n".format(self.args["username"])
@@ -334,16 +345,40 @@ class MockDuoHandler(BaseHTTPRequestHandler):
                         + "  3. SMS 1 (deny)\n  4. Phone 2 (deny)\n\n"
                         + "Passcode or option (1-4): ",
                         "factors": {
-                            "default": "push1",
-                            "1": "push1",
+                            "default": "verified_push1" if client_supports_verified_push else "push1",
+                            "1": "verified_push1" if client_supports_verified_push else "push1",
                             "2": "voice1",
                             "3": "smsrefresh1",
                             "4": "voice2",
                         }
                     }
+                    if client_supports_verified_push:
+                        ret["response"]["txid"] = VERIFIED_PUSH_TXID
         elif self.path == "/auth/v2/auth":
             if self.args["factor"] == "prompt":
-                txid = "tx" + self.args["prompt"].upper()
+                txid = self.args.get("txid", None)
+                if txid:
+                    if (
+                        self.args["username"] == "client-supports-verified-push-ignored"
+                        or not self.args["prompt"].startswith("verified_push")
+                    ):
+                        ret["response"] = {
+                            "result": "deny",
+                            "status_msg": "txid should not be passed to /auth",
+                        }
+                    elif self.args["username"] == "client-supports-verified-push" and txid != VERIFIED_PUSH_TXID:
+                        ret["response"] = {
+                            "result": "deny",
+                            "status_msg": "wrong txid passed to /auth",
+                        }
+                else:
+                    if self.args["username"] == "client-supports-verified-push":
+                        ret["response"] = {
+                            "result": "deny",
+                            "status_msg": "txid should be passed to /auth",
+                        }
+                    else:
+                        txid = "tx" + self.args["prompt"].upper()
                 if self.args["username"] == "pam_prompt":
                     ret["response"] = {"txid": "wrongFactor1"}
                 elif self.args["async"] == "1":

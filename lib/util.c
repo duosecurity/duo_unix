@@ -164,6 +164,8 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
             // Offset the position so user facing first position is 1
             cfg->gecos_username_pos = gecos_username_pos - 1;
         }
+    } else if (strcmp(name, "verified_push") == 0) {
+        cfg->verified_push = duo_set_boolean_option(val);
     } else if (strcmp(name, "dev_fips_mode") == 0) {
         /* This flag is for development */
         cfg->fips_mode = duo_set_boolean_option(val);
