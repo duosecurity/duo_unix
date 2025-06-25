@@ -440,70 +440,67 @@ duo_geterr(struct duo_ctx *ctx)
 
 duo_code_t
 _duo_preauth(struct duo_ctx *ctx, const char *username,
-    const char *client_ip, const int failmode)
+    const char *client_ip, int flags, int failmode)
 {
     duo_code_t ret;
-    const char *p;
     JSON_Value *json;
     JSON_Object *json_obj;
 
-    /* Check preauth result */
-    if (duo_add_param(ctx, "text_prompt", "1") != DUO_OK) {
-        return (DUO_LIB_ERROR);
-    }
+    if (duo_add_param(ctx, "text_prompt", "1") != DUO_OK) return DUO_LIB_ERROR;
+    if (duo_add_param(ctx, "username", username) != DUO_OK) return DUO_LIB_ERROR;
+    if (duo_add_optional_param(ctx, "ipaddr", client_ip) != DUO_OK) return DUO_LIB_ERROR;
+    if (_duo_add_hostname_param(ctx) != DUO_OK) return DUO_LIB_ERROR;
+    if (_duo_add_failmode_param(ctx, failmode) != DUO_OK) return DUO_LIB_ERROR;
+    if (duo_add_optional_param(ctx, "client_supports_verified_push",
+        (flags & DUO_FLAG_VERIFIED_PUSH) ? "1" : NULL) != DUO_OK) return DUO_LIB_ERROR;
 
-    if (duo_add_param(ctx, "username", username) != DUO_OK) {
-        return (DUO_LIB_ERROR);
-    }
-
-    if (duo_add_optional_param(ctx, "ipaddr", client_ip) != DUO_OK) {
-        return (DUO_LIB_ERROR);
-    }
-
-    if(_duo_add_hostname_param(ctx) != DUO_OK) {
-        return (DUO_LIB_ERROR);
-    }
-
-    if(_duo_add_failmode_param(ctx, failmode) != DUO_OK) {
-        return (DUO_LIB_ERROR);
-    }
-
-    if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/preauth", ctx->https_timeout)) != DUO_OK ||
-         (ret = _duo_json_response(ctx)) != DUO_OK)
-    {
-        return (ret);
-    }
+    ret = duo_call(ctx, "POST", DUO_API_VERSION "/preauth", ctx->https_timeout);
+    if (ret != DUO_OK) return ret;
+    ret = _duo_json_response(ctx);
+    if (ret != DUO_OK) return ret;
 
     json = json_parse_string(ctx->body);
     json_obj = json_value_get_object(json);
     JSON_Object *response;
     _JSON_FIND_OBJECT(response, json_obj, "response", json);
-    _JSON_FIND_STRING(p, response, "result", json);
-    if (strcasecmp(p, "auth") != 0) {
-        const char *output;
-        _JSON_FIND_STRING(output, response, "status_msg", json);
-        if (strcasecmp(p, "allow") == 0) {
-                        _duo_seterr(ctx, "%s", output);
-            ret = DUO_OK;
-        } else if (strcasecmp(p, "deny") == 0) {
-            _duo_seterr(ctx, "%s", output);
-            if (ctx->conv_status != NULL) {
-                ctx->conv_status(ctx->conv_arg, output);
-            }
-            ret = DUO_ABORT;
-        } else if (strcasecmp(p, "enroll") == 0) {
-            if (ctx->conv_status != NULL) {
-                ctx->conv_status(ctx->conv_arg, output);
-            }
-            _duo_seterr(ctx, "User enrollment required");
-            ret = DUO_ABORT;
-        } else {
-            _duo_seterr(ctx, "JSON invalid 'result': %s", p);
-            ret = DUO_SERVER_ERROR;
-        }
-    } else {
+    const char *result;
+    _JSON_FIND_STRING(result, response, "result", json);
+
+    if (strcasecmp(result, "auth") == 0) {
         ret = DUO_CONTINUE;
+        if (flags & DUO_FLAG_VERIFIED_PUSH) {
+            const char *txid = json_object_get_string(response, "txid");
+            if (duo_add_optional_param(ctx, "txid", txid) != DUO_OK) {
+                ret = DUO_LIB_ERROR;
+            }
+        }
+        _JSON_VALUE_FREE(json);
+        return ret;
     }
+
+    const char *output;
+    _JSON_FIND_STRING(output, response, "status_msg", json);
+
+    if (strcasecmp(result, "allow") == 0) {
+        _duo_seterr(ctx, "%s", output);
+        ret = DUO_OK;
+    } else if (strcasecmp(result, "deny") == 0) {
+        _duo_seterr(ctx, "%s", output);
+        if (ctx->conv_status != NULL) {
+            ctx->conv_status(ctx->conv_arg, output);
+        }
+        ret = DUO_ABORT;
+    } else if (strcasecmp(result, "enroll") == 0) {
+        if (ctx->conv_status != NULL) {
+            ctx->conv_status(ctx->conv_arg, output);
+        }
+        _duo_seterr(ctx, "User enrollment required");
+        ret = DUO_ABORT;
+    } else {
+        _duo_seterr(ctx, "JSON invalid 'result': %s", result);
+        ret = DUO_SERVER_ERROR;
+    }
+
     _JSON_VALUE_FREE(json);
     return (ret);
 }
@@ -614,7 +611,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
     ret = duo_sync_time_offset(ctx);
 
     if (ret == DUO_OK) {
-        ret = _duo_preauth(ctx, username, client_ip, failmode);
+        ret = _duo_preauth(ctx, username, client_ip, flags, failmode);
     }
     /* Check preauth status */
     if (ret != DUO_CONTINUE) {

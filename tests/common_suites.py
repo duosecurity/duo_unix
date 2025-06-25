@@ -19,6 +19,7 @@ import ssl
 
 import pexpect
 from config import (
+    BAD_AUTOPUSH_VERIFIED_PUSH_CONF,
     BAD_CORRUPT_CONF,
     BAD_CORRUPT_SECURE_CONF,
     BAD_EMPTY_CONF,
@@ -37,6 +38,7 @@ from config import (
     MOCKDUO_NOVERIFY,
     MOCKDUO_PROMPTS_1,
     MOCKDUO_PROXY,
+    MOCKDUO_VERIFIED_PUSH,
     TESTCONF,
     TempConfig,
 )
@@ -128,6 +130,13 @@ class CommonSuites:
                     result["stderr"], "Parse error in {name}".format(name=temp.name)
                 )
                 self.assertEqual(result["returncode"], 1)
+
+        def test_autopush_with_verified_push(self):
+            with TempConfig(BAD_AUTOPUSH_VERIFIED_PUSH_CONF) as temp:
+                result = self.call_binary(["-d", "-c", temp.name, "true"])
+                self.assertRegexSomeline(
+                    result["stderr"], "autopush and verified_push cannot both be enabled in {name}".format(name=temp.name)
+                )
 
     class DuoDown(CommonTestCase):
         def test_mockduo_down(self):
@@ -842,3 +851,30 @@ class CommonSuites:
                     result["stderr"],
                     r"Failsafe Duo login for 'foobar': Invalid ikey or skey",
                 )
+
+    class VerifiedPush(CommonTestCase):
+            def run(self, result=None):
+                with MockDuo(NORMAL_CERT):
+                    return super().run(result)
+
+            def test_verified_push_success(self):
+                """Test successful login with verified push username"""
+                with TempConfig(MOCKDUO_VERIFIED_PUSH) as temp:
+                    result = self.call_binary([
+                        "-d", "-c", temp.name, "-f", "client_supports_verified_push", "true"
+                    ])
+                    self.assertRegexSomeline(
+                        result["stderr"],
+                        r"Successful Duo login for 'client_supports_verified_push'",
+                    )
+
+            def test_verified_push_ignored(self):
+                """Test successful login with verified push ignored username"""
+                with TempConfig(MOCKDUO_VERIFIED_PUSH) as temp:
+                    result = self.call_binary([
+                        "-d", "-c", temp.name, "-f", "client_supports_verified_push-ignored", "true"
+                    ])
+                    self.assertRegexSomeline(
+                        result["stderr"],
+                        r"Successful Duo login for 'client_supports_verified_push-ignored'",
+                    )

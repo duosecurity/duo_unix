@@ -26,6 +26,7 @@ typedef enum {
 #define DUO_FLAG_SYNC	(1 << 0)	/* no incremental status reporting */
 #define DUO_FLAG_AUTO	(1 << 1)	/* use default factor without prompt */
 #define DUO_FLAG_ENV    (1 << 2)    /* Get factor from environment variable */
+#define DUO_FLAG_VERIFIED_PUSH (1 << 3) /* Use verified push factor */
 
 #define DUO_ENV_VAR_NAME "DUO_PASSCODE"
 

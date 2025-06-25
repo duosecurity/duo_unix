@@ -754,6 +754,9 @@ class TestLoginDuoTimeSync(CommonSuites.DuoTimeSync):
     def call_binary(self, *args, **kwargs):
         return login_duo(*args, **kwargs)
 
+class TestLoginDuoVerifiedPush(CommonSuites.VerifiedPush):
+    def call_binary(self, *args, **kwargs):
+        return login_duo(*args, **kwargs)
 
 if __name__ == "__main__":
     unittest.main()

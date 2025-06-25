@@ -154,6 +154,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
             !cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0]) {
         duo_syslog(LOG_ERR, "Missing host, ikey, or skey in %s", config);
         return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+    } else if (cfg.autopush && cfg.verified_push) {
+        duo_syslog(LOG_ERR, "autopush and verified_push cannot both be enabled in %s", config);
+        return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     }
 
 #ifdef OPENSSL_FIPS
@@ -270,6 +273,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
 
     if (cfg.autopush) {
         flags |= DUO_FLAG_AUTO;
+    }
+
+    if (cfg.verified_push) {
+        flags |= DUO_FLAG_VERIFIED_PUSH;
     }
 
     pam_err = PAM_SERVICE_ERR;
