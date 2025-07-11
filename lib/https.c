@@ -9,6 +9,10 @@
 
 #include "config.h"
 
+#if defined(__FreeBSD__)
+#include <netinet/in.h>
+#endif
+
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -231,7 +235,7 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
         for (i = 0; i < n && match != 1; i++) {
             const GENERAL_NAME *altname = sk_GENERAL_NAME_value(altnames, i);
             if (hostnametype == altname->type) {
-                char *altptr = (char *)ASN1_STRING_data(altname->d.ia5);
+                char *altptr = (char *)ASN1_STRING_get0_data(altname->d.ia5);
                 size_t altsize = (size_t)ASN1_STRING_length(altname->d.ia5);
 
                 if (altname->type == GEN_DNS) {
@@ -258,7 +262,7 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
             if ((tmp = X509_NAME_ENTRY_get_data(
                        X509_NAME_get_entry(subject, i))) != NULL &&
                 ASN1_STRING_type(tmp) == V_ASN1_UTF8STRING) {
-                const char *pattern = (char *)ASN1_STRING_data(tmp);
+                const char *pattern = (char *)ASN1_STRING_get0_data(tmp);
                 size_t patternsize = (size_t)ASN1_STRING_length(tmp);
                 if (patternsize == strlen(pattern)) {
                     if (!strchr(pattern, '*')) {
