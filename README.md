@@ -176,7 +176,7 @@ We use [SemVer](http://semver.org/) for versioning.
 
 ## License
 
-This project is licensed under the GPLv2 License - see the [LICENSE](LICENSE) file for details
+This project is licensed under the GPLv2 License - see the [LICENSE](LICENSES/GPL-2.0-with-classpath-exception.txt) file for details
 
 ## Support
 
