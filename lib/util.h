@@ -46,6 +46,7 @@ struct duo_config {
     int  send_gecos;
     int  fips_mode;
     int  gecos_username_pos;
+    int  verified_push;
 };
 
 void duo_config_default(struct duo_config *cfg);

@@ -318,6 +318,24 @@ cafile = certs/mockduo-ca.pem
  ; This comment shouldn't break Duo
 """
 
+# Referred to as "mockduo_verified_push.conf"
+MOCKDUO_VERIFIED_PUSH = DuoUnixConfig(
+    ikey="DIXYZV6YM8IFYVWBINCA",
+    skey="yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo",
+    host="localhost:4443",
+    cafile="certs/mockduo-ca.pem",
+    verified_push="yes",
+)
+
+# Referred to as "bad-autopush_verified_push.conf"
+BAD_AUTOPUSH_VERIFIED_PUSH_CONF = DuoUnixConfig(
+    ikey="DIXYZV6YM8IFYVWBINCA",
+    skey="yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo",
+    host="localhost:4443",
+    autopush="yes",
+    verified_push="yes",
+)
+
 
 class TempConfig(object):
     def __init__(self, config_data):
