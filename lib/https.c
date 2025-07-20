@@ -361,6 +361,171 @@ _BIO_new_base64(void)
 }
 
 /*
+ * Establishes SSL connection on an existing BIO connection.
+ * Returns HTTPS_OK on success, error code on failure.
+ */
+static HTTPScode
+_establish_ssl_connection(struct https_request * const req,
+        const char * const hostname)
+{
+    BIO *sbio;
+    int n;
+
+    /* Establish SSL connection */
+    if ((sbio = BIO_new_ssl(ctx.ssl_ctx, 1)) == NULL) {
+        ctx.errstr = _SSL_strerror();
+        return (HTTPS_ERR_LIB);
+    }
+
+    req->cbio = BIO_push(sbio, req->cbio);
+    BIO_get_ssl(req->cbio, &req->ssl);
+
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    /* Enable SNI support */
+    if (SSL_set_tlsext_host_name(req->ssl, hostname) != 1) {
+        ctx.errstr = "Setting SNI failed";
+        return (HTTPS_ERR_LIB);
+    }
+#endif
+
+    while (BIO_do_handshake(req->cbio) <= 0) {
+        if ((n = _BIO_wait(req->cbio, 5000)) != 1) {
+            ctx.errstr = n ? _SSL_strerror() : "SSL handshake timed out";
+            return (n ? HTTPS_ERR_SYSTEM : HTTPS_ERR_SERVER);
+        }
+    }
+    /* Validate server certificate name */
+    if (_SSL_check_server_cert(req->ssl, hostname) != 1) {
+        ctx.errstr = "Certificate name validation failed";
+        return (HTTPS_ERR_LIB);
+    }
+
+    return (HTTPS_OK);
+}
+
+/*
+ * Establishes connection and SSL handshake with multiple IP retry logic.
+ * Tries each resolved IP address until SSL handshake succeeds.
+ * Return HTTPS_OK on success, error code on failure.
+ */
+static HTTPScode
+_establish_connection_with_ssl_retry(struct https_request * const req,
+        const char * const api_host,
+        const char * const api_port,
+        const char * const hostname)
+{
+#ifndef HAVE_GETADDRINFO
+    /* Systems that don't have getaddrinfo: establish TCP, then SSL */
+    HTTPScode tcp_result = _establish_connection(req, api_host, api_port);
+    if (tcp_result != HTTPS_OK) {
+        return tcp_result;
+    }
+
+    /* TCP connection successful, now establish SSL */
+    return _establish_ssl_connection(req, hostname);
+
+#else /* HAVE_GETADDRINFO */
+
+    /* IPv6 Support with SSL retry logic
+     * Try each resolved IP address for both TCP connection and SSL handshake
+     */
+    int connected_socket = -1;
+    int socket_error = 0;
+    struct addrinfo *res = NULL;
+    struct addrinfo *cur_res = NULL;
+    struct addrinfo hints;
+    int error;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = PF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    error = getaddrinfo(
+        api_host,
+        api_port,
+        &hints,
+        &res
+    );
+    if (error) {
+        ctx.errstr = gai_strerror(error);
+        return HTTPS_ERR_SYSTEM;
+    }
+
+    /* Try each address for both TCP connection and SSL handshake */
+    HTTPScode ssl_error = HTTPS_ERR_SERVER; /* Default fallback */
+    for (cur_res = res; cur_res; cur_res = cur_res->ai_next) {
+        int sock_flags;
+
+        connected_socket = socket(
+            cur_res->ai_family,
+            cur_res->ai_socktype,
+            cur_res->ai_protocol
+        );
+        if (connected_socket == -1) {
+            continue;
+        }
+        if ((sock_flags = fcntl(connected_socket, F_GETFL, 0)) == -1) {
+            goto ssl_fail;
+        }
+
+        if (fcntl(connected_socket, F_SETFL, sock_flags|O_NONBLOCK) == -1) {
+            goto ssl_fail;
+        }
+
+        if (connect(connected_socket, cur_res->ai_addr, cur_res->ai_addrlen) != 0
+                && errno != EINPROGRESS) {
+            goto ssl_fail;
+        }
+
+        socket_error = _fd_wait(connected_socket, 10000);
+        if (socket_error != 1) {
+            goto ssl_fail;
+        }
+
+        /* TCP connection successful, set up BIO */
+        if ((req->cbio = BIO_new_socket(connected_socket, BIO_CLOSE)) == NULL) {
+            ctx.errstr = _SSL_strerror();
+            goto ssl_fail;
+        }
+        BIO_set_conn_hostname(req->cbio, api_host);
+        BIO_set_conn_port(req->cbio, api_port);
+        BIO_set_nbio(req->cbio, 1);
+
+        /* BIO now owns the socket */
+        connected_socket = -1;
+
+        /* Try SSL connection on this socket */
+        if ((ssl_error = _establish_ssl_connection(req, hostname)) == HTTPS_OK) {
+            freeaddrinfo(res);
+            return HTTPS_OK;
+        }
+
+        /* SSL failed, clean up and try next address */
+    ssl_fail:
+        if (req->cbio != NULL) {
+            BIO_free_all(req->cbio);
+            req->cbio = NULL;
+            req->ssl = NULL;
+        } else if (connected_socket != -1) {
+            close(connected_socket);
+        }
+    }
+
+    freeaddrinfo(res);
+
+    /* If we get here, all addresses failed */
+    if (ctx.errstr == NULL) {
+        /* No specific error was set, likely TCP connection failure */
+        ctx.errstr = "Failed to connect";
+        return socket_error ? HTTPS_ERR_SYSTEM : HTTPS_ERR_SERVER;
+    }
+    /* Return the last SSL error we encountered */
+    return ssl_error;
+
+#endif /* HAVE_GETADDRINFO */
+}
+
+/*
  * Establishes the connection to the Duo server.  On successful return,
  * req->cbio is connected and ready to use.
  * Return HTTPS_OK on success, error code on failure.
@@ -606,16 +771,13 @@ HTTPScode
 https_open(struct https_request **reqp, const char *host, const char *useragent)
 {
     struct https_request *req;
-    BIO *b64, *sbio;
+    BIO *b64;
     char *p;
     int n;
     int connection_error = 0;
     struct sigaction sigpipe;
 
-    const char *api_host;
-    const char *api_port;
     /* Set up our handle */
-    n = 1;
     if ((req = calloc(1, sizeof(*req))) == NULL ||
         (req->host = strdup(host)) == NULL ||
         (req->parser = malloc(sizeof(http_parser))) == NULL) {
@@ -645,15 +807,21 @@ https_open(struct https_request **reqp, const char *host, const char *useragent)
     req->parser->data = req;
 
     /* Connect to server */
-    if (ctx.proxy) {
-        api_host = ctx.proxy;
-        api_port = ctx.proxy_port;
-    } else {
-        api_host = req->host;
-        api_port = req->port;
+    if (!ctx.proxy) {
+        /* For direct connections, establish TCP + SSL with retry on multiple IPs */
+        connection_error = _establish_connection_with_ssl_retry(req, req->host, req->port, req->host);
+        if (connection_error != HTTPS_OK) {
+            https_close(&req);
+            return connection_error;
+        }
+
+        /* SSL already established, skip to the end */
+        *reqp = req;
+        return (HTTPS_OK);
     }
 
-    connection_error = _establish_connection(req, api_host, api_port);
+    /* For proxy connections, establish TCP connection first */
+    connection_error = _establish_connection(req, ctx.proxy, ctx.proxy_port);
     if (connection_error != HTTPS_OK) {
         https_close(&req);
         return connection_error;
@@ -709,35 +877,10 @@ https_open(struct https_request **reqp, const char *host, const char *useragent)
         }
     }
     /* Establish SSL connection */
-    if ((sbio = BIO_new_ssl(ctx.ssl_ctx, 1)) == NULL) {
+    connection_error = _establish_ssl_connection(req, req->host);
+    if (connection_error != HTTPS_OK) {
         https_close(&req);
-        return (HTTPS_ERR_LIB);
-    }
-
-    req->cbio = BIO_push(sbio, req->cbio);
-    BIO_get_ssl(req->cbio, &req->ssl);
-
-#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    /* Enable SNI support */
-    if ((n = SSL_set_tlsext_host_name(req->ssl, req->host)) != 1) {
-        ctx.errstr = "Setting SNI failed";
-        https_close(&req);
-        return (HTTPS_ERR_LIB);
-    }
-#endif
-
-    while (BIO_do_handshake(req->cbio) <= 0) {
-        if ((n = _BIO_wait(req->cbio, 5000)) != 1) {
-            ctx.errstr = n ? _SSL_strerror() : "SSL handshake timed out";
-            https_close(&req);
-            return (n ? HTTPS_ERR_SYSTEM : HTTPS_ERR_SERVER);
-        }
-    }
-    /* Validate server certificate name */
-    if (_SSL_check_server_cert(req->ssl, req->host) != 1) {
-        ctx.errstr = "Certificate name validation failed";
-        https_close(&req);
-        return (HTTPS_ERR_LIB);
+        return connection_error;
     }
     *reqp = req;
 
@@ -805,7 +948,7 @@ https_send(struct https_request *req, const char *method, const char *uri,
     /* Format request */
     is_get = (strcmp(method, "GET") == 0);
 
-    if ((asprintf(&p, "%s\n%s\n%s\n%s\n%s", date, method, req->host, uri, qs)) < 0) {
+    if (asprintf(&p, "%s\n%s\n%s\n%s\n%s", date, method, req->host, uri, qs) < 0) {
         free(qs);
         ctx.errstr = strerror(errno);
         return (HTTPS_ERR_LIB);
