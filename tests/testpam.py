@@ -79,13 +79,14 @@ def testpam(args, config_file_name, env_overrides=None):
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "dc:f:h:")
+        opts, args = getopt.getopt(sys.argv[1:], "dqc:f:h:")
     except getopt.GetoptError:
         usage()
 
     opt_conf = "/etc/duo/pam_duo.conf"
     opt_user = getpass.getuser()
     opt_host = None
+    opt_quiet = False
 
     for o, a in opts:
         if o == "-c":
@@ -94,6 +95,8 @@ def main():
             opt_user = a
         elif o == "-h":
             opt_host = a
+        elif o == "-q":
+            opt_quiet = True
 
     args = [opt_user]
     if opt_host:
@@ -102,6 +105,8 @@ def main():
     config = "auth  required  {libpath}/pam_duo.so conf={duo_config_path} debug".format(
         libpath=paths.topbuilddir + "/pam_duo/.libs", duo_config_path=opt_conf
     )
+    if opt_quiet:
+        config = config + " quiet"
     with TempPamConfig(config) as config_file:
         process = testpam(args, config_file.name)
 
