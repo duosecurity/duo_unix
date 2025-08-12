@@ -9,7 +9,7 @@ AC_PREREQ(2.65)
 
 # Package, version, bug report address
 AC_INIT([duo_unix],
-	[2.1.0],
+	[2.2.0],
 	[support@duosecurity.com])
 
 # Tells autoconf where to find necessary build scripts and macros.

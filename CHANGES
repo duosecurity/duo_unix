@@ -1,3 +1,8 @@
+duo_unix-2.2.0:
+- Added support for Verified Push
+- Updated the Duo API calls to use the Auth API v2
+- SSL failures will cause API calls fail over to additional IPs when the host resolves to multiple addresses
+
 duo_unix-2.1.0:
 - Improves certificate validation for IP hostnames to mitigate CVE-2014-0139
 - Duo Unix obeys rate limiting replies from the Duo cloud service
