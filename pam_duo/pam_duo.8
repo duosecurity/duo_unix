@@ -57,6 +57,10 @@ variable.
 .It Cm autopush
 Automatically send a login request to the first factor (usually push),
 instead of prompting the user. Default is "no".
+.It Cm verified_push
+Enable support for Duo Verified Push authentication. Cannot be used together with
+.Cm autopush .
+Default is "no".
 .It Cm prompts
 Set the maxiumum number of prompts pam_duo will show before denying access.
 Default is 3.
