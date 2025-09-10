@@ -781,6 +781,19 @@ class CommonSuites:
                     0,
                 )
 
+        def test_enrollment_shows_url(self):
+            """Test that enrollment URL is displayed in interactive mode - reproduces issue #336"""
+            with TempConfig(MOCKDUO_CONF) as temp:
+                process = self.call_binary(
+                    ["-d", "-c", temp.name, "-f", "enroll", "true"],
+                )
+                self.assertEqual(
+                    process.expect(r"https://.*?/portal", timeout=5),
+                    0,
+                )
+                # The process should terminate
+                self.assertEqual(process.expect(EOF), 0)
+
     class InvalidBSON(CommonTestCase):
         def run(self, result=None):
             with MockDuo(NORMAL_CERT):

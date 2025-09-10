@@ -305,7 +305,15 @@ class MockDuoHandler(BaseHTTPRequestHandler):
             elif self.args["username"] == "gecos/6":
                 ret["response"] = {"result": "allow", "status_msg": "gecos/6"}
             elif self.args["username"] == "enroll":
-                ret["response"] = {"result": "enroll", "status_msg": "please enroll"}
+                ret["response"] = {
+                    "enroll_portal_url": "https://api-abcd1234.duosecurity.com/portal?code=48bac5d9393fb2c2&akey=DIXXXXXXXXXXXXXXXXXX",
+                    "result": "enroll",
+                    "status_msg": "Enroll an authentication device to proceed"
+                }
+                if self.args["text_prompt"]:
+                    ret["response"]["prompt"] = {
+                        "text": "Please enroll at https://api-abcd1234.duosecurity.com/portal?code=48bac5d9393fb2c2&akey=DIXXXXXXXXXXXXXXXXXX"
+                    }
             elif self.args["username"] == "bad-json":
                 buf = b""
             elif self.args["username"] == "retry-after-3-preauth-allow":
