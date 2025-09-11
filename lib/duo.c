@@ -491,8 +491,18 @@ _duo_preauth(struct duo_ctx *ctx, const char *username,
         }
         ret = DUO_ABORT;
     } else if (strcasecmp(result, "enroll") == 0) {
+        /* For enrollment, check if prompt.text exists and use it instead of status_msg */
+        const char *enrollment_msg = output; // default to status_msg
+        JSON_Object *prompt_obj = json_object_get_object(response, "prompt");
+        if (prompt_obj != NULL) {
+            const char *prompt_text = json_object_get_string(prompt_obj, "text");
+            if (prompt_text != NULL) {
+                enrollment_msg = prompt_text;
+            }
+        }
+
         if (ctx->conv_status != NULL) {
-            ctx->conv_status(ctx->conv_arg, output);
+            ctx->conv_status(ctx->conv_arg, enrollment_msg);
         }
         _duo_seterr(ctx, "User enrollment required");
         ret = DUO_ABORT;
