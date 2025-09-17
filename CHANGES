@@ -1,3 +1,7 @@
+duo_unix-2.2.1:
+- Verified Push option is now documented in the man pages
+- Enrollment message now includes the URL
+
 duo_unix-2.2.0:
 - Added support for Verified Push
 - Updated the Duo API calls to use the Auth API v2
