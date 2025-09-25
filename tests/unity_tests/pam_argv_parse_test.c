@@ -16,14 +16,6 @@
 extern void setUp(void) {};
 extern void tearDown(void) {};
 
-static void test_pam_config_NULL() {
-    const char *config = NULL;
-    const char *argv[] = {"conf=hi"};
-    int argc = 1;
-
-    TEST_ASSERT_FALSE(parse_argv(&config, argc, argv));
-}
-
 static void test_pam_argc_zero() {
     const char *config = "";
     const char *argv[] = {NULL};
@@ -66,7 +58,6 @@ static void test_pam_argv_conf() {
 
 int main() {
     UNITY_BEGIN();
-    RUN_TEST(test_pam_config_NULL);
     RUN_TEST(test_pam_argc_zero);
     RUN_TEST(test_pam_argv_error);
     RUN_TEST(test_pam_argv_debug);

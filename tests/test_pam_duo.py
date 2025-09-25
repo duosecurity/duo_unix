@@ -322,6 +322,26 @@ class TestPamdConf(unittest.TestCase):
                 )
                 self.assertEqual(process.returncode, 1)
 
+    def test_multiple_invalid_argument(self):
+        with TempConfig(MOCKDUO_CONF) as duo_config:
+            pamd_conf = "auth  required  {libpath}/pam_duo.so debug conf={duo_config_path} notanarg1 notanarg2".format(
+                libpath=os.path.join(topbuilddir, "pam_duo", ".libs"),
+                duo_config_path=duo_config.name,
+            )
+            with TempPamConfig(pamd_conf) as pam_config:
+                process = testpam(
+                    ["-d", "-c", duo_config.name, "-f", "whatever"], pam_config.name, capture_output=True
+                )
+                self.assertEqual(process.returncode, 1)
+
+                stderr = process.stderr.read().decode("utf-8").split("\n")
+                stderr_text = "\n".join(stderr)
+                process.stderr.close()
+                if process.stdout:
+                    process.stdout.close()
+                self.assertRegex(stderr_text, r"Invalid pam_duo option: 'notanarg1'")
+                self.assertRegex(stderr_text, r"Invalid pam_duo option: 'notanarg2'")
+
 
 @unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamGECOS(CommonTestCase):
