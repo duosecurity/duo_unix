@@ -65,6 +65,7 @@ static void test_pam_argv_conf() {
 
 int main() {
     UNITY_BEGIN();
+    RUN_TEST(test_pam_config_NULL);
     RUN_TEST(test_pam_argc_zero);
     RUN_TEST(test_pam_argv_error);
     RUN_TEST(test_pam_argv_debug);
