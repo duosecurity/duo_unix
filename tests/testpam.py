@@ -53,7 +53,7 @@ class TempPamConfig(object):
         os.remove(PAM_SERVICE_PATH)
 
 
-def testpam(args, config_file_name, env_overrides=None):
+def testpam(args, config_file_name, env_overrides=None, capture_output=False):
     env = os.environ.copy()
     env["PAM_CONF"] = config_file_name
     env["PAM_SERVICE"] = PAM_SERVICE
@@ -72,8 +72,20 @@ def testpam(args, config_file_name, env_overrides=None):
         env["LD_PRELOAD"] = paths.build + "/.libs/libtestpam_preload.so"
 
     testpam_path = [os.path.join(paths.build, "testpam")]
-    p = subprocess.Popen(testpam_path + args, env=env)
+    p = subprocess.Popen(
+        testpam_path + args,
+        stdout=subprocess.PIPE if capture_output else None,
+        stderr=subprocess.PIPE if capture_output else None,
+        stdin=subprocess.PIPE if capture_output else None,
+        close_fds=capture_output,
+        env=env
+    )
     p.wait()
+
+    # Close stdin immediately if we captured it (we don't need it for reading)
+    if capture_output and p.stdin:
+        p.stdin.close()
+
     return p
 
 

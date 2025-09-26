@@ -123,7 +123,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
      * without.
      */
     duopam_const char *ip, *service, *user;
-    const char *cmd, *p, *config, *host;
+    const char *cmd, *p, *host;
+    const char *config = DUO_CONF;
 
     int i, flags, pam_err, matched;
 
@@ -131,9 +132,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     duo_config_default(&cfg);
 
     /* Parse configuration */
-    config = DUO_CONF;
-    duo_syslog(LOG_INFO, "Loading config file %s",
-        config);
+    duo_syslog(LOG_INFO, "Loading config file %s", config);
     if(parse_argv(&config, argc, argv) == 0) {
         return (PAM_SERVICE_ERR);
     }
