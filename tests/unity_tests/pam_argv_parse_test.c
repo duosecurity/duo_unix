@@ -17,11 +17,10 @@ extern void setUp(void) {};
 extern void tearDown(void) {};
 
 static void test_pam_config_NULL() {
-    const char *config = NULL;
     const char *argv[] = {"conf=hi"};
     int argc = 1;
 
-    TEST_ASSERT_FALSE(parse_argv(&config, argc, argv));
+    TEST_ASSERT_FALSE(parse_argv(NULL, argc, argv));
 }
 
 static void test_pam_argc_zero() {

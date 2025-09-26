@@ -14,7 +14,7 @@ parse_argv(const char **config, int argc, const char *argv[])
 {
     int i;
     for (i = 0; i < argc; i++) {
-        if ((strncmp("conf=", argv[i], 5) == 0) && (*config != NULL)) {
+        if ((strncmp("conf=", argv[i], 5) == 0) && (config != NULL)) {
             *config = argv[i] + 5;
         } else if (strcmp("debug", argv[i]) == 0) {
             /* duo_debug is a global variable defined in util.h */
