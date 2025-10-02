@@ -8,7 +8,6 @@
 # mockduo.py
 #
 
-import cgi
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import email.utils
@@ -135,14 +134,10 @@ class MockDuoHandler(BaseHTTPRequestHandler):
 
     def _get_args(self):
         if self.method == "POST":
-            env = {
-                "REQUEST_METHOD": "POST",
-                "CONTENT_TYPE": self.headers["Content-Type"],
-            }
-            fs = cgi.FieldStorage(fp=self.rfile, headers=self.headers, environ=env)
-            args = {}
-            for k in fs.keys():
-                args[k] = fs[k].value
+            # Parse application/x-www-form-urlencoded POST body
+            content_length = int(self.headers.get("Content-Length", "0") or 0)
+            body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else ""
+            args = dict(urllib.parse.parse_qsl(body, keep_blank_values=True))
         else:
             args = dict(urllib.parse.parse_qsl(self.qs))
         print("got {0} {1} args: {2}".format(self.method, self.path, args))
