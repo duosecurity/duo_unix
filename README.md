@@ -50,6 +50,19 @@ $ git clone <paste the url here>
 $ cd duo_unix/
 ```
 
+Run the libtoolize command
+```
+$ libtoolize
+libtoolize: putting auxiliary files in AC_CONFIG_AUX_DIR, 'autotools'.
+libtoolize: linking file 'autotools/ltmain.sh'
+libtoolize: putting macros in AC_CONFIG_MACRO_DIRS, 'autotools'.
+libtoolize: linking file 'autotools/libtool.m4'
+libtoolize: linking file 'autotools/ltoptions.m4'
+libtoolize: linking file 'autotools/ltsugar.m4'
+libtoolize: linking file 'autotools/ltversion.m4'
+libtoolize: linking file 'autotools/lt~obsolete.m4'
+```
+
 Run bootstrap to generate the configure script.
 ```
 $ ./bootstrap
