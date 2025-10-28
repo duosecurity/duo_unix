@@ -1,3 +1,9 @@
+duo_unix-2.2.2:
+- Log all invalid pam_duo configuration options before failing
+- Test maintenance: removed dependency on deprecated Python cgi module
+- Added support for Debian 13
+- Added support for Fedora 43
+
 duo_unix-2.2.1:
 - Verified Push option is now documented in the man pages
 - Enrollment message now includes the URL
