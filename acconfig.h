@@ -35,6 +35,7 @@ size_t strnlen(const char *str, size_t maxlen);
 #endif
 
 #ifndef HAVE_TIMEGM
+#include <time.h>
 
 time_t timegm(struct tm *tm);
 #endif
