@@ -1,5 +1,6 @@
 duo_unix-2.2.3:
 - RHEL 10 and CentOS Stream 10 packages correctly include a SELinux module
+- Added support for runit-init based systems (like Void Linux) in duo_unix_support.sh
 
 duo_unix-2.2.2:
 - Log all invalid pam_duo configuration options before failing
