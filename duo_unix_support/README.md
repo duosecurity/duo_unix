@@ -1,5 +1,5 @@
 The Duo Unix Support Script is intended to be used to gather information used for debugging Duo Unix issues by Duo Security.  The main purpose of this script is to easily gather and tar information for the sole purpose of debugging.  Please use this script as directed by Duo and delete the tarball, /etc/duo/duo_unix_support.tar.gz, that is generated after use.
-This script is supported by Debian, Ubuntu, Red Hat Enterprise Linux, and CentOS.
+This script is supported by Debian, Ubuntu, Red Hat Enterprise Linux, CentOS, and runit-based systems (like Void Linux).
 The following information may be gathered by this script depending on the Operating System:
 
 Logs
@@ -7,6 +7,9 @@ Logs
     /var/log/messages
     /var/log/auth.log
     /var/log/syslog
+    /var/log/socklog/everything/current
+    /var/log/sshd/current
+    /var/log/sshd/log/main/current
 
 Configs
     /etc/duo/login_duo.conf

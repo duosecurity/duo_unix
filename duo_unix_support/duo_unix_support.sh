@@ -34,7 +34,7 @@ while true; do
     shift
 done
 
-echo -e "The Duo Unix support script gathers and aggregates information about your Duo Unix installation and the server it is installed on for easy sending to Duo Security support. This script is intended to be used with Debian, Ubuntu, RHEL, and CentOS systems. While use of this script is not required for support cases with Duo, it is highly recommended as it will expedite the support and debugging process. Namely, this script collects:\n\n\t* Logfiles in /var/log, such as auth and secure\n\t* PAM configurations in /etc/pam.d, such as common-auth or sshd\n\t* SSHD configurations in /etc/ssh\n\t* Information about the server distribution and relevant libraries such as SELinux or OpenSSL\n\t* Configurations for pam_duo and login_duo scrubbed of sensitive skeys\n\nThese files are typically asked for during support cases with Duo. We advise that you review any of these files prior to running this script should you wish to expunge any other information you deem sensitive from these files. For a full list of the information collected by this script, see ${README_INSTALL}/share/doc/duo_unix/duo_unix_support/README.md."
+echo -e "The Duo Unix support script gathers and aggregates information about your Duo Unix installation and the server it is installed on for easy sending to Duo Security support. This script is intended to be used with Debian, Ubuntu, RHEL, CentOS, and runit-based systems (like Void Linux). While use of this script is not required for support cases with Duo, it is highly recommended as it will expedite the support and debugging process. Namely, this script collects:\n\n\t* Logfiles in /var/log, such as auth and secure\n\t* PAM configurations in /etc/pam.d, such as common-auth or sshd\n\t* SSHD configurations in /etc/ssh\n\t* Information about the server distribution and relevant libraries such as SELinux or OpenSSL\n\t* Configurations for pam_duo and login_duo scrubbed of sensitive skeys\n\nThese files are typically asked for during support cases with Duo. We advise that you review any of these files prior to running this script should you wish to expunge any other information you deem sensitive from these files. For a full list of the information collected by this script, see ${README_INSTALL}/share/doc/duo_unix/duo_unix_support/README.md."
 
 read -rp "Do you wish to run this program? [N/y] " user_input
 
@@ -98,6 +98,16 @@ elif [ -f /etc/debian_version ]; then
 
 else
     VER=$(uname -a)
+    OS=$(uname -s)
+fi
+
+# Detect init system
+if [ -d /run/systemd/system ]; then
+    INIT_SYSTEM="systemd"
+elif [ -x /sbin/runit-init ] || [ -d /var/service ] || [ -d /etc/service ]; then
+    INIT_SYSTEM="runit"
+else
+    INIT_SYSTEM="unknown"
 fi
 
 KERNEL=$(uname -srm)
@@ -122,6 +132,7 @@ fi
 
 echo "operating_system=${OS}" >> configuration.txt
 echo "version=${VER}" >> configuration.txt
+echo "init_system=${INIT_SYSTEM}" >> configuration.txt
 echo "kernel=${KERNEL}" >> configuration.txt
 echo "openssl_version=${OPENSSL_VER}" >> configuration.txt
 echo "ssh=$(ssh -V 2>&1)" &>> configuration.txt
@@ -157,9 +168,14 @@ check_and_cp () {
 
   # Attempt to cp the file over
   if [ -e $1 ]; then
-    stderr_output=$(cp -p $1 . 2>&1)
-    if [ -z $stderr_output ]; then
-      echo "* Successfully copied $1"
+    # Create directory structure if needed to avoid filename collisions
+    dir_name=$(dirname "$1" | sed 's/^\///; s/\//_/g')
+    file_name=$(basename "$1")
+    dest_name="${dir_name}_${file_name}"
+    
+    stderr_output=$(cp -p "$1" "./$dest_name" 2>&1)
+    if [ -z "$stderr_output" ]; then
+      echo "* Successfully copied $1 as $dest_name"
     else
       echo "Could not copy $1: $stderr_output"
     fi
@@ -186,6 +202,9 @@ COPY_FILES=(
            "/var/log/syslog"
            "/var/adm/messages"
            "/var/adm/messages.0"
+           "/var/log/socklog/everything/current"
+           "/var/log/sshd/current"
+           "/var/log/sshd/log/main/current"
 )
 
 PAM_DUO_FILES=$($GREP -ilr "pam_duo.so" "/etc/pam.d")
@@ -194,7 +213,7 @@ COPY_FILES+=(${PAM_DUO_FILES[@]})
 
 for path in "${COPY_FILES[@]}"
 do
-  check_and_cp $path
+  check_and_cp "$path"
 done
 
 # Copy over configurations related only to centos or rhel
@@ -213,6 +232,19 @@ if type sestatus &>/dev/null; then
     if type sesearch &>/dev/null; then
         SESEARCH=$(sesearch -c tcp_socket -AC)
         echo "sesearch=$SESEARCH" >> selinux_config.txt
+    fi
+fi
+
+# Gathering runit specific information
+if [ "$INIT_SYSTEM" = "runit" ]; then
+    if type sv &>/dev/null; then
+        echo -e "\nGathering runit service status"
+        for srv in /var/service/* /etc/service/*; do
+            if [ -d "$srv" ]; then
+                echo "--- Service: $srv ---" >> runit_status.txt
+                sv status "$srv" >> runit_status.txt 2>&1
+            fi
+        done
     fi
 fi
 cd ../

@@ -6,7 +6,7 @@ Duo Unix
 [![Stars](https://img.shields.io/github/stars/duosecurity/duo_unix)](https://github.com/duosecurity/duo_unix/stargazers)
 [![License](https://img.shields.io/badge/License-View%20License-orange)](https://github.com/duosecurity/duo_unix/blob/master/LICENSE)
 
-Duo two-factor authentication for Unix systems.
+Duo two-factor authentication for Unix systems (systemd or runit-init).
 
 Duo Unix includes a PAM module or alternatively a stand alone executable that can be used to protect programs such as SSH or Sudo.
 
