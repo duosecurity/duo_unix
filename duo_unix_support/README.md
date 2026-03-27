@@ -7,6 +7,8 @@ Logs
     /var/log/messages
     /var/log/auth.log
     /var/log/syslog
+    /var/adm/authlog
+    /var/log/authlog
 
 Configs
     /etc/duo/login_duo.conf
