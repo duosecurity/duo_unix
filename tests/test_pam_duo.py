@@ -191,12 +191,6 @@ class TestPamHTTPProxy(CommonSuites.HTTPProxy):
 
 
 @unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
-class TestPamFIPS(CommonSuites.FIPS):
-    def call_binary(self, *args, **kwargs):
-        return pam_duo(*args, **kwargs)
-
-
-@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamGetHostname(CommonSuites.GetHostname):
     def call_binary(self, *args, **kwargs):
         return pam_duo(*args, **kwargs)

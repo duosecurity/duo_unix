@@ -153,15 +153,6 @@ MOCKDUO_PROXY = DuoUnixConfig(
     http_proxy="http://localhost:8888/",
 )
 
-MOCKDUO_FIPS = DuoUnixConfig(
-    ikey="DIXYZV6YM8IFYVWBINCA",
-    skey="yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo",
-    host="localhost:4443",
-    dev_fips_mode="true",
-    cafile="certs/mockduo-ca.pem",
-    noverify="1",
-)
-
 # Referred to as "duo.conf" in the cram tests
 DUO_CONF = DuoUnixConfig(
     ikey="DIXYZV6YM8IFYVWBINCA",

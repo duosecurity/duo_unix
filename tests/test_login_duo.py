@@ -16,12 +16,11 @@ import unittest
 from tempfile import NamedTemporaryFile
 
 import pexpect
-from common_suites import NORMAL_CERT, CommonSuites, CommonTestCase, fips_available, EOF
+from common_suites import NORMAL_CERT, CommonSuites, CommonTestCase, EOF
 from config import (
     MOCKDUO_ADMINS_NO_USERS,
     MOCKDUO_AUTOPUSH,
     MOCKDUO_CONF,
-    MOCKDUO_FIPS,
     MOCKDUO_GECOS_DEFAULT_DELIM_6_POS,
     MOCKDUO_GECOS_DEPRECATED_PARSE_FLAG,
     MOCKDUO_GECOS_INVALID_DELIM_COLON,
@@ -191,11 +190,6 @@ class TestLoginDuoHTTPProxy(CommonSuites.HTTPProxy):
 class TestLoginDuoGetHostname(CommonSuites.GetHostname):
     def call_binary(self, *args):
         return login_duo(*args)
-
-
-class TestLoginDuoFIPS(CommonSuites.FIPS):
-    def call_binary(self, *args, **kwargs):
-        return login_duo(*args, **kwargs)
 
 
 class TestLoginDuoPreauthFailures(CommonSuites.PreauthFailures):

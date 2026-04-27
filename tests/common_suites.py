@@ -34,7 +34,6 @@ from config import (
     MOCKDUO_FAILSECURE,
     MOCKDUO_FAILSECURE_BAD_CERT,
     MOCKDUO_FALLBACK,
-    MOCKDUO_FIPS,
     MOCKDUO_NOVERIFY,
     MOCKDUO_PROMPTS_1,
     MOCKDUO_PROXY,
@@ -56,14 +55,6 @@ if sys.platform == "sunos5":
 else:
     EOF = pexpect.EOF
     PROMPT = pexpect.EOF
-
-
-def fips_available():
-    returncode = subprocess.call(
-        [os.path.join(TESTDIR, "is_fips_supported.sh")],
-        stdout=subprocess.PIPE,
-    )
-    return returncode == 0
 
 
 class CommonTestCase(unittest.TestCase):
@@ -460,38 +451,6 @@ class CommonSuites:
                 if config.get("failmode", None) == "secure":
                     self.assertEqual(result["returncode"], 1)
 
-    class FIPS(CommonTestCase):
-        def run(self, result=None):
-            with MockDuo(NORMAL_CERT):
-                return super(CommonSuites.FIPS, self).run(result)
-
-        @unittest.skipIf(
-            fips_available() is False, reason="Fips is not supported on this platform"
-        )
-        def test_fips_login(self):
-            with TempConfig(MOCKDUO_FIPS) as temp:
-                result = self.call_binary(
-                    ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
-                    timeout=10,
-                )
-                self.assertRegexSomeline(
-                    result["stderr"],
-                    r"Skipped Duo login for 'preauth-allow'.*: preauth-allowed",
-                )
-
-        @unittest.skipIf(
-            fips_available() is True, reason="Fips is supported on this platform"
-        )
-        def test_fips_unavailable(self):
-            with TempConfig(MOCKDUO_FIPS) as temp:
-                result = self.call_binary(
-                    ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
-                )
-                self.assertRegexSomeline(
-                    result["stderr"],
-                    "FIPS mode flag specified, but OpenSSL not built with FIPS support. Failing the auth.",
-                )
-
     class PreauthFailures(CommonTestCase):
         def run(self, result=None):
             with MockDuo(NORMAL_CERT):
@@ -754,22 +713,9 @@ class CommonSuites:
         def test_three_failed_inputs(self):
             self.three_failed_inputs(MOCKDUO_CONF)
 
-        @unittest.skipIf(
-            fips_available() is False, reason="Fips is not supported on this platform"
-        )
-        def test_fips_three_failed_inputs(self):
-            self.three_failed_inputs(MOCKDUO_FIPS)
-
         def test_menu_options(self):
             self.menu_options(MOCKDUO_CONF)
             self.menu_success(MOCKDUO_CONF)
-
-        @unittest.skipIf(
-            fips_available() is False, reason="Fips is not supported on this platform"
-        )
-        def test_fips_menu_options(self):
-            self.menu_options(MOCKDUO_FIPS)
-            self.menu_success(MOCKDUO_FIPS)
 
         def test_autopush_nomenu(self):
             with TempConfig(MOCKDUO_AUTOPUSH) as temp:

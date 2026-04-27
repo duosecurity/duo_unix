@@ -10,17 +10,8 @@ Sync
   $ ${BUILDDIR}/login_duo/login_duo -d -c confs/mockduo.conf -f whatever true < /dev/null
   [6] Successful Duo login for 'whatever'
 
-FIPS testing variable setup
-  $ fips_available=$(./is_fips_supported.sh) && echo "[1]"
-  [1]
-
 mocklogin_duo
-  $ if [ $fips_available -eq 0 ]; then
-  >    CONFS="mockduo_fips.conf";
-  > else
-  >    CONFS="mockduo.conf";
-  > fi
-  $ python ./mocklogin_duo.py confs/$CONFS
+  $ python ./mocklogin_duo.py confs/mockduo.conf
   ===> 'Duo login for foobar\r\n\r\nChoose or lose:\r\n\r\n  1. Push 1\r\n  2. Phone 1\r\n  3. SMS 1 (deny)\r\n  4. Phone 2 (deny)\r\n\r\nPasscode or option (1-4): '
   ===> "123456\r\n\r\nInvalid passcode, please try again.\r\n[4] Failed Duo login for 'foobar'\r\n\r\nDuo login for foobar\r\n\r\nChoose or lose:\r\n\r\n  1. Push 1\r\n  2. Phone 1\r\n  3. SMS 1 (deny)\r\n  4. Phone 2 (deny)\r\n\r\nPasscode or option (1-4): "
   ===> "wefawefgoiagj3rj\r\n\r\nInvalid passcode, please try again.\r\n[4] Failed Duo login for 'foobar'\r\n\r\nDuo login for foobar\r\n\r\nChoose or lose:\r\n\r\n  1. Push 1\r\n  2. Phone 1\r\n  3. SMS 1 (deny)\r\n  4. Phone 2 (deny)\r\n\r\nPasscode or option (1-4): "

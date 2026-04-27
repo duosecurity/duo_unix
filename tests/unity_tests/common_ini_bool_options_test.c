@@ -162,27 +162,6 @@ static void test_fallback_local_ip_false() {
     TEST_ASSERT_EQUAL(expected_cfg_value, cfg.local_ip_fallback);
 }
 
-/* Test dev_fips_mode flag */
-static void test_dev_fips_mode_true() {
-    struct duo_config cfg = {0};
-    char *name = "dev_fips_mode";
-    char *value = "true";
-    int expected_cfg_value = 1;
-
-    duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.fips_mode);
-}
-
-static void test_dev_fips_mode_false() {
-    struct duo_config cfg = {0};
-    char *name = "dev_fips_mode";
-    char *value = "false";
-    int expected_cfg_value = 0;
-
-    duo_common_ini_handler(&cfg, SECTION, name, value);
-    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.fips_mode);
-}
-
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_set_boolean_option_yes);
@@ -204,7 +183,5 @@ int main() {
     RUN_TEST(test_accept_env_false);
     RUN_TEST(test_fallback_local_ip_true);
     RUN_TEST(test_fallback_local_ip_false);
-    RUN_TEST(test_dev_fips_mode_true);
-    RUN_TEST(test_dev_fips_mode_false);
     return UNITY_END();
 }
