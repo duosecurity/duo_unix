@@ -31,6 +31,19 @@ class TestCrypto(unittest.TestCase):
             ),
         )
 
+    def test_openssl3_deprecated_apis(self):
+        process = subprocess.Popen(
+            [os.path.join(TESTDIR, "openssl3_scanner.sh")], stdout=subprocess.PIPE
+        )
+        (stdout, stderr) = process.communicate()
+        self.assertEqual(
+            process.returncode,
+            0,
+            "ERROR: Found deprecated low-level OpenSSL API calls:\n{stdout}".format(
+                stdout=stdout
+            ),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
