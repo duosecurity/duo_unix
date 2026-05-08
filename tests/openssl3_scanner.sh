@@ -5,20 +5,22 @@
 # Copyright (c) 2023 Cisco Systems, Inc. and/or its affiliates
 # All rights reserved.
 #
-# fips_scanner.sh
+# openssl3_scanner.sh
 #
-# This program scans for low-level Openssl function calls that are NOT
-# allowed when running in FIPS mode. The list of functions was taken
-# from searching the Openssl library for calls to "fips_cipher_abort" and
-# "fips_md_init_ctx" which are the functions for generating the low-level
-# API abort messages.  These abort messages are only generated when running
-# in FIPS mode. We then looked at the ".h" for each cipher/digest and manpage to
-# get the list of related low-level function calls.
+# This program scans for low-level OpenSSL function calls that are
+# deprecated in OpenSSL 3.x.  These functions bypass the EVP abstraction
+# layer and should be replaced with their EVP equivalents.  The lists
+# below were taken from the same source as fips_scanner.sh (searching
+# the OpenSSL library for low-level cipher and digest APIs).
+#
+# This scanner is separated from fips_scanner.sh so that OpenSSL 3.x
+# deprecation concerns are tracked independently from FIPS 140-3
+# compliance concerns.
 #
 # Usage:
-#   ./fips_scanner.sh <directory to scan>
+#   ./openssl3_scanner.sh <directory to scan>
 #
-# If no directory is given, it scans the directory the current directory.
+# If no directory is given, it scans the current directory.
 #
 #
 case "$OSTYPE" in
@@ -136,20 +138,21 @@ echo -e "===================================\n"
 
 EXITCODE=0
 
-#Exclude files that are being used to search for anything not fips compliant 
+#Exclude files that are being used to search for anything not compliant
 #Unless excluded, these files will also be scanned and trigger false positives
-errorFile="fips_scanner.sh.err"
+errorFile="openssl3_scanner.sh.err"
+openssl3Scanner="openssl3_scanner.sh"
 fipsScanner="fips_scanner.sh"
-opensslScanner="openssl3_scanner.sh"
 testCrypto="test_crypto-0*"
 for cipher in ${CIPHER_LIST[@]} ; do
-    if $GREP -R ${cipher} ${DIR} --exclude={$fipsScanner,$opensslScanner,$testCrypto,$errorFile} ; then
+    echo "Scanning for cipher function: ${cipher}"
+    if $GREP -R ${cipher} ${DIR} --exclude={$openssl3Scanner,$fipsScanner,$testCrypto,$errorFile} ; then
       echo "Found potential calls for ${cipher}"
       EXITCODE=1
     fi
 done
 
-# Scan for unapproved digest calls
+# Scan for deprecated low-level digest calls
 DIGEST_LIST=("SHA1_Init"
              "SHA1_Update"
              "SHA1_Final"
@@ -169,10 +172,11 @@ DIGEST_LIST=("SHA1_Init"
 echo -e "\nChecking for low-level digest calls"
 echo -e "===================================\n"
 for digest in ${DIGEST_LIST[@]} ; do
-    if $GREP -R ${digest} ${DIR} --exclude={$fipsScanner,$opensslScanner,$testCrypto,$errorFile} ; then
+    echo "Scanning for digest function: ${digest}"
+    if $GREP -R ${digest} ${DIR} --exclude={$openssl3Scanner,$fipsScanner,$testCrypto,$errorFile} ; then
       echo "Found potential calls for ${digest}"
       EXITCODE=1
-    fi    
+    fi
 done
 
 exit $EXITCODE
