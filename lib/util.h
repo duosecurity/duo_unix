@@ -44,7 +44,6 @@ struct duo_config {
     int  local_ip_fallback;
     int  https_timeout;
     int  send_gecos;
-    int  fips_mode;
     int  gecos_username_pos;
     int  verified_push;
 };

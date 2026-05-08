@@ -179,31 +179,6 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     }
 
 
-#ifdef OPENSSL_FIPS
-    /*
-     * When fips_mode is configured, invoke OpenSSL's FIPS_mode_set() API. Note
-     * that in some environments, FIPS may be enabled system-wide, causing FIPS
-     * operation to be enabled automatically when OpenSSL is initialized.  The
-     * fips_mode option is an experimental feature allowing explicit entry to FIPS
-     * operation in cases where it isn't enabled globally at the OS level (for
-     * example, when integrating directly with the OpenSSL FIPS Object Module).
-     */
-    if(!FIPS_mode_set(cfg.fips_mode)) {
-        /* The smallest size buff can be according to the openssl docs */
-        char buff[256];
-        int error = ERR_get_error();
-        ERR_error_string_n(error, buff, sizeof(buff));
-        duo_syslog(LOG_ERR, "Unable to start fips_mode: %s", buff);
-
-       return (EXIT_FAILURE);
-    }
-#else
-    if(cfg.fips_mode) {
-        duo_syslog(LOG_ERR, "FIPS mode flag specified, but OpenSSL not built with FIPS support. Failing the auth.");
-        return (EXIT_FAILURE);
-    }
-#endif
-
     prompts = cfg.prompts;
 
     /* Detect non-interactive sessions */
