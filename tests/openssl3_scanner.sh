@@ -144,9 +144,12 @@ errorFile="openssl3_scanner.sh.err"
 openssl3Scanner="openssl3_scanner.sh"
 fipsScanner="fips_scanner.sh"
 testCrypto="test_crypto-0*"
+testCryptoPy="test_crypto.py"
+GREP_OPTS="-R -I --exclude=$openssl3Scanner --exclude=$fipsScanner --exclude=$testCrypto --exclude=$testCryptoPy --exclude=$errorFile --exclude-dir=.git --exclude-dir=build --exclude-dir=worktree_tmp --exclude-dir=.libs"
+
 for cipher in ${CIPHER_LIST[@]} ; do
     echo "Scanning for cipher function: ${cipher}"
-    if $GREP -R ${cipher} ${DIR} --exclude={$openssl3Scanner,$fipsScanner,$testCrypto,$errorFile} ; then
+    if $GREP $GREP_OPTS ${cipher} ${DIR} ; then
       echo "Found potential calls for ${cipher}"
       EXITCODE=1
     fi
@@ -173,7 +176,7 @@ echo -e "\nChecking for low-level digest calls"
 echo -e "===================================\n"
 for digest in ${DIGEST_LIST[@]} ; do
     echo "Scanning for digest function: ${digest}"
-    if $GREP -R ${digest} ${DIR} --exclude={$openssl3Scanner,$fipsScanner,$testCrypto,$errorFile} ; then
+    if $GREP $GREP_OPTS ${digest} ${DIR} ; then
       echo "Found potential calls for ${digest}"
       EXITCODE=1
     fi

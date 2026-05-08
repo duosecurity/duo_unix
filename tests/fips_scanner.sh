@@ -7,18 +7,28 @@
 #
 # fips_scanner.sh
 #
-# This program scans for low-level Openssl function calls that are NOT
-# allowed when running in FIPS mode. The list of functions was taken
-# from searching the Openssl library for calls to "fips_cipher_abort" and
-# "fips_md_init_ctx" which are the functions for generating the low-level
-# API abort messages.  These abort messages are only generated when running
-# in FIPS mode. We then looked at the ".h" for each cipher/digest and manpage to
-# get the list of related low-level function calls.
+# This program scans for cryptographic algorithms and patterns that are
+# disallowed by the FIPS 140-3 security policy.  It checks four categories:
+#
+#   1. Non-FIPS algorithms via low-level APIs (MD5, MD4, MDC2, RC4)
+#   2. Non-FIPS algorithms via EVP-level APIs (md5, md4, mdc2, rc4, rc2,
+#      single-DES, IDEA, Blowfish, CAST5, SEED)
+#   3. DRBG bypass patterns (seeding the RNG from external sources)
+#   4. Dead FIPS 140-2 APIs (FIPS_mode_set/get, removed in OpenSSL 3.x)
+#
+# Low-level API usage that bypasses EVP (AES_encrypt, SHA512_Init, etc.)
+# is an OpenSSL 3.x deprecation concern and is checked separately by
+# openssl3_scanner.sh.
+#
+# Known finding: RAND_load_file in lib/https.c (DRBG bypass).  This is
+# an AIX fallback for systems without /dev/random and cannot be removed
+# without breaking those platforms.  Those systems cannot run in FIPS mode
+# anyway (no kernel entropy source), so this is not a real-world FIPS risk.
 #
 # Usage:
 #   ./fips_scanner.sh <directory to scan>
 #
-# If no directory is given, it scans the directory the current directory.
+# If no directory is given, it scans the current directory.
 #
 #
 case "$OSTYPE" in
@@ -37,142 +47,80 @@ fi
 
 echo -e "Scanning directory\n"
 
-CIPHER_LIST=("AES_set_encrypt_key"
-             "AES_set_decrypt_key"
-             "AES_encrypt"
-             "AES_decrypt"
-             "AES_ctr128_encrypt"
-             "AES_ecb_encrypt"
-             "AES_cbc_encrypt"
-             "AES_cfb128_encrypt"
-             "AES_cfb1_encrypt"
-             "AES_cfb8_encrypt"
-             "AES_ofb128_encrypt"
-             "AES_ctr128_encrypt"
-             "AES_ige_encrypt"
-             "AES_bi_ige_encrypt"
-             "AES_wrap_key"
-             "AES_unwrap_key"
-             "BF_set_key"
-             "BF_encrypt"
-             "BF_ecb_encrypt"
-             "BF_cbc_encrypt"
-             "BF_cfb64_encrypt"
-             "BF_ofb64_encrypt"
-             "Camellia_set_key"
-             "Camellia_encrypt"
-             "Camellia_decrypt"
-             "Camellia_ecb_encrypt"
-             "Camellia_cbc_encrypt"
-             "Camellia_cfb128_encrypt"
-             "Camellia_cfb1_encrypt"
-             "Camellia_cfb8_encrypt"
-             "Camellia_ofb128_encrypt"
-             "Camellia_ctr128_encrypt"
-             "CAST_set_key"
-             "CAST_ecb_encrypt"
-             "CAST_encrypt"
-             "CAST_cbc_encrypt"
-             "CAST_cfb64_encrypt"
-             "CAST_ofb64_encrypt"
-             "DES_set_key_unchecked"
-             "DES_ecb2_encrypt"
-             "DES_ede2_cbc_encrypt"
-             "DES_ede2_cfb64_encrypt"
-             "DES_ede2_ofb64_encrypt"
-             "DES_ecb3_encrypt"
-             "DES_cbc_cksum"
-             "DES_cbc_encrypt"
-             "DES_ncbc_encrypt"
-             "DES_xcbc_encrypt"
-             "DES_cfb_encrypt"
-             "DES_ecb_encrypt"
-             "DES_encrypt1"
-             "DES_encrypt2"
-             "DES_encrypt3"
-             "DES_decrypt3"
-             "DES_ede3_cbc_encrypt"
-             "DES_ede3_cbcm_encrypt"
-             "DES_ede3_cfb64_encrypt"
-             "DES_ede3_cfb_encrypt"
-             "DES_ede3_ofb64_encrypt"
-             "DES_enc_read"
-             "DES_enc_write"
-             "DES_ofb_encrypt"
-             "DES_quad_cksum"
-             "DES_random_key"
-             "DES_check_key_parity"
-             "DES_set_key"
-             "DES_pcbc_encrypt"
-             "DES_set_key_checked"
-             "DES_string_to_key"
-             "DES_cfb64_encrypt"
-             "DES_ofb64_encrypt"
-             "DES_read_password"
-             "DES_fixup_key_parity"
-             "DES_set_odd_parity"
-             "idea_set_encrypt_key"
-             "idea_ecb_encrypt"
-             "idea_set_decrypt_key"
-             "idea_cfb64_encrypt"
-             "idea_ofb64_encrypt"
-             "idea_encrypt"
-             "RC2_set_key"
-             "RC2_encrypt"
-             "RC2_cbc_encrypt"
-             "RC2_cfb64_encrypt"
-             "RC2_ofb64_encrypt"
-             "RC4_set_key"
-             "SEED_set_key"
-             "SEED_encrypt"
-             "SEED_decrypt"
-             "SEED_ecb_encrypt"
-             "SEED_cbc_encrypt"
-             "SEED_cfb128_encrypt"
-             "SEED_ofb128_encrypt")
-
-echo -e "Checking for low-level cipher calls"
-echo -e "===================================\n"
-
 EXITCODE=0
 
-#Exclude files that are being used to search for anything not fips compliant 
+#Exclude files that are being used to search for anything not fips compliant
 #Unless excluded, these files will also be scanned and trigger false positives
 errorFile="fips_scanner.sh.err"
 fipsScanner="fips_scanner.sh"
 opensslScanner="openssl3_scanner.sh"
 testCrypto="test_crypto-0*"
-for cipher in ${CIPHER_LIST[@]} ; do
-    if $GREP -R ${cipher} ${DIR} --exclude={$fipsScanner,$opensslScanner,$testCrypto,$errorFile} ; then
-      echo "Found potential calls for ${cipher}"
+testCryptoPy="test_crypto.py"
+GREP_OPTS="-R -I --exclude=$fipsScanner --exclude=$opensslScanner --exclude=$testCrypto --exclude=$testCryptoPy --exclude=$errorFile --exclude-dir=.git --exclude-dir=build --exclude-dir=worktree_tmp --exclude-dir=.libs"
+
+# Category 1: Non-FIPS algorithms (low-level)
+NONFIPS_LOWLEVEL=("MD5_Init" "MD5_Update" "MD5_Final"
+                  "MD4_Init" "MD4_Update" "MD4_Final"
+                  "MDC2_Init" "MDC2_Update" "MDC2_Final"
+                  "RC4_set_key")
+
+echo "Checking for non-FIPS algorithms (low-level)"
+echo -e "=============================================\n"
+
+for func in ${NONFIPS_LOWLEVEL[@]} ; do
+    echo "Scanning for function: ${func}"
+    if $GREP $GREP_OPTS ${func} ${DIR} ; then
+      echo "Found potential calls for ${func}"
       EXITCODE=1
     fi
 done
 
-# Scan for unapproved digest calls
-DIGEST_LIST=("SHA1_Init"
-             "SHA1_Update"
-             "SHA1_Final"
-             "SHA224_Init"
-             "SHA224_Update"
-             "SHA224_Final"
-             "SHA256_Init"
-             "SHA256_Update"
-             "SHA256_Final"
-             "SHA384_Init"
-             "SHA384_Update"
-             "SHA384_Final"
-             "SHA512_Init"
-             "SHA512_Update"
-             "SHA512_Final")
+# Category 2: Non-FIPS algorithms (EVP-level)
+NONFIPS_EVP=("EVP_md5" "EVP_md4" "EVP_mdc2"
+             "EVP_rc4" "EVP_rc2_cbc" "EVP_rc2_ecb" "EVP_rc2_cfb" "EVP_rc2_ofb"
+             "EVP_des_ecb" "EVP_des_cbc" "EVP_des_cfb" "EVP_des_ofb"
+             "EVP_idea_ecb" "EVP_idea_cbc" "EVP_idea_cfb" "EVP_idea_ofb"
+             "EVP_bf_ecb" "EVP_bf_cbc" "EVP_bf_cfb" "EVP_bf_ofb"
+             "EVP_cast5_ecb" "EVP_cast5_cbc" "EVP_cast5_cfb" "EVP_cast5_ofb"
+             "EVP_seed_ecb" "EVP_seed_cbc" "EVP_seed_cfb" "EVP_seed_ofb")
 
-echo -e "\nChecking for low-level digest calls"
-echo -e "===================================\n"
-for digest in ${DIGEST_LIST[@]} ; do
-    if $GREP -R ${digest} ${DIR} --exclude={$fipsScanner,$opensslScanner,$testCrypto,$errorFile} ; then
-      echo "Found potential calls for ${digest}"
+echo -e "\nChecking for non-FIPS algorithms (EVP-level)"
+echo -e "=============================================\n"
+
+for func in ${NONFIPS_EVP[@]} ; do
+    echo "Scanning for function: ${func}"
+    if $GREP $GREP_OPTS ${func} ${DIR} ; then
+      echo "Found potential calls for ${func}"
       EXITCODE=1
-    fi    
+    fi
+done
+
+# Category 3: DRBG bypass patterns
+DRBG_BYPASS=("RAND_load_file" "RAND_seed" "RAND_add")
+
+echo -e "\nChecking for DRBG bypass patterns"
+echo -e "=================================\n"
+
+for func in ${DRBG_BYPASS[@]} ; do
+    echo "Scanning for function: ${func}"
+    if $GREP $GREP_OPTS ${func} ${DIR} ; then
+      echo "Found potential calls for ${func}"
+      EXITCODE=1
+    fi
+done
+
+# Category 4: Dead FIPS 140-2 APIs
+DEAD_FIPS_APIS=("FIPS_mode_set" "FIPS_mode_get")
+
+echo -e "\nChecking for dead FIPS 140-2 APIs"
+echo -e "=================================\n"
+
+for func in ${DEAD_FIPS_APIS[@]} ; do
+    echo "Scanning for function: ${func}"
+    if $GREP $GREP_OPTS ${func} ${DIR} ; then
+      echo "Found potential calls for ${func}"
+      EXITCODE=1
+    fi
 done
 
 exit $EXITCODE
