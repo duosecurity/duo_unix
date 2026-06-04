@@ -20,10 +20,6 @@
 # is an OpenSSL 3.x deprecation concern and is checked separately by
 # openssl3_scanner.sh.
 #
-# Known finding: RAND_load_file in lib/https.c (DRBG bypass).  This is
-# an AIX fallback for systems without /dev/random and cannot be removed
-# without breaking those platforms.  Those systems cannot run in FIPS mode
-# anyway (no kernel entropy source), so this is not a real-world FIPS risk.
 #
 # Usage:
 #   ./fips_scanner.sh <directory to scan>

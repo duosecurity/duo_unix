@@ -690,14 +690,9 @@ https_init(const char *cafile, const char *http_proxy)
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
 
-    /* XXX - ape openssl s_client -rand for testing on ancient systems */
     if (!RAND_status()) {
-        if ((p = getenv("RANDFILE")) != NULL) {
-            RAND_load_file(p, 8192);
-        } else {
-            ctx.errstr = "No /dev/random, EGD, or $RANDFILE";
-            return (HTTPS_ERR_LIB);
-        }
+        ctx.errstr = "PRNG not seeded: system has no entropy source";
+        return (HTTPS_ERR_LIB);
     }
     if ((ctx.ssl_ctx = SSL_CTX_new(SSLv23_client_method())) == NULL) {
         ctx.errstr = _SSL_strerror();

@@ -54,8 +54,6 @@ Testing files to make sure fips compliant
   =================================
 
   Scanning for function: RAND_load_file
-  ../lib/https.c:            RAND_load_file(p, 8192);
-  Found potential calls for RAND_load_file
   Scanning for function: RAND_seed
   Scanning for function: RAND_add
 
@@ -64,7 +62,6 @@ Testing files to make sure fips compliant
 
   Scanning for function: FIPS_mode_set
   Scanning for function: FIPS_mode_get
-  [1]
 
 Testing files for deprecated low-level OpenSSL 3.x APIs
   $ cd ${TESTDIR}
