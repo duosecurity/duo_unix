@@ -293,7 +293,9 @@ duo_local_ip()
 
     memset(&sin, 0, sizeof(sin));
     sin.sin_family = AF_INET;
-    sin.sin_addr.s_addr = inet_addr("8.8.8.8"); /* XXX Google's DNS Server */
+    /* RFC 5737 TEST-NET-1 example IP; no traffic is sent, the kernel
+       only performs a routing table lookup to determine the local IP. */
+    sin.sin_addr.s_addr = inet_addr("192.0.2.1");
     sin.sin_port = htons(53);
     slen = sizeof(sin);
 
