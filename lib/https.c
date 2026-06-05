@@ -22,6 +22,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <locale.h>
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -929,11 +930,18 @@ https_send(struct https_request *req, const char *method, const char *uri,
     char *qs, *p, date[128];
     int i, n, is_get;
     time_t t;
+    locale_t c_locale;
 
     req->done = 0;
 
     t = time(NULL) + time_offset; /* adjust time by offset */
-    strftime(date, sizeof date, "%a, %d %b %Y %T %z", localtime(&t));
+    c_locale = newlocale(LC_TIME_MASK, "C", (locale_t)0);
+    if (c_locale == (locale_t)0) {
+        ctx.errstr = "Failed to create C locale";
+        return (HTTPS_ERR_LIB);
+    }
+    strftime_l(date, sizeof date, "%a, %d %b %Y %T +0000", gmtime(&t), c_locale);
+    freelocale(c_locale);
 
     /* Generate query string and canonical request to sign */
     if ((qs = _argv_to_qs(argc, argv)) == NULL) {
