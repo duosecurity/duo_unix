@@ -35,3 +35,14 @@ jobs:
 
       - name: Static analysis
         run: cppcheck --quiet --force -i tests --suppressions-list=.false_positive.txt --error-exitcode=1 .
+
+  fips_ci:
+    name: Duo Unix - FIPS runtime test (Rocky 9)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Run FIPS test suite
+        run: ./tests/fips/run_fips_test.sh
