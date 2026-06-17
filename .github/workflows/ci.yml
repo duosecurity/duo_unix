@@ -33,7 +33,7 @@ jobs:
         run: pip3 install -r test_requirements.in
 
       - name: Run tests
-        run: make distcheck
+        run: sudo make distcheck
 
       - name: Static analysis
         run: cppcheck --quiet --force -i tests --suppressions-list=.false_positive.txt --error-exitcode=1 .
