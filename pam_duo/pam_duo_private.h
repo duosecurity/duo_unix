@@ -11,6 +11,6 @@
 #include <string.h>
 #include "util.h"
 
-/* Parses argv to get the configuration file location and the debug mode */
+/* Parses argv to get the configuration file location and the debug/quiet modes */
 int
 parse_argv(const char **config, int argc, const char *argv[]);
