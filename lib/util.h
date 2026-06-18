@@ -18,6 +18,7 @@
 #include <stdarg.h>
 
 extern int duo_debug;
+extern int duo_quiet;
 
 enum {
     DUO_FAIL_SAFE = 0,
