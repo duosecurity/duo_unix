@@ -57,6 +57,7 @@ tx_msgs = {
         "1:Answered. Press '#' on your phone to log in.",
         "2:Authentication timed out.",
     ],
+    "txLONGWAIT": ["0:Still waiting..."] * 21,
 }
 
 
