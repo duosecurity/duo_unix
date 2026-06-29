@@ -72,7 +72,17 @@ def login_duo_interactive(args, env=None, preload_script=""):
     if env is None:
         env = {}
 
-    excluded_keys = ["SSH_CONNECTION", "FALLBACK", "UID", "http_proxy", "TIMEOUT"]
+    excluded_keys = [
+        "SSH_CONNECTION",
+        "FALLBACK",
+        "UID",
+        "EUID",
+        "GID",
+        "http_proxy",
+        "TIMEOUT",
+        "MOCK_SETUID",
+        "SIGNAL_AUTH_CHILD",
+    ]
     env_passthrough = {
         key: os.environ[key] for key in os.environ if key not in excluded_keys
     }
@@ -107,7 +117,17 @@ def login_duo(args, env=None, timeout=10, preload_script=""):
     else:
         login_duo_path = [os.path.join(BUILDDIR, "login_duo", "login_duo")]
 
-    excluded_keys = ["SSH_CONNECTION", "FALLBACK", "UID", "http_proxy", "TIMEOUT"]
+    excluded_keys = [
+        "SSH_CONNECTION",
+        "FALLBACK",
+        "UID",
+        "EUID",
+        "GID",
+        "http_proxy",
+        "TIMEOUT",
+        "MOCK_SETUID",
+        "SIGNAL_AUTH_CHILD",
+    ]
     env_passthrough = {
         key: os.environ[key] for key in os.environ if key not in excluded_keys
     }
@@ -236,6 +256,26 @@ class TestLoginDuoConfig(CommonTestCase):
         result = login_duo(["-v"])
         self.assertRegexSomeline(result["stderr"], "login_duo \\d+\\.\\d+.\\d+")
 
+
+class TestLoginDuoPrivsep(CommonTestCase):
+    def test_signal_terminated_auth_child_fails_closed(self):
+        """Refuse login if the setuid auth child terminates by signal."""
+        result = login_duo(
+            ["echo", "Success"],
+            env={
+                "UID": "1001",
+                "EUID": "0",
+                "MOCK_SETUID": "1",
+                "SIGNAL_AUTH_CHILD": "15",
+            },
+            preload_script=os.path.join(TESTDIR, "login_duo.py"),
+        )
+
+        self.assertEqual(result["returncode"], 1)
+        self.assertNotIn("Success", result["stdout"])
+        self.assertIn(
+            "unprivileged process terminated by signal: 15",
+            result["stderr"])
 
 class TestLoginDuoEnv(CommonSuites.Env):
     def call_binary(self, *args, **kwargs):

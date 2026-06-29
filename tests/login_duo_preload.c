@@ -21,6 +21,7 @@
 #include <unistd.h>
 
 #include <poll.h>
+#include <signal.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -31,6 +32,11 @@ int (*_sys_getaddrinfo)(const char *node, const char *service, const struct addr
 char *(*_sys_inet_ntoa)(struct in_addr in);
 struct passwd *(*_getpwnam)(const char* name);
 FILE *(*_fopen)(const char* filename, const char* mode);
+int (*_sys_setgid)(gid_t gid);
+int (*_sys_setuid)(uid_t uid);
+
+static gid_t _mock_gid = (gid_t)-1;
+static uid_t _mock_uid = (uid_t)-1;
 
 static struct passwd _passwd[11] = {
         { "sshd", "*", 1000, 100, .pw_gecos = "gecos", .pw_dir = "/",
@@ -122,7 +128,47 @@ getuid(void)
 {
         char *p = getenv("UID");
 
+        if (_mock_uid != (uid_t)-1) {
+            return (_mock_uid);
+        }
         return (p ? atoi(p) : 1004);
+}
+
+int
+setuid(uid_t uid)
+{
+        if (getenv("MOCK_SETUID")) {
+            char *signal_auth_child = getenv("SIGNAL_AUTH_CHILD");
+            _mock_uid = uid;
+            if (signal_auth_child && uid == 1000) {
+                raise(atoi(signal_auth_child));
+            }
+            return (0);
+        }
+        _sys_setuid = dlsym(RTLD_NEXT, "setuid");
+        return (*_sys_setuid)(uid);
+}
+
+gid_t
+getgid(void)
+{
+        char *p = getenv("GID");
+
+        if (_mock_gid != (gid_t)-1) {
+            return (_mock_gid);
+        }
+        return (p ? atoi(p) : 100);
+}
+
+int
+setgid(gid_t gid)
+{
+        if (getenv("MOCK_SETUID")) {
+            _mock_gid = gid;
+            return (0);
+        }
+        _sys_setgid = dlsym(RTLD_NEXT, "setgid");
+        return (*_sys_setgid)(gid);
 }
 
 uid_t
