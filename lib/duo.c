@@ -767,6 +767,10 @@ duo_login(struct duo_ctx *ctx, const char *username,
         }
         _JSON_VALUE_FREE(json_new);
     }
+    if (i == 20) {
+        _duo_seterr(ctx, "Authentication timed out");
+        ret = DUO_FAIL;
+    }
     return (ret);
 }
 

@@ -717,6 +717,28 @@ class CommonSuites:
             self.menu_options(MOCKDUO_CONF)
             self.menu_success(MOCKDUO_CONF)
 
+        def test_auth_status_loop_exhaustion_denies(self):
+            with TempConfig(MOCKDUO_CONF) as temp:
+                process = self.call_binary(
+                    ["-d", "-c", temp.name, "-f", "foobar", "true"],
+                )
+                self.assertEqual(
+                    process.expect(CommonSuites.Interactive.PROMPT_REGEX, timeout=10), 0
+                )
+                process.sendline(b"longwait")
+                self.assertEqual(
+                    process.expect(CommonSuites.Interactive.PROMPT_REGEX, timeout=5), 0
+                )
+                self.assertOutputEqual(
+                    process.match.group(0),
+                    ["longwait"]
+                    + ["Still waiting..."] * 20
+                    + [
+                        "[4] Failed Duo login for 'foobar': Authentication timed out",
+                    ]
+                    + CommonSuites.Interactive.PROMPT_TEXT,
+                )
+
         def test_autopush_nomenu(self):
             with TempConfig(MOCKDUO_AUTOPUSH) as temp:
                 process = self.call_binary(
