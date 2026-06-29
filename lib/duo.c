@@ -726,6 +726,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
         ctx->conv_status(ctx->conv_arg, "");
     }
     ret = DUO_SERVER_ERROR;
+    _JSON_VALUE_FREE(json);
 
     for (i = 0; i < 20; i++) {
         if ((ret = duo_add_param(ctx, "txid", buf)) != DUO_OK ||
@@ -738,9 +739,9 @@ duo_login(struct duo_ctx *ctx, const char *username,
         JSON_Value *json_new = json_parse_string(ctx->body);
         JSON_Object *json_obj_new = json_value_get_object(json_new);
         JSON_Object *json_response_new;
-        _JSON_FIND_OBJECT(json_response_new, json_obj_new, "response", json);
+        _JSON_FIND_OBJECT(json_response_new, json_obj_new, "response", json_new);
         const char *status_json_obj;
-        _JSON_FIND_STRING(status_json_obj, json_response_new, "status_msg", json);
+        _JSON_FIND_STRING(status_json_obj, json_response_new, "status_msg", json_new);
         if (status_json_obj != NULL) {
             if (ctx->conv_status != NULL) {
                 ctx->conv_status(ctx->conv_arg, status_json_obj);
@@ -750,7 +751,7 @@ duo_login(struct duo_ctx *ctx, const char *username,
         //We might not have 'result' defined but we don't want to quit the program
         //if it's not in our object yet
         const char* result;
-        _JSON_FIND_STRING(result, json_response_new, "result", json);
+        _JSON_FIND_STRING(result, json_response_new, "result", json_new);
         if (strcasecmp(result, "waiting") != 0) {
             if (strcasecmp(result, "allow") == 0) {
                 ret = DUO_OK;
@@ -766,7 +767,6 @@ duo_login(struct duo_ctx *ctx, const char *username,
         }
         _JSON_VALUE_FREE(json_new);
     }
-    _JSON_VALUE_FREE(json);
     return (ret);
 }
 
