@@ -410,7 +410,7 @@ main(int argc, char *argv[])
     struct login_ctx ctx[1];
     struct passwd *pw;
     pid_t pid;
-    int c, stat;
+    int c, stat = 0;
     pid_t wait_res;
 
     duo_syslog(LOG_INFO, "starting Duo Unix: Login Duo");
@@ -458,6 +458,8 @@ main(int argc, char *argv[])
                     strerror(errno));
             }
             exit(do_auth(ctx, get_command(argc, argv)));
+        } else if (pid < 0) {
+            die("fork: %s", strerror(errno));
         } else {
             /* Parent continues as user. */
             if (drop_privs(getuid(), getgid()) != 0) {
@@ -472,8 +474,12 @@ main(int argc, char *argv[])
             if (wait_res != pid) {
                 die("waitpid: %s", strerror(errno));
             }
-            if (WEXITSTATUS(stat) == 0) {
+            if (WIFEXITED(stat) && WEXITSTATUS(stat) == 0) {
                 do_exec(ctx, get_command(argc, argv));
+            }
+            if (WIFSIGNALED(stat)) {
+                die("unprivileged process terminated by signal: %d",
+                    WTERMSIG(stat));
             }
         }
     } else {
