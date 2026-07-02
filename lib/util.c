@@ -243,27 +243,36 @@ duo_check_groups(struct passwd *pw, char **groups, int groups_cnt)
     }
 }
 
+int
+_add_to_log(char *buf, size_t buf_sz, int pos, const char *format,
+           const char *s) {
+    if (s == NULL) {
+        return pos;
+    }
+    else {
+        size_t remaining = buf_sz - pos;
+        int i = snprintf(buf + pos, remaining, format, s);
+        if (i < 0) {
+            return pos;
+        }
+        else if (i >= remaining) {
+            return buf_sz;
+        }
+        else {
+            return pos + i;
+        }
+    }
+}
+
 void
-duo_log(int priority, const char*msg, const char *user, const char *ip,
+duo_log(int priority, const char *msg, const char *user, const char *ip,
         const char *err)
 {
     char buf[512];
-    int i, n;
-
-    n = snprintf(buf, sizeof(buf), "%s", msg);
-
-    if (user != NULL &&
-        (i = snprintf(buf + n, sizeof(buf) - n, " for '%s'", user)) > 0) {
-        n += i;
-    }
-    if (ip != NULL &&
-        (i = snprintf(buf + n, sizeof(buf) - n, " from %s", ip)) > 0) {
-        n += i;
-    }
-    if (err != NULL &&
-        (i = snprintf(buf + n, sizeof(buf) - n, ": %s", err)) > 0) {
-        n += i;
-    }
+    int pos = snprintf(buf, sizeof(buf), "%s", msg);
+    pos = _add_to_log(buf, sizeof(buf), pos, " for '%s'", user);
+    pos = _add_to_log(buf, sizeof(buf), pos, " from %s", ip);
+    pos = _add_to_log(buf, sizeof(buf), pos, ": %s", err);
     duo_syslog(priority, "%s", buf);
 }
 
