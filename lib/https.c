@@ -1038,7 +1038,14 @@ https_recv(struct https_request *req, int *code, const char **body, int *len,
             return (HTTPS_ERR_SERVER);
         }
     }
-    *len = BIO_get_mem_data(req->body, (char **)body);
+    /* Add NUL after the real body so debugging server responses with
+     * invalid JSON is easier.
+     */
+    if (BIO_write(req->body, "", 1) != 1) {
+        ctx.errstr = _SSL_strerror();
+        return (HTTPS_ERR_LIB);
+    }
+    *len = BIO_get_mem_data(req->body, (char **)body) - 1;
     *code = req->parser->status_code;
     if (retry_after)
         *retry_after = req->retry_after;
