@@ -196,6 +196,12 @@ _SSL_strerror(void)
     return (p ? p : strerror(errno));
 }
 
+int
+_https_ipaddr_matches(const void *addr, size_t addrsize, const void *altptr, size_t altsize)
+{
+    return (altsize == addrsize && memcmp(altptr, addr, altsize) == 0);
+}
+
 /* Server certificate name check, logic adapted from libcurl */
 static int
 _SSL_check_server_cert(SSL *ssl, const char *hostname)
@@ -231,17 +237,15 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
         for (i = 0; i < n && match != 1; i++) {
             const GENERAL_NAME *altname = sk_GENERAL_NAME_value(altnames, i);
             if (hostnametype == altname->type) {
-                char *altptr = (char *)ASN1_STRING_data(altname->d.ia5);
-                size_t altsize = (size_t)ASN1_STRING_length(altname->d.ia5);
-
                 if (altname->type == GEN_DNS) {
+                    char *altptr = (char *)ASN1_STRING_data(altname->d.dNSName);
+                    size_t altsize = (size_t)ASN1_STRING_length(altname->d.dNSName);
                     match = (altsize == strlen(altptr) && match_pattern(hostname, altptr));
                 } else if (altname->type == GEN_IPADD) {
-                    if ((altsize == addrsize) && !memcpy(altptr, &addr, altsize)) {
-                        match = 1;
-                    } else {
-                        match = 0;
-                    }
+                    unsigned char *altptr = ASN1_STRING_data(altname->d.iPAddress);
+                    size_t altsize = (size_t)ASN1_STRING_length(altname->d.iPAddress);
+                    match = _https_ipaddr_matches(&addr, addrsize, altptr,
+                        altsize);
                 }
             }
         }
