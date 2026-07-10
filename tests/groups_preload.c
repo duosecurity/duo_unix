@@ -22,7 +22,7 @@
 
 FILE *(*_fopen)(const char* filename, const char* mode);
 
-static struct passwd _passwd[6] = {
+static struct passwd _passwd[8] = {
         { "user1", "*", 1000, 1000, .pw_gecos = "gecos", .pw_dir = "/",
           .pw_shell = "/bin/sh" },
         { "user2", "*", 1001, 100, .pw_gecos = "gecos", .pw_dir = "/",
@@ -35,21 +35,30 @@ static struct passwd _passwd[6] = {
           .pw_shell = "/bin/sh" },
         { "noshell", "*", 1005, 1005, .pw_gecos = "gecos", .pw_dir = "/",
           .pw_shell = NULL },
+        { "orphan", "*", 1006, 59999, .pw_gecos = "gecos", .pw_dir = "/",
+          .pw_shell = "/bin/sh" },
+        { "partial", "*", 1007, 59999, .pw_gecos = "gecos", .pw_dir = "/",
+          .pw_shell = "/bin/sh" },
 };
 
 /* Supplemental groups */
-static char *_gr_users[] = { "user1", "admin1", NULL };
+static char *_gr_users[] = { "user1", "admin1", "partial", NULL };
 static char *_gr_admin[] = { "admin2", NULL };
 static char *_gr_spaces[] = { "user2", NULL };
 static char *_gr_no_spaces[] = { "weirdo", NULL };
 static char *_gr_more_spaces[] = { "admin1", NULL };
+static char *_gr_empty[] = { NULL };
 
-static struct group _groups[5] = {
+static struct group _groups[9] = {
         { "users", NULL, 100, _gr_users },
         { "admin", NULL, 10, _gr_admin },
         { "users with spaces", NULL, 200, _gr_spaces },
         { "no_spaces\\here", NULL, 201, _gr_no_spaces },
         { "more spaces", NULL, 202, _gr_more_spaces },
+        { "user1grp", NULL, 1000, _gr_empty },
+        { "admin2grp", NULL, 1003, _gr_empty },
+        { "weirdogrp", NULL, 1004, _gr_empty },
+        { "noshellgrp", NULL, 1005, _gr_empty },
 };
 
 static int _group_ptr = 0;
@@ -85,6 +94,15 @@ struct group *
 getgrgid(gid_t gid)
 {
         int i;
+        char *fail_gid_str = getenv("GETGRGID_FAIL");
+
+        if (fail_gid_str != NULL) {
+                gid_t fail_gid = (gid_t)atoi(fail_gid_str);
+                if (gid == fail_gid) {
+                        errno = EIO;
+                        return (NULL);
+                }
+        }
 
         for (i = 0; i < sizeof(_groups) / sizeof(_groups)[0]; i++) {
                 if (_groups[i].gr_gid == gid)

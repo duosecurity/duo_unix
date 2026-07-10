@@ -223,7 +223,7 @@ duo_check_groups(struct passwd *pw, char **groups, int groups_cnt)
     if (groups_cnt > 0) {
         int matched = 0;
 
-        if (ga_init(pw->pw_name, pw->pw_gid) < 0) {
+        if (ga_init(pw->pw_name, pw->pw_gid) <= 0) {
             duo_log(LOG_ERR, "Couldn't get groups",
                 pw->pw_name, NULL, strerror(errno));
             return (-1);

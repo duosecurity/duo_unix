@@ -30,6 +30,7 @@ from config import (
     MOCKDUO_GECOS_LONG_DELIM,
     MOCKDUO_GECOS_SEND_UNPARSED,
     MOCKDUO_GECOS_SLASH_DELIM_3_POS,
+    MOCKDUO_GROUPS_STAR,
     MOCKDUO_USERS,
     MOCKDUO_USERS_ADMINS,
     MOTD_CONF,
@@ -516,6 +517,70 @@ class TestLoginDuoGroups(CommonTestCase):
                 result["stderr"],
                 r"User preauth-allow bypassed Duo 2FA due to user's UNIX group",
             )
+
+
+class TestLoginDuoGroupLookupFailures(CommonTestCase):
+    def run(self, result=None):
+        with MockDuo(NORMAL_CERT):
+            return super(TestLoginDuoGroupLookupFailures, self).run(result)
+
+    def test_all_gids_unresolvable_denied(self):
+        """User with no resolvable GIDs must be denied, not bypassed."""
+        with TempConfig(MOCKDUO_GROUPS_STAR) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "orphan", "true"],
+                env={"UID": "1006"},
+                preload_script=os.path.join(TESTDIR, "groups.py"),
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Couldn't get groups",
+            )
+            self.assertNotEqual(result["returncode"], 0)
+
+    def test_partial_group_resolution_failure_denied(self):
+        """User whose primary GID fails getgrgid must be denied even if
+        supplementary groups resolve."""
+        with TempConfig(MOCKDUO_USERS) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "partial", "true"],
+                env={"UID": "1007"},
+                preload_script=os.path.join(TESTDIR, "groups.py"),
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Couldn't get groups",
+            )
+            self.assertNotEqual(result["returncode"], 0)
+
+    def test_nss_outage_for_matching_group_denied(self):
+        """Simulated NSS outage for a GID that would normally match must
+        deny, not bypass."""
+        with TempConfig(MOCKDUO_USERS) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "user1", "true"],
+                env={"UID": "1000", "GETGRGID_FAIL": "100"},
+                preload_script=os.path.join(TESTDIR, "groups.py"),
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Couldn't get groups",
+            )
+            self.assertNotEqual(result["returncode"], 0)
+
+    def test_nss_outage_for_primary_gid_denied(self):
+        """Simulated NSS outage for user's primary GID must deny."""
+        with TempConfig(MOCKDUO_GROUPS_STAR) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "user1", "true"],
+                env={"UID": "1000", "GETGRGID_FAIL": "1000"},
+                preload_script=os.path.join(TESTDIR, "groups.py"),
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Couldn't get groups",
+            )
+            self.assertNotEqual(result["returncode"], 0)
 
 
 class TestLoginDuoInteractive(CommonSuites.Interactive):

@@ -291,6 +291,14 @@ MOCKDUO_ADMINS_NO_USERS = DuoUnixConfig(
     group="admin,!users",
 )
 
+MOCKDUO_GROUPS_STAR = DuoUnixConfig(
+    ikey="DIXYZV6YM8IFYVWBINCA",
+    skey="yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo",
+    host="localhost:4443",
+    cafile="certs/mockduo-ca.pem",
+    groups="*",
+)
+
 MOTD_CONF = DuoUnixConfig(
     ikey="DIXYZV6YM8IFYVWBINCA",
     skey="yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo",
