@@ -34,7 +34,7 @@ while true; do
     shift
 done
 
-echo -e "The Duo Unix support script gathers and aggregates information about your Duo Unix installation and the server it is installed on for easy sending to Duo Security support. This script is intended to be used with Debian, Ubuntu, RHEL, and CentOS systems. While use of this script is not required for support cases with Duo, it is highly recommended as it will expedite the support and debugging process. Namely, this script collects:\n\n\t* Logfiles such as auth.log, secure, and authlog from /var/log and /var/adm\n\t* PAM configurations in /etc/pam.d, such as common-auth or sshd\n\t* SSHD configurations in /etc/ssh\n\t* Information about the server distribution and relevant libraries such as SELinux or OpenSSL\n\t* Configurations for pam_duo and login_duo scrubbed of sensitive skeys\n\nThese files are typically asked for during support cases with Duo. We advise that you review any of these files prior to running this script should you wish to expunge any other information you deem sensitive from these files. For a full list of the information collected by this script, see ${README_INSTALL}/share/doc/duo_unix/duo_unix_support/README.md."
+echo -e "The Duo Unix support script gathers and aggregates information about your Duo Unix installation and the server it is installed on for easy sending to Duo Security support. This script is intended to be used with Debian, Ubuntu, RHEL, and CentOS systems. While use of this script is not required for support cases with Duo, it is highly recommended as it will expedite the support and debugging process. Namely, this script collects:\n\n\t* Logfiles such as auth.log, secure, and authlog from /var/log and /var/adm\n\t* PAM configurations in /etc/pam.d, such as common-auth or sshd\n\t* SSHD configurations in /etc/ssh\n\t* Information about the server distribution and relevant libraries such as SELinux or OpenSSL\n\t* Configurations for pam_duo and login_duo, scrubbed to include only an allowlist of non-sensitive options (skey and http_proxy userinfo are redacted)\n\nThese files are typically asked for during support cases with Duo. We advise that you review any of these files prior to running this script should you wish to expunge any other information you deem sensitive from these files. For a full list of the information collected by this script, see ${README_INSTALL}/share/doc/duo_unix/duo_unix_support/README.md."
 
 read -rp "Do you wish to run this program? [N/y] " user_input
 
@@ -134,16 +134,139 @@ if type make &>/dev/null; then
    echo "make=$MAKE_VER" | $GREP "make" >> configuration.txt
 fi
 
-# Copy over common configurations and scrub the skey from the configs
+# Emit an allowlisted subset of /etc/duo/*.conf into the bundle.
+scrub_duo_conf () {
+    src="$1"
+    dst="$2"
+    ( umask 077 && : > "$dst" ) || return 1
+    if ! awk '
+        BEGIN {
+            split("ikey host cafile http_proxy groups group failmode pushinfo noverify prompts autopush accept_env_factor fallback_local_ip https_timeout send_gecos gecos_parsed gecos_delim gecos_username_pos verified_push motd", a, " ")
+            for (i in a) allow[a[i]] = 1
+            dropped = 0
+        }
+        # Strip an inline "; ..." comment matching lib/ini.c semantics.
+        function strip_inline_comment(v,    i, c, prev) {
+            prev = ""
+            for (i = 1; i <= length(v); i++) {
+                c = substr(v, i, 1)
+                if (c == ";" && (prev == " " || prev == "\t" || prev == "")) {
+                    v = substr(v, 1, i - 1)
+                    break
+                }
+                prev = c
+            }
+            sub(/[[:space:]]+$/, "", v)
+            return v
+        }
+        # Replace userinfo in http_proxy with "REDACTED@", keeping the host.
+        function redact_userinfo(v,    lower, scheme_len, scheme, rest, i, c, auth_end, last_at) {
+            scheme_len = 0
+            lower = tolower(v)
+            if (substr(lower, 1, 7) == "http://") {
+                scheme_len = 7
+            } else if (substr(lower, 1, 8) == "https://") {
+                scheme_len = 8
+            }
+            scheme = substr(v, 1, scheme_len)
+            rest = substr(v, scheme_len + 1)
+            first_term = 0
+            for (i = 1; i <= length(rest); i++) {
+                c = substr(rest, i, 1)
+                if (c == "/" || c == "?" || c == "#") {
+                    first_term = i
+                    break
+                }
+            }
+            auth_end = (first_term > 0) ? first_term : length(rest) + 1
+            last_at = 0
+            for (i = 1; i < auth_end; i++) {
+                if (substr(rest, i, 1) == "@") {
+                    last_at = i
+                }
+            }
+            if (last_at == 0 && first_term > 0) {
+                # Fallback: "@" only appears past first_term.
+                for (i = first_term; i <= length(rest); i++) {
+                    if (substr(rest, i, 1) == "@") {
+                        last_at = i
+                        auth_end = length(rest) + 1
+                    }
+                }
+            }
+            if (last_at == 0) {
+                return v
+            }
+            if (auth_end > length(rest)) {
+                return scheme "REDACTED@" substr(rest, last_at + 1)
+            }
+            return scheme "REDACTED@" substr(rest, last_at + 1, auth_end - last_at - 1) substr(rest, auth_end)
+        }
+        {
+            line = $0
+            if (line ~ /^[[:space:]]*$/) {
+                print line
+                next
+            }
+            if (line ~ /^[[:space:]]*[#;]/) {
+                if (tolower(line) ~ /skey/) {
+                    dropped++
+                    next
+                }
+                print line
+                next
+            }
+            if (line ~ /^[[:space:]]*\[[^]]*\][[:space:]]*$/) {
+                print line
+                next
+            }
+            if (match(line, /^[[:space:]]*[A-Za-z_][A-Za-z0-9._-]*[[:space:]]*=/) == 0) {
+                next
+            }
+            eq = index(line, "=")
+            name = substr(line, 1, eq - 1)
+            sub(/^[[:space:]]+/, "", name)
+            sub(/[[:space:]]+$/, "", name)
+            if (!(name in allow)) {
+                dropped++
+                next
+            }
+            value = substr(line, eq + 1)
+            sub(/^[[:space:]]+/, "", value)
+            value = strip_inline_comment(value)
+            if (name == "http_proxy") {
+                value = redact_userinfo(value)
+            }
+            print name " = " value
+        }
+        END {
+            if (dropped > 0) {
+                print ""
+                print "; " dropped " option(s) from the original file were dropped by"
+                print "; duo_unix_support.sh because they are not on the support-bundle"
+                print "; allowlist. Names and values are withheld."
+            }
+        }
+    ' "$src" >> "$dst"; then
+        echo "Failed to scrub $src" >&2
+        return 1
+    fi
+}
 
 echo "* Successfully copied login_duo.conf"
-sed '/skey/d' /etc/duo/login_duo.conf > login_duo.conf
+if ! scrub_duo_conf /etc/duo/login_duo.conf login_duo.conf; then
+    echo "Aborting: could not produce scrubbed login_duo.conf" >&2
+    exit 1
+fi
 chmod --reference /etc/duo/login_duo.conf login_duo.conf
 
 # The user might not have pam_duo install on their system
 if [ -e '/etc/duo/pam_duo.conf' ]; then
     echo "* Successfully copied pam_duo.conf"
-    sed '/skey/d' /etc/duo/pam_duo.conf > pam_duo.conf
+    if ! scrub_duo_conf /etc/duo/pam_duo.conf pam_duo.conf; then
+        echo "Aborting: could not produce scrubbed pam_duo.conf" >&2
+        exit 1
+    fi
     chmod --reference /etc/duo/pam_duo.conf pam_duo.conf
 fi
 

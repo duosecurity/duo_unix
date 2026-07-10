@@ -11,4 +11,6 @@ docdir = $(datadir)/doc/@PACKAGE@/duo_unix_support
 doc_DATA = README.md
 
 sbin_SCRIPTS = duo_unix_support.sh
-EXTRA_DIST = duo_unix_support.sh README.md
+EXTRA_DIST = duo_unix_support.sh README.md test_scrub_duo_conf.sh
+
+TESTS = test_scrub_duo_conf.sh
