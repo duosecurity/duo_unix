@@ -67,7 +67,12 @@
 static char *
 __prompt_fn(void *arg, const char *prompt, char *buf, size_t bufsz)
 {
-    printf("%s", prompt);
+    char *sanitized = strdup(prompt);
+    if (sanitized != NULL) {
+        duo_sanitize_str(sanitized);
+        printf("%s", sanitized);
+        free(sanitized);
+    }
     fflush(stdout);
     return (fgets(buf, bufsz, stdin));
 }
@@ -75,7 +80,12 @@ __prompt_fn(void *arg, const char *prompt, char *buf, size_t bufsz)
 static void
 __status_fn(void *arg, const char *msg)
 {
-    printf("%s\n", msg);
+    char *sanitized = strdup(msg);
+    if (sanitized != NULL) {
+        duo_sanitize_str(sanitized);
+        printf("%s\n", sanitized);
+        free(sanitized);
+    }
 }
 
 struct duo_ctx *

@@ -82,6 +82,9 @@ const char *duo_local_ip();
 
 char *duo_split_at(char *s, char delimiter, unsigned int position);
 
+/* Replace non-printable characters (except \n and \t) with '?'. */
+void duo_sanitize_str(char *s);
+
 /* Free and zero out memory */
 void duo_zero_free(void *ptr, size_t size);
 

@@ -197,6 +197,11 @@ class TestLoginDuoPreauthStates(CommonSuites.PreauthStates):
         return login_duo(*args)
 
 
+class TestLoginDuoEscapeInjection(CommonSuites.EscapeInjection):
+    def call_binary(self, *args):
+        return login_duo(*args)
+
+
 class TestLoginDuoHosts(CommonSuites.Hosts):
     def call_binary(self, *args):
         return login_duo(*args)

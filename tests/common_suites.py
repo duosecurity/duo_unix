@@ -369,6 +369,39 @@ class CommonSuites:
             # 1.x seconds + 2.x seconds executed twice
             self.assertGreater(execution_time, 6)
 
+    class EscapeInjection(CommonTestCase):
+        def run(self, result=None):
+            with MockDuo(NORMAL_CERT):
+                return super(CommonSuites.EscapeInjection, self).run(result)
+
+        def test_fail_message_sanitized(self):
+            """stat=FAIL message with escape sequences is sanitized in log output"""
+            with TempConfig(MOCKDUO_CONF) as temp:
+                result = self.call_binary(
+                    ["-d", "-c", temp.name, "-f", "escape-inject-fail", "true"]
+                )
+                for line in result["stderr"]:
+                    self.assertNotIn("\x1b", line,
+                        "ESC byte found in stderr output")
+                    self.assertNotIn("\x07", line,
+                        "BEL byte found in stderr output")
+                self.assertRegexSomeline(
+                    result["stderr"],
+                    r"Failed Duo login for 'escape-inject-fail'.*40001.*\?",
+                )
+
+        def test_deny_status_msg_sanitized(self):
+            """preauth deny status_msg with escape sequences is sanitized"""
+            with TempConfig(MOCKDUO_CONF) as temp:
+                result = self.call_binary(
+                    ["-d", "-c", temp.name, "-f", "escape-inject-deny", "true"]
+                )
+                for line in result["stdout"] + result["stderr"]:
+                    self.assertNotIn("\x1b", line,
+                        "ESC byte found in output")
+                    self.assertNotIn("\x07", line,
+                        "BEL byte found in output")
+
     class Hosts(CommonTestCase):
         def run(self, result=None):
             with MockDuo(NORMAL_CERT):
