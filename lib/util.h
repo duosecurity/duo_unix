@@ -85,4 +85,9 @@ char *duo_split_at(char *s, char delimiter, unsigned int position);
 /* Free and zero out memory */
 void duo_zero_free(void *ptr, size_t size);
 
+/* Replace C0 control bytes (0x00-0x1F except \t and \n) and 0x7F with '?'
+ * in place, to prevent server-supplied strings from injecting terminal
+ * escape sequences when written to a TTY, PAM prompt, or syslog. */
+void duo_sanitize_str(char *s);
+
 #endif

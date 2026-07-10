@@ -48,6 +48,23 @@ duo_set_boolean_option(const char *val)
     }
 }
 
+void
+duo_sanitize_str(char *s)
+{
+    if (s == NULL) {
+        return;
+    }
+    for (; *s != '\0'; s++) {
+        unsigned char c = (unsigned char)*s;
+        if (c == '\t' || c == '\n') {
+            continue;
+        }
+        if (c < 0x20 || c == 0x7F) {
+            *s = '?';
+        }
+    }
+}
+
 int
 duo_common_ini_handler(struct duo_config *cfg, const char *section,
     const char *name, const char*val)

@@ -67,15 +67,27 @@
 static char *
 __prompt_fn(void *arg, const char *prompt, char *buf, size_t bufsz)
 {
-    printf("%s", prompt);
+    char *safe = strdup(prompt);
+    if (safe == NULL) {
+        return (NULL);
+    }
+    duo_sanitize_str(safe);
+    printf("%s", safe);
     fflush(stdout);
+    free(safe);
     return (fgets(buf, bufsz, stdin));
 }
 
 static void
 __status_fn(void *arg, const char *msg)
 {
-    printf("%s\n", msg);
+    char *safe = strdup(msg);
+    if (safe == NULL) {
+        return;
+    }
+    duo_sanitize_str(safe);
+    printf("%s\n", safe);
+    free(safe);
 }
 
 struct duo_ctx *

@@ -88,18 +88,31 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 static void
 __duo_status(void *arg, const char *msg)
 {
-    pam_info((pam_handle_t *)arg, "%s", msg);
+    char *safe = strdup(msg);
+    if (safe == NULL) {
+        return;
+    }
+    duo_sanitize_str(safe);
+    pam_info((pam_handle_t *)arg, "%s", safe);
+    free(safe);
 }
 
 static char *
 __duo_prompt(void *arg, const char *prompt, char *buf, size_t bufsz)
 {
     char *p = NULL;
+    char *safe = strdup(prompt);
 
-    if (pam_prompt((pam_handle_t *)arg, PAM_PROMPT_ECHO_ON, &p,
-        "%s", prompt) != PAM_SUCCESS || p == NULL) {
+    if (safe == NULL) {
         return (NULL);
     }
+    duo_sanitize_str(safe);
+    if (pam_prompt((pam_handle_t *)arg, PAM_PROMPT_ECHO_ON, &p,
+        "%s", safe) != PAM_SUCCESS || p == NULL) {
+        free(safe);
+        return (NULL);
+    }
+    free(safe);
     strlcpy(buf, p, bufsz);
     free(p);
     return (buf);

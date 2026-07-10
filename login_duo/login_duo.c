@@ -81,7 +81,13 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
 static void
 __autopush_status_fn(void *arg, const char*msg)
 {
-    printf("%s\n", msg);
+    char *safe = strdup(msg);
+    if (safe == NULL) {
+        return;
+    }
+    duo_sanitize_str(safe);
+    printf("%s\n", safe);
+    free(safe);
 }
 
 static int
