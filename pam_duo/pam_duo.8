@@ -70,6 +70,16 @@ IP. Default is "no".
 .It Cm send_gecos
 Instead of using the unix username, send Duo the contents of the GECOS field
 from /etc/passwd.  Default is "no".
+.It Cm disable_ca_pinning
+Disable the built-in CA certificate pinning and use the operating system's
+trust store for TLS certificate validation instead. TLS verification is still
+enforced; only the set of trusted root certificates changes. This may be
+required in environments that use TLS inspection or private PKI. Can be
+.Dq Li yes
+or
+.Dq Li no .
+Default is
+.Dq Li no .
 .El
 .Pp
 An example configuration file:

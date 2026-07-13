@@ -31,6 +31,7 @@ typedef enum {
 #define DUO_ENV_VAR_NAME "DUO_PASSCODE"
 
 #define DUO_NO_TIMEOUT -1
+#define DUO_USE_SYSTEM_CERTS "##SYSTEM##"
 
 typedef struct duo_ctx duo_t;
 

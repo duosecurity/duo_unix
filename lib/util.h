@@ -46,6 +46,7 @@ struct duo_config {
     int  send_gecos;
     int  gecos_username_pos;
     int  verified_push;
+    int  disable_ca_pinning;
 };
 
 void duo_config_default(struct duo_config *cfg);

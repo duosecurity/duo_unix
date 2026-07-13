@@ -22,6 +22,8 @@ typedef enum {
     HTTPS_ERR_SERVER,   /* something the server did */
 } HTTPScode;
 
+#define HTTPS_USE_SYSTEM_CERTS "##SYSTEM##"
+
 /* Initialize HTTPS library */
 HTTPScode https_init(const char *cafile, const char *http_proxy);
 

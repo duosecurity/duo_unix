@@ -135,7 +135,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
      * without.
      */
     duopam_const char *ip, *service, *user;
-    const char *cmd, *p, *host;
+    const char *cmd, *p, *host, *cafile;
     const char *config = DUO_CONF;
 
     int i, flags, pam_err, matched;
@@ -249,9 +249,16 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     }
 
     /* Try Duo auth */
+    if (cfg.noverify) {
+        cafile = "";
+    } else if (cfg.disable_ca_pinning) {
+        cafile = DUO_USE_SYSTEM_CERTS;
+    } else {
+        cafile = cfg.cafile;
+    }
     if ((duo = duo_open(cfg.apihost, cfg.ikey, cfg.skey,
                     "pam_duo/" PACKAGE_VERSION,
-                    cfg.noverify ? "" : cfg.cafile, cfg.https_timeout, cfg.http_proxy)) == NULL) {
+                    cafile, cfg.https_timeout, cfg.http_proxy)) == NULL) {
         duo_log(LOG_ERR, "Couldn't open Duo API handle", pw->pw_name, host, NULL);
         close_config(&cfg);
         return (PAM_SERVICE_ERR);
