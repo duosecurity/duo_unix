@@ -82,9 +82,19 @@ ga_init(const char *user, gid_t base)
 		free(groups_byname);
 		return (-1);
 	}
-	for (i = 0, j = 0; i < ngroups; i++)
+	for (i = 0, j = 0; i < ngroups; i++) {
 		if ((gr = getgrgid(groups_bygid[i])) != NULL)
 			groups_byname[j++] = strdup(gr->gr_name);
+		else {
+			free(groups_bygid);
+			for (i = 0; i < j; i++)
+				free(groups_byname[i]);
+			free(groups_byname);
+			groups_byname = NULL;
+			ngroups = 0;
+			return (-1);
+		}
+	}
 	free(groups_bygid);
 	return (ngroups = j);
 }
