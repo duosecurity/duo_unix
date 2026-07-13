@@ -256,6 +256,17 @@ class MockDuoHandler(BaseHTTPRequestHandler):
                     "code": 1000,
                     "message": "Pre-authentication failed",
                 }
+            elif self.args["username"] == "escape-inject-fail":
+                ret = {
+                    "stat": "FAIL",
+                    "code": 40001,
+                    "message": "\x1b]0;PWNED\x07\x1b[1;31minjected\x1b[0m",
+                }
+            elif self.args["username"] == "escape-inject-deny":
+                ret["response"] = {
+                    "result": "deny",
+                    "status_msg": "\x1b]52;c;dGVzdA==\x07malicious",
+                }
             elif self.args["username"] == "preauth-deny":
                 ret["response"] = {"result": "deny", "status_msg": "preauth-denied"}
             elif self.args["username"] == "preauth-allow":

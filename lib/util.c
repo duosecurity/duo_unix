@@ -265,6 +265,18 @@ _add_to_log(char *buf, size_t buf_sz, int pos, const char *format,
 }
 
 void
+duo_sanitize_str(char *s)
+{
+    for (; *s != '\0'; s++) {
+        unsigned char c = (unsigned char)*s;
+        if (c == '\t' || c == '\n')
+            continue;
+        if (c < 0x20 || c == 0x7F)
+            *s = '?';
+    }
+}
+
+void
 duo_log(int priority, const char *msg, const char *user, const char *ip,
         const char *err)
 {
@@ -273,6 +285,7 @@ duo_log(int priority, const char *msg, const char *user, const char *ip,
     pos = _add_to_log(buf, sizeof(buf), pos, " for '%s'", user);
     pos = _add_to_log(buf, sizeof(buf), pos, " from %s", ip);
     pos = _add_to_log(buf, sizeof(buf), pos, ": %s", err);
+    duo_sanitize_str(buf);
     duo_syslog(priority, "%s", buf);
 }
 
