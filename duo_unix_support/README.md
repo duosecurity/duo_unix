@@ -13,7 +13,9 @@ Logs
 Configs
     /etc/duo/login_duo.conf
     /etc/duo/pam_duo.conf
-    (With the skeys scrubbed)
+    (Scrubbed: only allowlisted options are kept; skey is dropped, and
+    any userinfo in http_proxy is replaced with "REDACTED@". See the
+    allowlist in duo_unix_support.sh.)
     /etc/ssh/sshd_config
 
 PAM Stacks
