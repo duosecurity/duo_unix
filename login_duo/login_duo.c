@@ -92,6 +92,11 @@ __autopush_status_fn(void *arg, const char*msg)
 static int
 drop_privs(uid_t uid, gid_t gid)
 {
+    if (getuid() != uid) {
+        if (setgroups(1, &gid) < 0) {
+            return (-1);
+        }
+    }
     if (setgid(gid) < 0) {
         return (-1);
     }
