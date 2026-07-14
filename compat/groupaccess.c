@@ -75,17 +75,20 @@ ga_init(const char *user, gid_t base)
 	    !((groups_byname = calloc(ngroups, sizeof(*groups_byname))))) {
 		free(groups_bygid);
 		free(groups_byname);
+		groups_byname = NULL;
+		ngroups = 0;
 		return (-1);
 	}
 	if (getgrouplist(user, base, groups_bygid, &ngroups) == -1) {
 		free(groups_bygid);
 		free(groups_byname);
+		groups_byname = NULL;
+		ngroups = 0;
 		return (-1);
 	}
 	for (i = 0, j = 0; i < ngroups; i++) {
-		if ((gr = getgrgid(groups_bygid[i])) != NULL)
-			groups_byname[j++] = strdup(gr->gr_name);
-		else {
+		if ((gr = getgrgid(groups_bygid[i])) == NULL ||
+		    (groups_byname[j] = strdup(gr->gr_name)) == NULL) {
 			free(groups_bygid);
 			for (i = 0; i < j; i++)
 				free(groups_byname[i]);
@@ -94,6 +97,7 @@ ga_init(const char *user, gid_t base)
 			ngroups = 0;
 			return (-1);
 		}
+		j++;
 	}
 	free(groups_bygid);
 	return (ngroups = j);
@@ -152,5 +156,6 @@ ga_free(void)
 			free(groups_byname[i]);
 		ngroups = 0;
 		free(groups_byname);
+		groups_byname = NULL;
 	}
 }
