@@ -421,20 +421,31 @@ class HTTPServerV6(HTTPServer):
 def main():
     port = 4443
     host = "::"
-    if len(sys.argv) == 1:
+    anull = False
+
+    args = sys.argv[1:]
+    if "--anull" in args:
+        anull = True
+        args.remove("--anull")
+
+    if len(args) == 0:
         cafile = os.path.realpath(
             "{0}/certs/mockduo.pem".format(os.path.dirname(__file__))
         )
-    elif len(sys.argv) == 2:
-        cafile = sys.argv[1]
+    elif len(args) == 1:
+        cafile = args[0]
     else:
-        print("Usage: {0} [certfile]\n".format(sys.argv[0]), file=sys.stderr)
+        print("Usage: {0} [--anull] [certfile]\n".format(sys.argv[0]), file=sys.stderr)
         sys.exit(1)
 
     httpd = HTTPServerV6((host, port), MockDuoHandler)
 
     ctx = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_SERVER)
-    ctx.load_cert_chain(cafile)
+    if anull:
+        ctx.set_ciphers("ADH:@SECLEVEL=0")
+        ctx.maximum_version = ssl.TLSVersion.TLSv1_2
+    else:
+        ctx.load_cert_chain(cafile)
     httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
 
     httpd.serve_forever()
