@@ -13,6 +13,8 @@ http://code.google.com/p/inih/
 
 */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -143,5 +145,13 @@ int ini_parse(FILE *file,
         }
     }
 
+#ifdef HAVE_EXPLICIT_BZERO
+    explicit_bzero(line, sizeof(line));
+#else
+    {
+        static void* (* volatile ini_memset)(void *, int, size_t) = memset;
+        ini_memset(line, 0, sizeof(line));
+    }
+#endif
     return error;
 }

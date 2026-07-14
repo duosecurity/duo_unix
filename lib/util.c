@@ -53,15 +53,50 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
     const char *name, const char*val)
 {
     if (strcmp(name, "ikey") == 0) {
-        cfg->ikey = strdup(val);
+        char *new_val = strdup(val);
+        if (new_val == NULL) {
+            return (0);
+        }
+        if (cfg->ikey != NULL) {
+            duo_zero_free(cfg->ikey, strlen(cfg->ikey));
+        }
+        cfg->ikey = new_val;
     } else if (strcmp(name, "skey") == 0) {
-        cfg->skey = strdup(val);
+        char *new_val = strdup(val);
+        if (new_val == NULL) {
+            return (0);
+        }
+        if (cfg->skey != NULL) {
+            duo_zero_free(cfg->skey, strlen(cfg->skey));
+        }
+        cfg->skey = new_val;
     } else if (strcmp(name, "host") == 0) {
-        cfg->apihost = strdup(val);
+        char *new_val = strdup(val);
+        if (new_val == NULL) {
+            return (0);
+        }
+        if (cfg->apihost != NULL) {
+            duo_zero_free(cfg->apihost, strlen(cfg->apihost));
+        }
+        cfg->apihost = new_val;
     } else if (strcmp(name, "cafile") == 0) {
-        cfg->cafile = strdup(val);
+        char *new_val = strdup(val);
+        if (new_val == NULL) {
+            return (0);
+        }
+        if (cfg->cafile != NULL) {
+            duo_zero_free(cfg->cafile, strlen(cfg->cafile));
+        }
+        cfg->cafile = new_val;
     } else if (strcmp(name, "http_proxy") == 0) {
-        cfg->http_proxy = strdup(val);
+        char *new_val = strdup(val);
+        if (new_val == NULL) {
+            return (0);
+        }
+        if (cfg->http_proxy != NULL) {
+            duo_zero_free(cfg->http_proxy, strlen(cfg->http_proxy));
+        }
+        cfg->http_proxy = new_val;
     } else if (strcmp(name, "groups") == 0 || strcmp(name, "group") == 0) {
         size_t len = strlen(val);
         size_t i = 0, j = 0;

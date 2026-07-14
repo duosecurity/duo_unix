@@ -150,24 +150,38 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     }
 
     i = duo_parse_config(config, __ini_handler, &cfg);
-    if (i == -2) {
+    if (i == -3) {
+        close_config(&cfg);
+        duo_syslog(LOG_ERR, "Internal error reading %s", config);
+        return (PAM_SERVICE_ERR);
+    } else if (i == -2) {
+        int failmode = cfg.failmode;
         duo_syslog(LOG_ERR, "%s must be readable only by user 'root'",
             config);
-        return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+        close_config(&cfg);
+        return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     } else if (i == -1) {
+        int failmode = cfg.failmode;
         duo_syslog(LOG_ERR, "Couldn't open %s: %s",
             config, strerror(errno));
-        return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+        close_config(&cfg);
+        return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     } else if (i > 0) {
+        int failmode = cfg.failmode;
         duo_syslog(LOG_ERR, "Parse error in %s, line %d", config, i);
-        return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+        close_config(&cfg);
+        return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     } else if (!cfg.apihost || !cfg.apihost[0] ||
             !cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0]) {
+        int failmode = cfg.failmode;
         duo_syslog(LOG_ERR, "Missing host, ikey, or skey in %s", config);
-        return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+        close_config(&cfg);
+        return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     } else if (cfg.autopush && cfg.verified_push) {
+        int failmode = cfg.failmode;
         duo_syslog(LOG_ERR, "autopush and verified_push cannot both be enabled in %s", config);
-        return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+        close_config(&cfg);
+        return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     }
 
     /* Check user */

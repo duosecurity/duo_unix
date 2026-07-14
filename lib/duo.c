@@ -135,6 +135,10 @@ duo_parse_config(const char *filename,
         fclose(fp);
         return (-2);
     }
+    if (setvbuf(fp, NULL, _IONBF, 0) != 0) {
+        fclose(fp);
+        return (-3);
+    }
     ret = ini_parse(fp, callback, arg);
     fclose(fp);
     return (ret);
