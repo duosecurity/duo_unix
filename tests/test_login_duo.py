@@ -341,6 +341,28 @@ class TestLoginDuoSpecificEnv(CommonTestCase):
             )
             self.assertEqual(process.expect("SUCCESS", timeout=10), 0)
 
+    def test_env_factor_scrubbed_from_child(self):
+        """DUO_PASSCODE must not leak into the exec'd command's environment."""
+        config = DuoUnixConfig(
+            ikey="DIXYZV6YM8IFYVWBINCA",
+            skey="yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo",
+            host="localhost:4443",
+            cafile="certs/mockduo-ca.pem",
+            accept_env_factor="yes",
+        )
+
+        with TempConfig(config) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "whatever"],
+                env={
+                    "UID": "1001",
+                    "DUO_PASSCODE": "push1",
+                    "SSH_ORIGINAL_COMMAND": "echo DUO_PASSCODE=${DUO_PASSCODE:-UNSET}",
+                },
+                preload_script=os.path.join(TESTDIR, "login_duo.py"),
+            )
+            self.assertIn("DUO_PASSCODE=UNSET", result["stdout"])
+
 
 class TestLoginDuoUIDMismatch(CommonTestCase):
     def run(self, result=None):

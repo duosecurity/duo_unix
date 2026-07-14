@@ -355,6 +355,8 @@ do_exec(struct login_ctx *ctx, const char *cmd)
     const char *user_shell;
     int n;
 
+    unsetenv(DUO_ENV_VAR_NAME);
+
     if ((pw = getpwuid(ctx->uid)) == NULL) {
         die("Who are you?");
     }
