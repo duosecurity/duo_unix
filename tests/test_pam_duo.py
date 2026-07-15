@@ -19,6 +19,7 @@ import pexpect
 from common_suites import NORMAL_CERT, CommonSuites, EOF, CommonTestCase
 from config import (
     MOCKDUO_CONF,
+    MOCKDUO_FALLBACK,
     MOCKDUO_GECOS_DEFAULT_DELIM_6_POS,
     MOCKDUO_GECOS_DEPRECATED_PARSE_FLAG,
     MOCKDUO_GECOS_INVALID_DELIM_COLON,
@@ -490,6 +491,41 @@ class TestPamGECOS(CommonTestCase):
                 ["-d", "-c", temp.name, "-f", "emptygecos"],
             )
             self.assertEqual(process.expect("Empty GECOS field"), 0)
+
+
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
+class TestPamDuoIPv6(CommonTestCase):
+    def run(self, result=None):
+        with MockDuo(NORMAL_CERT):
+            return super(TestPamDuoIPv6, self).run(result)
+
+    def test_ipv6_rhost_not_replaced_by_fallback(self):
+        """IPv6 PAM_RHOST must be sent as-is, not replaced by duo_local_ip()"""
+        with TempConfig(MOCKDUO_FALLBACK) as temp:
+            result = pam_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "-h", "::1"],
+                env={
+                    "FALLBACK": "1",
+                },
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Skipped Duo login for 'preauth-allow' from ::1",
+            )
+
+    def test_hostname_rhost_still_triggers_fallback(self):
+        """Non-IP PAM_RHOST should still trigger duo_local_ip() fallback"""
+        with TempConfig(MOCKDUO_FALLBACK) as temp:
+            result = pam_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "-h", "badhost.example.com"],
+                env={
+                    "FALLBACK": "1",
+                },
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Skipped Duo login for 'preauth-allow' from 1\.2\.3\.4",
+            )
 
 
 if __name__ == "__main__":
