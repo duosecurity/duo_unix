@@ -1048,7 +1048,11 @@ https_recv(struct https_request *req, int *code, const char **body, int *len,
         }
         if ((err = http_parser_execute(req->parser,
                     &ctx.parse_settings, ctx.parse_buf, n)) != n) {
-            ctx.errstr = http_errno_description(err);
+            /* http_parser_execute() returns the count of bytes consumed, not
+               an error code; on a parse failure that is the offset of the
+               failing byte. Read the actual error code from the parser so we
+               don't index http_errno_description()'s table out of bounds. */
+            ctx.errstr = http_errno_description(HTTP_PARSER_ERRNO(req->parser));
             return (HTTPS_ERR_SERVER);
         }
     }

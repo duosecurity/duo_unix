@@ -69,6 +69,18 @@ class MockDuoHandler(BaseHTTPRequestHandler):
     _skew_permanent = 0
     _skew_once = None
 
+    # When set, every response is a raw HTTP reply whose first invalid byte
+    # sits at a byte offset well past the http_errno description table, used
+    # to exercise the client's handling of unparseable server responses.
+    _malformed = False
+
+    def _send_malformed(self):
+        # The '(' is not a valid header-name token character; placing it at
+        # offset 37 makes the HTTP parser report that offset as its consumed
+        # byte count, which a naive client may mistake for an error code.
+        raw = b"HTTP/1.1 200 OK\r\n" + b"A" * 20 + b"(" + b": x\r\n\r\n"
+        self.wfile.write(raw)
+
     def __init__(self, *args, **kwargs):
         self._rl_req_clock = 0
         self._rl_req_num = 0
@@ -202,6 +214,8 @@ class MockDuoHandler(BaseHTTPRequestHandler):
         ret = {"stat": "OK"}
 
         if self.path == "/auth/v2/ping":
+            if type(self)._malformed:
+                return self._send_malformed()
             skew = self._get_skew()
             ret["response"] = {"time": int(time.time()) + skew}
             buf = json.dumps(ret)
@@ -427,6 +441,9 @@ def main():
     if "--anull" in args:
         anull = True
         args.remove("--anull")
+    if "--malformed" in args:
+        MockDuoHandler._malformed = True
+        args.remove("--malformed")
 
     if len(args) == 0:
         cafile = os.path.realpath(
@@ -435,7 +452,7 @@ def main():
     elif len(args) == 1:
         cafile = args[0]
     else:
-        print("Usage: {0} [--anull] [certfile]\n".format(sys.argv[0]), file=sys.stderr)
+        print("Usage: {0} [--anull] [--malformed] [certfile]\n".format(sys.argv[0]), file=sys.stderr)
         sys.exit(1)
 
     httpd = HTTPServerV6((host, port), MockDuoHandler)
