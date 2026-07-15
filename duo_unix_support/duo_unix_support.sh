@@ -141,7 +141,7 @@ scrub_duo_conf () {
     ( umask 077 && : > "$dst" ) || return 1
     if ! awk '
         BEGIN {
-            split("ikey host cafile http_proxy groups group failmode pushinfo noverify prompts autopush accept_env_factor fallback_local_ip https_timeout send_gecos gecos_parsed gecos_delim gecos_username_pos verified_push motd", a, " ")
+            split("ikey host cafile http_proxy groups group failmode pushinfo noverify prompts autopush accept_env_factor fallback_local_ip https_timeout send_gecos gecos_parsed gecos_delim gecos_username_pos verified_push motd disable_ca_pinning", a, " ")
             for (i in a) allow[a[i]] = 1
             dropped = 0
         }
