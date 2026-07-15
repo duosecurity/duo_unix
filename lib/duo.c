@@ -537,6 +537,8 @@ _duo_prompt(struct duo_ctx *ctx, int flags, char *buf,
         if (strlcpy(p, passcode, sp) >= sp) {
             return (DUO_LIB_ERROR);
         }
+        OPENSSL_cleanse(passcode, strlen(passcode));
+        unsetenv(DUO_ENV_VAR_NAME);
         if (ctx->conv_status != NULL) {
             ctx->conv_status(ctx->conv_arg, ENV_VAR_MSG);
         }
