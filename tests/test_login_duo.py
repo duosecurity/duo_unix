@@ -21,6 +21,7 @@ from config import (
     MOCKDUO_ADMINS_NO_USERS,
     MOCKDUO_AUTOPUSH,
     MOCKDUO_CONF,
+    MOCKDUO_FAILSECURE,
     MOCKDUO_FALLBACK,
     MOCKDUO_GECOS_DEFAULT_DELIM_6_POS,
     MOCKDUO_GECOS_DEPRECATED_PARSE_FLAG,
@@ -949,6 +950,37 @@ class TestLoginDuoIPv6(CommonTestCase):
                 result["stderr"],
                 r"Skipped Duo login for 'preauth-allow' from 1\.2\.3\.4",
             )
+
+
+class TestLoginDuoMalformedResponse(unittest.TestCase):
+    """A server response that fails to parse must not crash the process.
+
+    The failing byte's offset was previously passed to the error-description
+    lookup as if it were an error code, aborting (assert build) or reading out
+    of bounds (NDEBUG build). The process should instead handle the parse
+    failure and fall through to failmode. Run login_duo directly (no preload
+    wrapper) so a signal death surfaces as a negative returncode.
+    """
+
+    def run_malformed(self, config):
+        with MockDuo(NORMAL_CERT, malformed=True):
+            with TempConfig(config) as temp:
+                return login_duo(
+                    ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                )
+
+    def test_malformed_response_failsafe(self):
+        result = self.run_malformed(MOCKDUO_CONF)
+        # A negative returncode means death by signal (e.g. SIGABRT).
+        self.assertGreaterEqual(result["returncode"], 0)
+        # failmode safe => login allowed despite the server error
+        self.assertEqual(result["returncode"], 0)
+
+    def test_malformed_response_failsecure(self):
+        result = self.run_malformed(MOCKDUO_FAILSECURE)
+        self.assertGreaterEqual(result["returncode"], 0)
+        # failmode secure => login denied, but cleanly (no crash)
+        self.assertEqual(result["returncode"], 1)
 
 
 if __name__ == "__main__":
