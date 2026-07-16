@@ -188,6 +188,32 @@ class TestLoginDuoBadCN(CommonSuites.DuoBadCN):
         return login_duo(*args)
 
 
+class TestLoginDuoAnonCipher(CommonTestCase):
+    """A server offering only anonymous ciphers (no certificate) must be rejected."""
+
+    def run(self, result=None):
+        with MockDuo(anull=True):
+            return super(TestLoginDuoAnonCipher, self).run(result)
+
+    def test_anull_rejected(self):
+        config = DuoUnixConfig(
+            ikey="DIXYZV6YM8IFYVWBINCA",
+            skey="yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo",
+            host="localhost:4443",
+            cafile="certs/mockduo-ca.pem",
+            failmode="secure",
+        )
+        with TempConfig(config) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "whatever", "true"]
+            )
+            self.assertEqual(result["returncode"], 1)
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Couldn't connect to",
+            )
+
+
 class TestMockDuoWithValidCert(CommonSuites.WithValidCert):
     def call_binary(self, *args):
         return login_duo(*args)
