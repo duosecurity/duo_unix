@@ -21,6 +21,7 @@ from config import (
     MOCKDUO_ADMINS_NO_USERS,
     MOCKDUO_AUTOPUSH,
     MOCKDUO_CONF,
+    MOCKDUO_FALLBACK,
     MOCKDUO_GECOS_DEFAULT_DELIM_6_POS,
     MOCKDUO_GECOS_DEPRECATED_PARSE_FLAG,
     MOCKDUO_GECOS_INVALID_DELIM_COLON,
@@ -909,6 +910,46 @@ class TestLoginDuoTimeSync(CommonSuites.DuoTimeSync):
 class TestLoginDuoVerifiedPush(CommonSuites.VerifiedPush):
     def call_binary(self, *args, **kwargs):
         return login_duo(*args, **kwargs)
+
+class TestLoginDuoIPv6(CommonTestCase):
+    def run(self, result=None):
+        with MockDuo(NORMAL_CERT):
+            return super(TestLoginDuoIPv6, self).run(result)
+
+    def test_ipv6_ssh_connection_not_replaced_by_fallback(self):
+        """IPv6 client address in SSH_CONNECTION must be sent as-is, not replaced by duo_local_ip()"""
+        with TempConfig(MOCKDUO_FALLBACK) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={
+                    "SSH_CONNECTION": "::1 50310 ::1 22",
+                    "FALLBACK": "1",
+                    "UID": "1001",
+                },
+                preload_script=os.path.join(TESTDIR, "login_duo.py"),
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Skipped Duo login for 'preauth-allow' from ::1",
+            )
+
+    def test_hostname_ssh_connection_still_triggers_fallback(self):
+        """Non-IP hostname in SSH_CONNECTION should still trigger duo_local_ip() fallback"""
+        with TempConfig(MOCKDUO_FALLBACK) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={
+                    "SSH_CONNECTION": "badhost.example.com 50310 server 22",
+                    "FALLBACK": "1",
+                    "UID": "1001",
+                },
+                preload_script=os.path.join(TESTDIR, "login_duo.py"),
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Skipped Duo login for 'preauth-allow' from 1\.2\.3\.4",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -124,6 +124,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     struct duo_config cfg;
     struct passwd *pw;
     struct in_addr addr;
+    struct in6_addr addr6;
     duo_t *duo;
     duo_code_t code;
 
@@ -241,8 +242,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     if (ip == NULL) {
         ip = ""; /* XXX inet_addr needs a non-null IP */
     }
-    if (!inet_aton(ip, &addr)) {
-        /* We have a hostname, don't try to resolve, check fallback */
+    if (!inet_aton(ip, &addr) &&
+        inet_pton(AF_INET6, ip, &addr6) != 1) {
+        /* Not an IPv4 or IPv6 literal — likely a hostname, check fallback */
         if (cfg.local_ip_fallback) {
             host = duo_local_ip();
         }

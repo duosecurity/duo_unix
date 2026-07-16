@@ -131,6 +131,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     struct duo_config cfg;
     struct passwd *pw;
     struct in_addr addr;
+    struct in6_addr addr6;
     duo_t *duo;
     duo_code_t code;
     const char *config, *p, *duouser;
@@ -225,13 +226,22 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     }
 
     /* Check for remote login host */
-    if ((host = ip = getenv("SSH_CONNECTION")) != NULL ||
-        (host = ip = (char *)ctx->host) != NULL) {
-        if (inet_aton(ip, &addr)) {
-            strlcpy(buf, ip, sizeof(buf));
-            ip = strtok(buf, " ");
-            host = ip;
-        } else {
+    if ((host = ip = getenv("SSH_CONNECTION")) != NULL) {
+        strlcpy(buf, ip, sizeof(buf));
+        ip = strtok(buf, " ");
+        if (ip == NULL) {
+            ip = "";
+        }
+        host = ip;
+        if (!inet_aton(ip, &addr) &&
+            inet_pton(AF_INET6, ip, &addr6) != 1) {
+            if (cfg.local_ip_fallback) {
+                host = duo_local_ip();
+            }
+        }
+    } else if ((host = ip = (char *)ctx->host) != NULL) {
+        if (!inet_aton(ip, &addr) &&
+            inet_pton(AF_INET6, ip, &addr6) != 1) {
             if (cfg.local_ip_fallback) {
                 host = duo_local_ip();
             }
