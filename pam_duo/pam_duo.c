@@ -216,7 +216,19 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         return (PAM_SUCCESS);
     }
 
-    /* Use GECOS field if called for */
+    /*
+     * Use GECOS field if called for.
+     *
+     * SECURITY NOTE: the GECOS field is user-controlled data. On most
+     * systems chfn(1) lets an unprivileged user edit their own GECOS
+     * sub-fields (subject to CHFN_RESTRICT in login.defs), so send_gecos
+     * and gecos_username_pos let a user choose the Duo identity presented
+     * for their own second-factor challenge, decoupling it from the OS
+     * identity that primary auth established. These options are deprecated
+     * in favor of Duo username aliases; administrators enabling them must
+     * restrict chfn. We log both identities below so a substitution is
+     * visible in host audit logs.
+     */
     if (cfg.send_gecos || cfg.gecos_username_pos >= 0) {
         if (strlen(pw->pw_gecos) > 0) {
             if (cfg.gecos_username_pos >= 0) {
@@ -227,6 +239,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
                 }
             } else {
                 user = pw->pw_gecos;
+            }
+            if (strcmp(user, pw->pw_name) != 0) {
+                /* duo_log() sanitizes the assembled message; the
+                   GECOS-derived name is user-controlled, so it must not go
+                   to syslog unsanitized. Logs as:
+                   "... for '<os user>': <gecos-derived duo username>" */
+                duo_log(LOG_INFO, "Presenting GECOS-derived Duo username",
+                    pw->pw_name, NULL, user);
             }
         } else {
             duo_log(LOG_WARNING, "Empty GECOS field", pw->pw_name, NULL, NULL);
