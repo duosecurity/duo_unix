@@ -154,8 +154,14 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 
     /* Load our private config. */
     i = duo_parse_config(config, __ini_handler, &cfg);
+    if (i == -3) {
+        close_config(&cfg);
+        fprintf(stderr, "Internal error reading %s\n", config);
+        return (EXIT_FAILURE);
+    }
     if (i != 0 || !cfg.apihost || !cfg.apihost[0] || !cfg.skey || !cfg.skey[0] ||
         !cfg.ikey || !cfg.ikey[0] || (cfg.autopush && cfg.verified_push)) {
+        int failmode = cfg.failmode;
         switch (i) {
         case -2:
             fprintf(stderr, "%s must be readable only by "
@@ -177,8 +183,8 @@ do_auth(struct login_ctx *ctx, const char *cmd)
             fprintf(stderr, "Parse error in %s, line %d\n", config, i);
             break;
         }
-        /* Implicit "safe" failmode for local configuration errors */
-        if (cfg.failmode == DUO_FAIL_SAFE) {
+        close_config(&cfg);
+        if (failmode == DUO_FAIL_SAFE) {
             return (EXIT_SUCCESS);
         }
         return (EXIT_FAILURE);

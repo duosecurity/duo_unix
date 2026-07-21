@@ -34,7 +34,15 @@ typedef enum {
 
 typedef struct duo_ctx duo_t;
 
-/* Parse INI config file */
+/*
+ * Parse INI config file. Returns:
+ *    0  success
+ *   >0  parse error, value is the offending line number
+ *   -1  could not open the file
+ *   -2  file is group- or world-readable (must be readable only by owner)
+ *   -3  could not disable stdio buffering (fail closed; a buffered read
+ *       could leave secret material in an unscrubbed heap buffer)
+ */
 int duo_parse_config(
     const char *filename,
     int (*callback)(void *arg, const char *section, const char *name, const char *val),
