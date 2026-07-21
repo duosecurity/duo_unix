@@ -213,24 +213,25 @@ close_config(struct duo_config *cfg)
     if (cfg == NULL) {
         return;
     }
+    /* Zero strlen + 1 to include the NUL terminator, matching duo_close(). */
     if (cfg->ikey != NULL) {
-        duo_zero_free(cfg->ikey, strlen(cfg->ikey));
+        duo_zero_free(cfg->ikey, strlen(cfg->ikey) + 1);
         cfg->ikey = NULL;
     }
     if (cfg->skey != NULL) {
-        duo_zero_free(cfg->skey, strlen(cfg->skey));
+        duo_zero_free(cfg->skey, strlen(cfg->skey) + 1);
         cfg->skey = NULL;
     }
     if (cfg->apihost != NULL) {
-        duo_zero_free(cfg->apihost, strlen(cfg->apihost));
+        duo_zero_free(cfg->apihost, strlen(cfg->apihost) + 1);
         cfg->apihost = NULL;
     }
     if (cfg->cafile != NULL) {
-        duo_zero_free(cfg->cafile, strlen(cfg->cafile));
+        duo_zero_free(cfg->cafile, strlen(cfg->cafile) + 1);
         cfg->cafile = NULL;
     }
     if (cfg->http_proxy != NULL) {
-        duo_zero_free(cfg->http_proxy, strlen(cfg->http_proxy));
+        duo_zero_free(cfg->http_proxy, strlen(cfg->http_proxy) + 1);
         cfg->http_proxy = NULL;
     }
     cleanup_config_groups(cfg);
