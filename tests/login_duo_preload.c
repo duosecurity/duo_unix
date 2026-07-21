@@ -14,6 +14,7 @@
 
 #include <dlfcn.h>
 #include <errno.h>
+#include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <string.h>
@@ -34,6 +35,7 @@ struct passwd *(*_getpwnam)(const char* name);
 FILE *(*_fopen)(const char* filename, const char* mode);
 int (*_sys_setgid)(gid_t gid);
 int (*_sys_setuid)(uid_t uid);
+int (*_sys_setgroups)(size_t size, const gid_t *list);
 
 static gid_t _mock_gid = (gid_t)-1;
 static uid_t _mock_uid = (uid_t)-1;
@@ -169,6 +171,20 @@ setgid(gid_t gid)
         }
         _sys_setgid = dlsym(RTLD_NEXT, "setgid");
         return (*_sys_setgid)(gid);
+}
+
+/* setgroups() requires CAP_SETGID, so an unprivileged test run (e.g.
+   `make distcheck`) cannot call it for real. Mock it alongside
+   setgid()/setuid() so the privsep drop_privs() path is exercisable
+   without root. */
+int
+setgroups(size_t size, const gid_t *list)
+{
+        if (getenv("MOCK_SETUID")) {
+            return (0);
+        }
+        _sys_setgroups = dlsym(RTLD_NEXT, "setgroups");
+        return (*_sys_setgroups)(size, list);
 }
 
 uid_t
