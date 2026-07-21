@@ -21,6 +21,8 @@ from config import (
     MOCKDUO_ADMINS_NO_USERS,
     MOCKDUO_AUTOPUSH,
     MOCKDUO_CONF,
+    MOCKDUO_FAILSECURE,
+    MOCKDUO_FALLBACK,
     MOCKDUO_GECOS_DEFAULT_DELIM_6_POS,
     MOCKDUO_GECOS_DEPRECATED_PARSE_FLAG,
     MOCKDUO_GECOS_INVALID_DELIM_COLON,
@@ -186,6 +188,32 @@ class TestLoginDuoSelfSignedCert(CommonSuites.DuoSelfSignedCert):
 class TestLoginDuoBadCN(CommonSuites.DuoBadCN):
     def call_binary(self, *args):
         return login_duo(*args)
+
+
+class TestLoginDuoAnonCipher(CommonTestCase):
+    """A server offering only anonymous ciphers (no certificate) must be rejected."""
+
+    def run(self, result=None):
+        with MockDuo(anull=True):
+            return super(TestLoginDuoAnonCipher, self).run(result)
+
+    def test_anull_rejected(self):
+        config = DuoUnixConfig(
+            ikey="DIXYZV6YM8IFYVWBINCA",
+            skey="yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo",
+            host="localhost:4443",
+            cafile="certs/mockduo-ca.pem",
+            failmode="secure",
+        )
+        with TempConfig(config) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "whatever", "true"]
+            )
+            self.assertEqual(result["returncode"], 1)
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Couldn't connect to",
+            )
 
 
 class TestMockDuoWithValidCert(CommonSuites.WithValidCert):
@@ -883,6 +911,77 @@ class TestLoginDuoTimeSync(CommonSuites.DuoTimeSync):
 class TestLoginDuoVerifiedPush(CommonSuites.VerifiedPush):
     def call_binary(self, *args, **kwargs):
         return login_duo(*args, **kwargs)
+
+class TestLoginDuoIPv6(CommonTestCase):
+    def run(self, result=None):
+        with MockDuo(NORMAL_CERT):
+            return super(TestLoginDuoIPv6, self).run(result)
+
+    def test_ipv6_ssh_connection_not_replaced_by_fallback(self):
+        """IPv6 client address in SSH_CONNECTION must be sent as-is, not replaced by duo_local_ip()"""
+        with TempConfig(MOCKDUO_FALLBACK) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={
+                    "SSH_CONNECTION": "::1 50310 ::1 22",
+                    "FALLBACK": "1",
+                    "UID": "1001",
+                },
+                preload_script=os.path.join(TESTDIR, "login_duo.py"),
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Skipped Duo login for 'preauth-allow' from ::1",
+            )
+
+    def test_hostname_ssh_connection_still_triggers_fallback(self):
+        """Non-IP hostname in SSH_CONNECTION should still trigger duo_local_ip() fallback"""
+        with TempConfig(MOCKDUO_FALLBACK) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={
+                    "SSH_CONNECTION": "badhost.example.com 50310 server 22",
+                    "FALLBACK": "1",
+                    "UID": "1001",
+                },
+                preload_script=os.path.join(TESTDIR, "login_duo.py"),
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Skipped Duo login for 'preauth-allow' from 1\.2\.3\.4",
+            )
+
+
+class TestLoginDuoMalformedResponse(unittest.TestCase):
+    """A server response that fails to parse must not crash the process.
+
+    The failing byte's offset was previously passed to the error-description
+    lookup as if it were an error code, aborting (assert build) or reading out
+    of bounds (NDEBUG build). The process should instead handle the parse
+    failure and fall through to failmode. Run login_duo directly (no preload
+    wrapper) so a signal death surfaces as a negative returncode.
+    """
+
+    def run_malformed(self, config):
+        with MockDuo(NORMAL_CERT, malformed=True):
+            with TempConfig(config) as temp:
+                return login_duo(
+                    ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                )
+
+    def test_malformed_response_failsafe(self):
+        result = self.run_malformed(MOCKDUO_CONF)
+        # A negative returncode means death by signal (e.g. SIGABRT).
+        self.assertGreaterEqual(result["returncode"], 0)
+        # failmode safe => login allowed despite the server error
+        self.assertEqual(result["returncode"], 0)
+
+    def test_malformed_response_failsecure(self):
+        result = self.run_malformed(MOCKDUO_FAILSECURE)
+        self.assertGreaterEqual(result["returncode"], 0)
+        # failmode secure => login denied, but cleanly (no crash)
+        self.assertEqual(result["returncode"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

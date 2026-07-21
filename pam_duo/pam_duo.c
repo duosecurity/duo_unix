@@ -124,6 +124,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     struct duo_config cfg;
     struct passwd *pw;
     struct in_addr addr;
+    struct in6_addr addr6;
     duo_t *duo;
     duo_code_t code;
 
@@ -150,24 +151,38 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     }
 
     i = duo_parse_config(config, __ini_handler, &cfg);
-    if (i == -2) {
+    if (i == -3) {
+        close_config(&cfg);
+        duo_syslog(LOG_ERR, "Internal error reading %s", config);
+        return (PAM_SERVICE_ERR);
+    } else if (i == -2) {
+        int failmode = cfg.failmode;
         duo_syslog(LOG_ERR, "%s must be readable only by user 'root'",
             config);
-        return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+        close_config(&cfg);
+        return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     } else if (i == -1) {
+        int failmode = cfg.failmode;
         duo_syslog(LOG_ERR, "Couldn't open %s: %s",
             config, strerror(errno));
-        return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+        close_config(&cfg);
+        return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     } else if (i > 0) {
+        int failmode = cfg.failmode;
         duo_syslog(LOG_ERR, "Parse error in %s, line %d", config, i);
-        return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+        close_config(&cfg);
+        return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     } else if (!cfg.apihost || !cfg.apihost[0] ||
             !cfg.skey || !cfg.skey[0] || !cfg.ikey || !cfg.ikey[0]) {
+        int failmode = cfg.failmode;
         duo_syslog(LOG_ERR, "Missing host, ikey, or skey in %s", config);
-        return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+        close_config(&cfg);
+        return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     } else if (cfg.autopush && cfg.verified_push) {
+        int failmode = cfg.failmode;
         duo_syslog(LOG_ERR, "autopush and verified_push cannot both be enabled in %s", config);
-        return (cfg.failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+        close_config(&cfg);
+        return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     }
 
     /* Check user */
@@ -215,7 +230,19 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         return (PAM_SUCCESS);
     }
 
-    /* Use GECOS field if called for */
+    /*
+     * Use GECOS field if called for.
+     *
+     * SECURITY NOTE: the GECOS field is user-controlled data. On most
+     * systems chfn(1) lets an unprivileged user edit their own GECOS
+     * sub-fields (subject to CHFN_RESTRICT in login.defs), so send_gecos
+     * and gecos_username_pos let a user choose the Duo identity presented
+     * for their own second-factor challenge, decoupling it from the OS
+     * identity that primary auth established. These options are deprecated
+     * in favor of Duo username aliases; administrators enabling them must
+     * restrict chfn. We log both identities below so a substitution is
+     * visible in host audit logs.
+     */
     if (cfg.send_gecos || cfg.gecos_username_pos >= 0) {
         if (strlen(pw->pw_gecos) > 0) {
             if (cfg.gecos_username_pos >= 0) {
@@ -226,6 +253,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
                 }
             } else {
                 user = pw->pw_gecos;
+            }
+            if (strcmp(user, pw->pw_name) != 0) {
+                /* duo_log() sanitizes the assembled message; the
+                   GECOS-derived name is user-controlled, so it must not go
+                   to syslog unsanitized. Logs as:
+                   "... for '<os user>': <gecos-derived duo username>" */
+                duo_log(LOG_INFO, "Presenting GECOS-derived Duo username",
+                    pw->pw_name, NULL, user);
             }
         } else {
             duo_log(LOG_WARNING, "Empty GECOS field", pw->pw_name, NULL, NULL);
@@ -241,8 +276,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     if (ip == NULL) {
         ip = ""; /* XXX inet_addr needs a non-null IP */
     }
-    if (!inet_aton(ip, &addr)) {
-        /* We have a hostname, don't try to resolve, check fallback */
+    if (!inet_aton(ip, &addr) &&
+        inet_pton(AF_INET6, ip, &addr6) != 1) {
+        /* Not an IPv4 or IPv6 literal — likely a hostname, check fallback */
         if (cfg.local_ip_fallback) {
             host = duo_local_ip();
         }

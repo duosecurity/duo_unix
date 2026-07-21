@@ -216,9 +216,11 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
     int hostnametype = GEN_DNS;
     size_t addrsize;
 
-    if (SSL_get_verify_mode(ssl) == SSL_VERIFY_NONE ||
-        (cert = SSL_get_peer_certificate(ssl)) == NULL) {
+    if (SSL_get_verify_mode(ssl) == SSL_VERIFY_NONE) {
         return (1);
+    }
+    if ((cert = SSL_get_peer_certificate(ssl)) == NULL) {
+        return (0);
     }
 
     /* Check if hostname is an IP address */
@@ -706,6 +708,10 @@ https_init(const char *cafile, const char *http_proxy)
     /* Blacklist SSLv23 */
     const long blacklist = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
     SSL_CTX_set_options(ctx.ssl_ctx, blacklist);
+    /* Exclude anonymous and null-encryption ciphers for TLS 1.2 and below.
+       Failure is non-fatal: on TLS 1.3-only builds no 1.2 ciphers exist,
+       and TLS 1.3 has no aNULL suites. */
+    SSL_CTX_set_cipher_list(ctx.ssl_ctx, "DEFAULT:!aNULL:!eNULL");
     /* Set up our CA cert */
     if (cafile == NULL) {
         /* Load default CA cert from memory */
@@ -1050,7 +1056,11 @@ https_recv(struct https_request *req, int *code, const char **body, int *len,
         }
         if ((err = http_parser_execute(req->parser,
                     &ctx.parse_settings, ctx.parse_buf, n)) != n) {
-            ctx.errstr = http_errno_description(err);
+            /* http_parser_execute() returns the count of bytes consumed, not
+               an error code; on a parse failure that is the offset of the
+               failing byte. Read the actual error code from the parser so we
+               don't index http_errno_description()'s table out of bounds. */
+            ctx.errstr = http_errno_description(HTTP_PARSER_ERRNO(req->parser));
             return (HTTPS_ERR_SERVER);
         }
     }

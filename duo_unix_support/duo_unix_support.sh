@@ -48,6 +48,14 @@ if [ $(id -u) != 0 ]; then
     echo "Please rerun as root"
     exit
 fi
+
+# Create every file and directory this script produces (staging dir,
+# configuration.txt, scrubbed confs, tarball) with restrictive perms so
+# they are never world- or group-readable during creation. The later
+# chmod calls then only tighten, closing the window where a local user
+# could open the world-readable tarball before it is restricted.
+umask 077
+
 # If there is an existing support file or tarball then delete them
 if [ -d '/etc/duo/duo_unix_support' ]; then
     rm -rf /etc/duo/duo_unix_support

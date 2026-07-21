@@ -92,6 +92,11 @@ __autopush_status_fn(void *arg, const char*msg)
 static int
 drop_privs(uid_t uid, gid_t gid)
 {
+    if (getuid() != uid) {
+        if (setgroups(1, &gid) < 0) {
+            return (-1);
+        }
+    }
     if (setgid(gid) < 0) {
         return (-1);
     }
@@ -131,6 +136,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     struct duo_config cfg;
     struct passwd *pw;
     struct in_addr addr;
+    struct in6_addr addr6;
     duo_t *duo;
     duo_code_t code;
     const char *config, *p, *duouser, *cafile;
@@ -153,8 +159,14 @@ do_auth(struct login_ctx *ctx, const char *cmd)
 
     /* Load our private config. */
     i = duo_parse_config(config, __ini_handler, &cfg);
+    if (i == -3) {
+        close_config(&cfg);
+        fprintf(stderr, "Internal error reading %s\n", config);
+        return (EXIT_FAILURE);
+    }
     if (i != 0 || !cfg.apihost || !cfg.apihost[0] || !cfg.skey || !cfg.skey[0] ||
         !cfg.ikey || !cfg.ikey[0] || (cfg.autopush && cfg.verified_push)) {
+        int failmode = cfg.failmode;
         switch (i) {
         case -2:
             fprintf(stderr, "%s must be readable only by "
@@ -176,8 +188,8 @@ do_auth(struct login_ctx *ctx, const char *cmd)
             fprintf(stderr, "Parse error in %s, line %d\n", config, i);
             break;
         }
-        /* Implicit "safe" failmode for local configuration errors */
-        if (cfg.failmode == DUO_FAIL_SAFE) {
+        close_config(&cfg);
+        if (failmode == DUO_FAIL_SAFE) {
             return (EXIT_SUCCESS);
         }
         return (EXIT_FAILURE);
@@ -207,7 +219,19 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         return (EXIT_SUCCESS);
     }
 
-    /* Use GECOS field if called for */
+    /*
+     * Use GECOS field if called for.
+     *
+     * SECURITY NOTE: the GECOS field is user-controlled data. On most
+     * systems chfn(1) lets an unprivileged user edit their own GECOS
+     * sub-fields (subject to CHFN_RESTRICT in login.defs), so send_gecos
+     * and gecos_username_pos let a user choose the Duo identity presented
+     * for their own second-factor challenge, decoupling it from the OS
+     * identity that primary auth established. These options are deprecated
+     * in favor of Duo username aliases; administrators enabling them must
+     * restrict chfn. We log both identities below so a substitution is
+     * visible in host audit logs.
+     */
     if ((cfg.send_gecos || cfg.gecos_username_pos >= 0) && !ctx->duouser) {
         if (strlen(pw->pw_gecos) > 0) {
             if (cfg.gecos_username_pos >= 0) {
@@ -219,19 +243,36 @@ do_auth(struct login_ctx *ctx, const char *cmd)
             } else {
                 duouser = pw->pw_gecos;
             }
+            if (strcmp(duouser, pw->pw_name) != 0) {
+                /* duo_log() sanitizes the assembled message; the
+                   GECOS-derived name is user-controlled, so it must not go
+                   to syslog unsanitized. Logs as:
+                   "... for '<os user>': <gecos-derived duo username>" */
+                duo_log(LOG_INFO, "Presenting GECOS-derived Duo username",
+                    pw->pw_name, NULL, duouser);
+            }
         } else {
             duo_log(LOG_WARNING, "Empty GECOS field", pw->pw_name, NULL, NULL);
         }
     }
 
     /* Check for remote login host */
-    if ((host = ip = getenv("SSH_CONNECTION")) != NULL ||
-        (host = ip = (char *)ctx->host) != NULL) {
-        if (inet_aton(ip, &addr)) {
-            strlcpy(buf, ip, sizeof(buf));
-            ip = strtok(buf, " ");
-            host = ip;
-        } else {
+    if ((host = ip = getenv("SSH_CONNECTION")) != NULL) {
+        strlcpy(buf, ip, sizeof(buf));
+        ip = strtok(buf, " ");
+        if (ip == NULL) {
+            ip = "";
+        }
+        host = ip;
+        if (!inet_aton(ip, &addr) &&
+            inet_pton(AF_INET6, ip, &addr6) != 1) {
+            if (cfg.local_ip_fallback) {
+                host = duo_local_ip();
+            }
+        }
+    } else if ((host = ip = (char *)ctx->host) != NULL) {
+        if (!inet_aton(ip, &addr) &&
+            inet_pton(AF_INET6, ip, &addr6) != 1) {
             if (cfg.local_ip_fallback) {
                 host = duo_local_ip();
             }

@@ -70,6 +70,23 @@ IP. Default is "no".
 .It Cm send_gecos
 Instead of using the unix username, send Duo the contents of the GECOS field
 from /etc/passwd.  Default is "no".
+.Pp
+.Sy Warning:
+the GECOS field is not a trusted attribute.  On most systems
+.Xr chfn 1
+lets an unprivileged user edit their own GECOS field (subject to
+.Cm CHFN_RESTRICT
+in
+.Xr login.defs 5 ) ,
+so enabling this option lets a user choose the Duo identity presented for
+their own second-factor challenge, decoupling it from the operating-system
+identity established by primary authentication.  This option is deprecated in
+favor of Duo username aliases, which are stored server-side and cannot be
+edited by the end user.  If you must enable it, first restrict
+.Xr chfn 1
+(for example by setting
+.Cm CHFN_RESTRICT
+to deny the fields used, or by removing its setuid bit).
 .It Cm disable_ca_pinning
 Disable the built-in CA certificate pinning and use the operating system's
 trust store for TLS certificate validation instead. TLS verification is still
