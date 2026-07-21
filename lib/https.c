@@ -14,9 +14,12 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 
+#include <errno.h>
+#include <limits.h>
 #include <netdb.h>
 #include <poll.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -96,6 +99,39 @@ __on_body(http_parser *p, const char *buf, size_t len)
     return (BIO_write(req->body, buf, len) != len);
 }
 
+/* Convert a validated relative delay (delta-seconds) to an absolute time_t
+   deadline relative to `now`, or (time_t)-1 if the value is unusable. Takes
+   `now` as a parameter so the overflow guard is unit-testable without
+   depending on the wall clock. */
+time_t
+_retry_after_deadline(long delay_seconds, int parse_errno, time_t now)
+{
+    /* A day is far larger than any legitimate retry delay for an auth flow.
+       Values above the caller's backoff ceiling already cause the retry loop
+       to exit, so realistic values still behave identically. */
+    const long max_delay_seconds = 86400;
+
+    /* Largest representable time_t. time_t is signed in every environment we
+       target; derive its max from its width so the headroom check holds on
+       32-bit time_t as well as 64-bit. */
+    const time_t time_t_max =
+        (time_t)(((uintmax_t)1 << (sizeof(time_t) * CHAR_BIT - 1)) - 1);
+
+    /* Reject out-of-range (ERANGE from strtol), negative, or implausibly
+       large delays rather than performing an overflowing time_t addition. */
+    if (parse_errno == ERANGE || delay_seconds < 0 ||
+        delay_seconds > max_delay_seconds) {
+        return (time_t)-1;
+    }
+    /* Guard the addition itself: even a capped delay can overflow when the
+       clock is near the time_t maximum (e.g. 32-bit time_t approaching
+       2038). Reject rather than wrap. */
+    if (now > time_t_max - (time_t)delay_seconds) {
+        return (time_t)-1;
+    }
+    return now + delay_seconds;
+}
+
 time_t
 _parse_retry_after(const char *header_value)
 {
@@ -105,9 +141,14 @@ _parse_retry_after(const char *header_value)
 
     /* Try to parse as an integer (delay in seconds) */
     char *endptr;
-    long delay_seconds = strtol(header_value, &endptr, 10);
-    if (*endptr == '\0') {
-        return time(NULL) + delay_seconds;
+    long delay_seconds;
+
+    errno = 0;
+    delay_seconds = strtol(header_value, &endptr, 10);
+    if (endptr != header_value && *endptr == '\0') {
+        /* An unusable header returns the sentinel so the caller falls back
+           to its bounded exponential backoff. */
+        return _retry_after_deadline(delay_seconds, errno, time(NULL));
     }
 
     /* Try to parse as a date */

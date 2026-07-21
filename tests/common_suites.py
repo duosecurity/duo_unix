@@ -369,6 +369,46 @@ class CommonSuites:
             # 1.x seconds + 2.x seconds executed twice
             self.assertGreater(execution_time, 6)
 
+        def test_retry_after_forever_is_bounded(self):
+            """A server that always returns 429 with an in-range Retry-After
+            must not loop forever: the retry cap is reached and failmode
+            (safe -> allow) is applied instead of hanging."""
+            start_time = time.time()
+            with TempConfig(MOCKDUO_CONF) as temp:
+                result = self.call_binary(
+                    ["-d", "-c", temp.name, "-f", "retry-after-forever", "true"],
+                    timeout=30,
+                )
+            execution_time = time.time() - start_time
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Failsafe Duo login for 'retry-after-forever'",
+            )
+            # 6 retries at ~1s each; must terminate well under an unbounded loop.
+            self.assertLess(execution_time, 20)
+
+        def test_retry_after_negative_does_not_spin(self):
+            """A negative Retry-After must not cause a nanosleep EINVAL spin.
+            It is rejected at parse time and treated as a header-less 429, so
+            the client applies its bounded exponential backoff (1,2,4,8,16,32)
+            and then failmode -- terminating in ~63s rather than hanging or
+            flooding the server."""
+            start_time = time.time()
+            with TempConfig(MOCKDUO_CONF) as temp:
+                result = self.call_binary(
+                    ["-d", "-c", temp.name, "-f", "retry-after-negative", "true"],
+                    timeout=90,
+                )
+            execution_time = time.time() - start_time
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Failsafe Duo login for 'retry-after-negative'",
+            )
+            # Bounded exponential backoff sums to ~63s; assert it is neither an
+            # instant spin nor an unbounded hang.
+            self.assertGreater(execution_time, 10)
+            self.assertLess(execution_time, 85)
+
     class EscapeInjection(CommonTestCase):
         def run(self, result=None):
             with MockDuo(NORMAL_CERT):

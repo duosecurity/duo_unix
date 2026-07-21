@@ -364,10 +364,19 @@ _duo_https_exchange(struct duo_ctx *ctx, const char *method, const char *uri, in
     const int max_backoff_wait_secs = 32;
     const int initial_backof_wait_secs = 1;
     const int backoff_factor = 2;
+    /* Hard cap on 429 retries. A malicious or misbehaving server that
+       answers every request with 429 and an in-range Retry-After header
+       could otherwise pin us in the loop forever, since the header
+       overwrites wait_secs each iteration and defeats the backoff-based
+       exit. Bounding the iteration count guarantees we return so the
+       caller can apply failmode. Six matches the no-header backoff
+       schedule (1,2,4,8,16,32). */
+    const int max_retries = 6;
 
     static const char fmt[] = "Rate-limiting response received from server. Waiting for %ld seconds before retrying.";
     char msg[(sizeof fmt) + max_int_digits];
     int wait_secs = initial_backof_wait_secs;
+    int retries = 0;
 
     while (1) {
         HTTPScode rc;
@@ -384,6 +393,16 @@ _duo_https_exchange(struct duo_ctx *ctx, const char *method, const char *uri, in
 
         if (rc != HTTPS_OK || *code != 429 || wait_secs > max_backoff_wait_secs)
             return rc;
+
+        /* Return once the retry cap is hit so failmode can be applied. */
+        if (++retries > max_retries)
+            return rc;
+
+        /* Clamp a past-dated, negative, or zero Retry-After up to the
+           initial wait. Otherwise nanosleep() gets a negative tv_sec,
+           returns EINVAL without sleeping, and the loop spins. */
+        if (wait_secs < initial_backof_wait_secs)
+            wait_secs = initial_backof_wait_secs;
 
         struct timespec timeout = {
             .tv_sec = wait_secs,
@@ -436,6 +455,12 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
         _duo_seterr(ctx, "Invalid ikey or skey");
     } else if (code / 100 == 5) {
         /* 5xx indicates an internal server error */
+        ret = DUO_SERVER_ERROR;
+        _duo_seterr(ctx, "HTTP %d", code);
+    } else if (code == 429) {
+        /* Rate-limited past the retry cap: treat as a server-availability
+           failure so the caller applies failmode, rather than a terminal
+           abort. Reaching here means the backoff loop exhausted its retries. */
         ret = DUO_SERVER_ERROR;
         _duo_seterr(ctx, "HTTP %d", code);
     } else {
