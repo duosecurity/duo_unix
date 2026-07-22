@@ -361,6 +361,17 @@ class MockDuoHandler(BaseHTTPRequestHandler):
                     ret["response"] = {"result": "allow", "status_msg": "preauth-allowed"}
                 else:
                     return self._send(500, "Wrong timeout")
+            elif self.args["username"] == "retry-after-forever":
+                # Malicious server: answer EVERY request with 429 and an
+                # in-range Retry-After. The client must still return after a
+                # bounded number of retries so failmode can be applied.
+                # Uses 1s so the bounded retry sequence completes well within
+                # the test harness timeout.
+                return self._send(429, headers={"Retry-After": "1"})
+            elif self.args["username"] == "retry-after-negative":
+                # Malicious server: negative Retry-After. The client must not
+                # spin (nanosleep EINVAL) and must still return, bounded.
+                return self._send(429, headers={"Retry-After": "-100"})
             else:
                 ret["response"] = { "result": "auth" }
                 client_supports_verified_push = bool(

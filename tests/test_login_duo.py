@@ -222,8 +222,8 @@ class TestMockDuoWithValidCert(CommonSuites.WithValidCert):
 
 
 class TestLoginDuoPreauthStates(CommonSuites.PreauthStates):
-    def call_binary(self, *args):
-        return login_duo(*args)
+    def call_binary(self, *args, **kwargs):
+        return login_duo(*args, **kwargs)
 
 
 class TestLoginDuoEscapeInjection(CommonSuites.EscapeInjection):
