@@ -176,6 +176,12 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         cfg->send_gecos = duo_set_boolean_option(val);
     } else if (strcmp(name, "gecos_parsed") == 0) {
         duo_log(LOG_ERR, "The gecos_parsed configuration item for Duo Unix is deprecated and no longer has any effect. Use gecos_delim and gecos_username_pos instead", NULL, NULL, NULL);
+    } else if (strcmp(name, "dev_fips_mode") == 0) {
+        /* Accepted as a no-op for backward compatibility. This option was
+           removed, but rejecting it would abort parsing of the rest of the
+           config file (including any later failmode directive) and could
+           silently disable 2FA on upgrade for configs that still set it. */
+        duo_log(LOG_ERR, "The dev_fips_mode configuration item for Duo Unix is deprecated and no longer has any effect", NULL, NULL, NULL);
     } else if (strcmp(name, "gecos_delim") == 0) {
         if (strlen(val) != 1) {
             fprintf(stderr, "Invalid character option length. Character fields must be 1 character long: '%s'\n", val);
