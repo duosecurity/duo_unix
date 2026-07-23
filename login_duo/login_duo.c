@@ -274,6 +274,12 @@ do_auth(struct login_ctx *ctx, const char *cmd)
             inet_pton(AF_INET6, ip, &addr6) != 1) {
             if (cfg.local_ip_fallback) {
                 host = duo_local_ip();
+                if (ip[0] != '\0') {
+                    duo_log(LOG_WARNING, "fallback_local_ip is replacing the "
+                        "remote client address with this server's IP; the "
+                        "address reported to Duo is not the client's",
+                        NULL, ip, NULL);
+                }
             }
         }
     } else if ((host = ip = (char *)ctx->host) != NULL) {
@@ -281,6 +287,12 @@ do_auth(struct login_ctx *ctx, const char *cmd)
             inet_pton(AF_INET6, ip, &addr6) != 1) {
             if (cfg.local_ip_fallback) {
                 host = duo_local_ip();
+                if (ip[0] != '\0') {
+                    duo_log(LOG_WARNING, "fallback_local_ip is replacing the "
+                        "remote client address with this server's IP; the "
+                        "address reported to Duo is not the client's",
+                        NULL, ip, NULL);
+                }
             }
         }
     }

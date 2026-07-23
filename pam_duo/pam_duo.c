@@ -288,6 +288,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         /* Not an IPv4 or IPv6 literal — likely a hostname, check fallback */
         if (cfg.local_ip_fallback) {
             host = duo_local_ip();
+            /* Only a non-empty PAM_RHOST is a real remote client; the empty
+               case is a local (su/sudo) session and must stay silent. */
+            if (ip[0] != '\0') {
+                duo_log(LOG_WARNING, "fallback_local_ip is replacing the "
+                    "remote client address with this server's IP; the "
+                    "address reported to Duo is not the client's",
+                    NULL, ip, NULL);
+            }
         }
     }
 

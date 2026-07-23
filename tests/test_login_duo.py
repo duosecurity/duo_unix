@@ -978,6 +978,56 @@ class TestLoginDuoIPv6(CommonTestCase):
                 r"Skipped Duo login for 'preauth-allow' from 1\.2\.3\.4",
             )
 
+    def test_hostname_fallback_warns(self):
+        """Replacing a remote hostname with the server IP must log a warning."""
+        with TempConfig(MOCKDUO_FALLBACK) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={
+                    "SSH_CONNECTION": "badhost.example.com 50310 server 22",
+                    "FALLBACK": "1",
+                    "UID": "1001",
+                },
+                preload_script=os.path.join(TESTDIR, "login_duo.py"),
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"fallback_local_ip is replacing the remote client address",
+            )
+
+    def test_ip_literal_fallback_does_not_warn(self):
+        """An IPv4 literal is used as-is; no substitution, so no warning."""
+        with TempConfig(MOCKDUO_FALLBACK) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={
+                    "SSH_CONNECTION": "203.0.113.5 50310 server 22",
+                    "FALLBACK": "1",
+                    "UID": "1001",
+                },
+                preload_script=os.path.join(TESTDIR, "login_duo.py"),
+            )
+            self.assertNotRegexAnyline(
+                result["stderr"],
+                r"fallback_local_ip is replacing the remote client address",
+            )
+
+    def test_local_session_fallback_does_not_warn(self):
+        """A local session (no SSH_CONNECTION) must not emit the remote warning."""
+        with TempConfig(MOCKDUO_FALLBACK) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={
+                    "FALLBACK": "1",
+                    "UID": "1001",
+                },
+                preload_script=os.path.join(TESTDIR, "login_duo.py"),
+            )
+            self.assertNotRegexAnyline(
+                result["stderr"],
+                r"fallback_local_ip is replacing the remote client address",
+            )
+
 
 class TestLoginDuoMalformedResponse(unittest.TestCase):
     """A server response that fails to parse must not crash the process.
