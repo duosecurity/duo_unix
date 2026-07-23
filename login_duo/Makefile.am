@@ -29,7 +29,15 @@ install-data-local:
 	else \
 	  echo "Found existing ${DESTDIR}$(sysconfdir)/login_duo.conf - updating permissions"; \
 	fi
-	-chown $(DUO_PRIVSEP_USER) $(DESTDIR)$(sysconfdir)/login_duo.conf
-	-chmod 600 $(DESTDIR)$(sysconfdir)/login_duo.conf
+	@conf=$(DESTDIR)$(sysconfdir)/login_duo.conf; \
+	privsep_group=`id -gn $(DUO_PRIVSEP_USER) 2>/dev/null`; \
+	if [ -n "$$privsep_group" ]; then \
+	  echo "chown root:$$privsep_group $$conf"; \
+	  chown root:$$privsep_group $$conf 2>/dev/null && chmod 640 $$conf && ok=1; \
+	fi; \
+	if [ -z "$$ok" ]; then \
+	  echo "Privsep user '$(DUO_PRIVSEP_USER)' not found; installing $$conf root-owned mode 0600"; \
+	  chown root $$conf 2>/dev/null; chmod 600 $$conf; \
+	fi
 
 EXTRA_DIST = login_duo.conf

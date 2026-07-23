@@ -115,11 +115,23 @@ pushinfo = yes
 autopush = yes
 .Ed
 .Pp
-If installed setuid root (the default), 
+If installed setuid root (the default),
 .Nm
-performs Duo authentication as a dedicated privilege separation user,
-requiring that the configuration file be owned and readable only by
-this user.
+performs Duo authentication as a dedicated privilege separation user.
+The configuration file holds the secret key and must not be readable by
+unprivileged accounts: it may be owned by that user and readable only by
+its owner
+.Pq mode Li 0600 ,
+or owned by
+.Li root
+and made readable to the privilege separation user's primary group
+.Pq for example Li root:duo No mode Li 0640 .
+The latter lets the privilege separation child read the configuration
+without owning it, so that a compromise of that account cannot overwrite
+the file to disable authentication. In either layout only the owner may
+write the file. A configuration file that is writable by group or other,
+world-readable, or group-readable while owned by a non-root user, is
+rejected.
 .Sh PATTERNS
 A
 .Em pattern

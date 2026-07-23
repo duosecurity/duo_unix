@@ -131,7 +131,26 @@ duo_parse_config(const char *filename,
         close(fd);
         return (-1);
     }
-    if ((st.st_mode & (S_IRGRP|S_IROTH)) != 0) {
+    /*
+     * Never accept a file that is writable by group or other: only the
+     * owner may modify the configuration.
+     */
+    if ((st.st_mode & (S_IWGRP|S_IWOTH)) != 0) {
+        fclose(fp);
+        return (-2);
+    }
+    /*
+     * Accept a world-readable file never, an owner-only file always, and a
+     * group-readable file only when it is owned by root. This permits a
+     * root-owned root:<group> 0640 layout in addition to the traditional
+     * owner-only 0600, while still requiring that any non-root-owned
+     * config be readable by its owner alone.
+     */
+    if ((st.st_mode & S_IROTH) != 0) {
+        fclose(fp);
+        return (-2);
+    }
+    if ((st.st_mode & S_IRGRP) != 0 && st.st_uid != 0) {
         fclose(fp);
         return (-2);
     }
