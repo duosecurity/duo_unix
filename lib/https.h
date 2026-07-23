@@ -22,8 +22,9 @@ typedef enum {
     HTTPS_ERR_SERVER,   /* something the server did */
 } HTTPScode;
 
-/* Initialize HTTPS library */
-HTTPScode https_init(const char *cafile, const char *http_proxy);
+/* Initialize HTTPS library. min_tls is a DUO_MIN_TLS_* value (0 leaves the
+ * negotiated floor at the library default). */
+HTTPScode https_init(const char *cafile, const char *http_proxy, int min_tls);
 
 /* Open HTTPS connection to host[:port] */
 HTTPScode https_open(https_t **hp, const char *host, const char *useragent);
