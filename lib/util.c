@@ -206,6 +206,8 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         }
     } else if (strcmp(name, "verified_push") == 0) {
         cfg->verified_push = duo_set_boolean_option(val);
+    } else if (strcmp(name, "disable_ca_pinning") == 0) {
+        cfg->disable_ca_pinning = duo_set_boolean_option(val);
     } else {
         /* Couldn't handle the option, maybe it's target specific? */
         return (0);

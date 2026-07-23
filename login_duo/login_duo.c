@@ -139,7 +139,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     struct in6_addr addr6;
     duo_t *duo;
     duo_code_t code;
-    const char *config, *p, *duouser;
+    const char *config, *p, *duouser, *cafile;
     const char *ip, *host = NULL;
     char buf[64];
     int i, flags, ret, prompts, matched;
@@ -280,9 +280,16 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     }
 
     /* Try Duo auth. */
+    if (cfg.noverify) {
+        cafile = "";
+    } else if (cfg.disable_ca_pinning) {
+        cafile = DUO_USE_SYSTEM_CERTS;
+    } else {
+        cafile = cfg.cafile;
+    }
     if ((duo = duo_open(cfg.apihost, cfg.ikey, cfg.skey,
                     "login_duo/" PACKAGE_VERSION,
-                    cfg.noverify ? "" : cfg.cafile,
+                    cafile,
                     cfg.https_timeout, cfg.http_proxy)) == NULL) {
         duo_log(LOG_ERR, "Couldn't open Duo API handle",
             pw->pw_name, host, NULL);

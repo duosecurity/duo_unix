@@ -87,6 +87,16 @@ edited by the end user.  If you must enable it, first restrict
 (for example by setting
 .Cm CHFN_RESTRICT
 to deny the fields used, or by removing its setuid bit).
+.It Cm disable_ca_pinning
+Disable the built-in CA certificate pinning and use the operating system's
+trust store for TLS certificate validation instead. TLS verification is still
+enforced; only the set of trusted root certificates changes. This may be
+required in environments that use TLS inspection or private PKI. Can be
+.Dq Li yes
+or
+.Dq Li no .
+Default is
+.Dq Li no .
 .El
 .Pp
 An example configuration file:

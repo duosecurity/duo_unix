@@ -729,6 +729,14 @@ https_init(const char *cafile, const char *http_proxy)
     } else if (cafile[0] == '\0') {
         /* Skip verification */
         SSL_CTX_set_verify(ctx.ssl_ctx, SSL_VERIFY_NONE, NULL);
+    } else if (strcmp(cafile, HTTPS_USE_SYSTEM_CERTS) == 0) {
+        /* Use OS trust store without pinning, TLS verification still enforced */
+        if (!SSL_CTX_set_default_verify_paths(ctx.ssl_ctx)) {
+            SSL_CTX_free(ctx.ssl_ctx);
+            ctx.errstr = _SSL_strerror();
+            return (HTTPS_ERR_CLIENT);
+        }
+        SSL_CTX_set_verify(ctx.ssl_ctx, SSL_VERIFY_PEER, NULL);
     } else {
         /* Load CA cert from file */
         if (!SSL_CTX_load_verify_locations(ctx.ssl_ctx,
