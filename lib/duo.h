@@ -49,7 +49,8 @@ int duo_parse_config(
     void *arg
 );
 
-/* Open Duo API handle */
+/* Open Duo API handle. min_tls is a DUO_MIN_TLS_* value (0 = library
+ * default, backwards-compatible). */
 duo_t *duo_open(
     const char *host,
     const char *ikey,
@@ -57,7 +58,8 @@ duo_t *duo_open(
     const char *progname,
     const char *cafile,
     int https_timeout,
-    const char *http_proxy
+    const char *http_proxy,
+    int min_tls
 );
 
 /* Override conversation prompt/status functions */

@@ -24,6 +24,21 @@ enum {
     DUO_FAIL_SECURE
 };
 
+/*
+ * Configured minimum TLS version floor. DUO_MIN_TLS_UNSET (0, the default
+ * after duo_config_default()) leaves the library's negotiation behavior
+ * unchanged for backwards compatibility. The library maps the remaining
+ * values to OpenSSL protocol-version constants when initializing the
+ * SSL context.
+ */
+enum {
+    DUO_MIN_TLS_UNSET = 0,
+    DUO_MIN_TLS_1_0,
+    DUO_MIN_TLS_1_1,
+    DUO_MIN_TLS_1_2,
+    DUO_MIN_TLS_1_3
+};
+
 struct duo_config {
     char *ikey;
     char *skey;
@@ -46,6 +61,7 @@ struct duo_config {
     int  send_gecos;
     int  gecos_username_pos;
     int  verified_push;
+    int  min_tls;   /* Minimum TLS version floor: DUO_MIN_TLS_* */
 };
 
 void duo_config_default(struct duo_config *cfg);

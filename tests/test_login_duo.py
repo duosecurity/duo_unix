@@ -216,6 +216,46 @@ class TestLoginDuoAnonCipher(CommonTestCase):
             )
 
 
+class TestLoginDuoMinTLS(CommonTestCase):
+    """The min_tls floor must reject a server that cannot meet it, and must
+    allow a server that can. The mock server is capped at TLS 1.2."""
+
+    def run(self, result=None):
+        with MockDuo(max_tls="1.2"):
+            return super(TestLoginDuoMinTLS, self).run(result)
+
+    def _config(self, **extra):
+        return DuoUnixConfig(
+            ikey="DIXYZV6YM8IFYVWBINCA",
+            skey="yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo",
+            host="localhost:4443",
+            cafile="certs/mockduo-ca.pem",
+            failmode="secure",
+            **extra,
+        )
+
+    def test_min_tls_1_3_rejects_1_2_server(self):
+        """min_tls=1.3 against a TLS 1.2 server must fail the handshake."""
+        with TempConfig(self._config(min_tls="1.3")) as temp:
+            result = login_duo(["-d", "-c", temp.name, "-f", "preauth-allow", "true"])
+            self.assertEqual(result["returncode"], 1)
+            self.assertRegexSomeline(result["stderr"], r"Couldn't connect to")
+
+    def test_min_tls_1_2_allows_1_2_server(self):
+        """min_tls=1.2 against a TLS 1.2 server must connect and authenticate."""
+        with TempConfig(self._config(min_tls="1.2")) as temp:
+            result = login_duo(["-d", "-c", temp.name, "-f", "preauth-allow", "true"])
+            self.assertRegexSomeline(result["stderr"], r"preauth-allowed")
+            self.assertNotRegexAnyline(result["stderr"], r"Couldn't connect to")
+
+    def test_min_tls_unset_allows_1_2_server(self):
+        """An unset min_tls must preserve the existing permissive behavior."""
+        with TempConfig(self._config()) as temp:
+            result = login_duo(["-d", "-c", temp.name, "-f", "preauth-allow", "true"])
+            self.assertRegexSomeline(result["stderr"], r"preauth-allowed")
+            self.assertNotRegexAnyline(result["stderr"], r"Couldn't connect to")
+
+
 class TestMockDuoWithValidCert(CommonSuites.WithValidCert):
     def call_binary(self, *args):
         return login_duo(*args)
