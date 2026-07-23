@@ -303,9 +303,15 @@ duo_groups_all_negated(const struct duo_config *cfg)
          * Each stored token is a comma-separated pattern-list, and only
          * the individual patterns can be negated. A single non-negated
          * subpattern (e.g. the "admin" in "!wheel,admin") can still match
-         * a user, so the filter is not all-negated.
+         * a user, so the filter is not all-negated. An empty subpattern
+         * (from a leading, trailing, or doubled comma) matches no group,
+         * so it is skipped rather than treated as a positive match.
          */
         while (*p != '\0') {
+            if (*p == ',') {
+                p++;
+                continue;
+            }
             if (*p != '!') {
                 return 0;
             }

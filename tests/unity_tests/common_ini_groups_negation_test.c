@@ -87,6 +87,24 @@ static void test_positive_subpattern_in_later_token() {
     TEST_ASSERT_FALSE(duo_groups_all_negated(&cfg));
 }
 
+/* A leading comma yields an empty subpattern that matches nothing; the
+ * filter is still all-negated. */
+static void test_leading_empty_subpattern() {
+    struct duo_config cfg = {0};
+
+    duo_common_ini_handler(&cfg, SECTION, "groups", ",!wheel");
+    TEST_ASSERT_TRUE(duo_groups_all_negated(&cfg));
+}
+
+/* Doubled and trailing commas produce empty subpatterns that match
+ * nothing; the filter is still all-negated. */
+static void test_embedded_empty_subpatterns() {
+    struct duo_config cfg = {0};
+
+    duo_common_ini_handler(&cfg, SECTION, "groups", "!wheel,,!admin,");
+    TEST_ASSERT_TRUE(duo_groups_all_negated(&cfg));
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_no_groups);
@@ -98,5 +116,7 @@ int main() {
     RUN_TEST(test_positive_subpattern_after_negation);
     RUN_TEST(test_all_subpatterns_negated);
     RUN_TEST(test_positive_subpattern_in_later_token);
+    RUN_TEST(test_leading_empty_subpattern);
+    RUN_TEST(test_embedded_empty_subpatterns);
     return UNITY_END();
 }
