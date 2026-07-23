@@ -185,6 +185,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     }
 
+    if (duo_groups_all_negated(&cfg)) {
+        duo_log(LOG_WARNING, "All configured groups are negated; no user "
+            "can match, so Duo 2FA is disabled for every user (use "
+            "\"*,!group\" to require 2FA for everyone except a group)",
+            NULL, NULL, NULL);
+    }
+
     /* Check user */
     if (pam_get_user(pamh, &user, NULL) != PAM_SUCCESS ||
         (pw = getpwnam(user)) == NULL) {

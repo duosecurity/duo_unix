@@ -66,6 +66,14 @@ void cleanup_config_groups(struct duo_config *cfg);
 
 int duo_check_groups(struct passwd *pw, char **groups, int groups_cnt);
 
+/*
+ * Return 1 if a groups filter is configured but every pattern is a
+ * negation ('!'-prefixed), meaning the filter can never match any user
+ * and Duo 2FA is effectively disabled host-wide. Returns 0 for an empty
+ * filter or any config containing at least one non-negated pattern.
+ */
+int duo_groups_all_negated(const struct duo_config *cfg);
+
 void duo_log(
     int priority,
     const char *msg,

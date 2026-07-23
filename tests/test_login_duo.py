@@ -32,6 +32,7 @@ from config import (
     MOCKDUO_GECOS_LONG_DELIM,
     MOCKDUO_GECOS_SEND_UNPARSED,
     MOCKDUO_GECOS_SLASH_DELIM_3_POS,
+    MOCKDUO_GROUPS_ALL_NEGATED,
     MOCKDUO_GROUPS_STAR,
     MOCKDUO_USERS,
     MOCKDUO_USERS_ADMINS,
@@ -571,6 +572,32 @@ class TestLoginDuoGroups(CommonTestCase):
             self.assertRegexSomeline(
                 result["stderr"],
                 r"User preauth-allow bypassed Duo 2FA due to user's UNIX group",
+            )
+
+    def test_all_negated_groups_warns(self):
+        """An all-negated groups filter matches no user and must warn."""
+        with TempConfig(MOCKDUO_GROUPS_ALL_NEGATED) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={"UID": "1003"},
+                preload_script=os.path.join(TESTDIR, "groups.py"),
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"All configured groups are negated",
+            )
+
+    def test_mixed_groups_does_not_warn(self):
+        """A filter with at least one positive pattern must stay silent."""
+        with TempConfig(MOCKDUO_ADMINS_NO_USERS) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={"UID": "1003"},
+                preload_script=os.path.join(TESTDIR, "groups.py"),
+            )
+            self.assertNotRegexAnyline(
+                result["stderr"],
+                r"All configured groups are negated",
             )
 
 
