@@ -195,6 +195,12 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         return (EXIT_FAILURE);
     }
 
+    if (duo_groups_all_negated(&cfg)) {
+        duo_log(LOG_WARNING, "All configured groups are negated; no user "
+            "can match, so Duo 2FA is disabled for every user (use "
+            "\"*,!group\" to require 2FA for everyone except a group)",
+            NULL, NULL, NULL);
+    }
 
     prompts = cfg.prompts;
 

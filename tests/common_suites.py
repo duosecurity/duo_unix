@@ -67,6 +67,13 @@ class CommonTestCase(unittest.TestCase):
 
         self.assertTrue(found, f"Regex '{regex}' not found in any lines of {result}")
 
+    def assertNotRegexAnyline(self, result: Sequence[str], regex: str):
+        for line in result:
+            self.assertIsNone(
+                re.search(regex, line),
+                f"Regex '{regex}' unexpectedly found in line '{line}'",
+            )
+
     def call_binary(self, *args, **kwargs):
         raise NotImplementedError
 

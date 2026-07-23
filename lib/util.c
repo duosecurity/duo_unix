@@ -286,6 +286,41 @@ duo_check_groups(struct passwd *pw, char **groups, int groups_cnt)
 }
 
 int
+duo_groups_all_negated(const struct duo_config *cfg)
+{
+    int i;
+
+    if (cfg->groups_cnt <= 0) {
+        return 0;
+    }
+    for (i = 0; i < cfg->groups_cnt; i++) {
+        const char *p = cfg->groups[i];
+
+        if (p == NULL) {
+            return 0;
+        }
+        /*
+         * Each stored token is a comma-separated pattern-list, and only
+         * the individual patterns can be negated. A single non-negated
+         * subpattern (e.g. the "admin" in "!wheel,admin") can still match
+         * a user, so the filter is not all-negated.
+         */
+        while (*p != '\0') {
+            if (*p != '!') {
+                return 0;
+            }
+            while (*p != '\0' && *p != ',') {
+                p++;
+            }
+            if (*p == ',') {
+                p++;
+            }
+        }
+    }
+    return 1;
+}
+
+int
 _add_to_log(char *buf, size_t buf_sz, int pos, const char *format,
            const char *s) {
     if (s == NULL) {

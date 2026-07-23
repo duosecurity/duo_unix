@@ -139,6 +139,14 @@ For example, to specify Duo authentication for all users (except those
 that are also admins), and for guests:
 .Pp
 .Dl groups = users,!wheel,!*admin guests
+.Pp
+A pattern-list consisting only of negated patterns matches no user, so
+Duo authentication is skipped for everyone. To require authentication for
+all users except a group, include a
+.Sq *
+wildcard, as in
+.Ql groups = *,!wheel .
+A configuration whose patterns are all negated will log a warning.
 .Sh EXAMPLES
 .Nm
 can be enabled system-wide by specifying its full path as a
