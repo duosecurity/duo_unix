@@ -90,7 +90,8 @@ __status_fn(void *arg, const char *msg)
 
 struct duo_ctx *
 duo_open(const char *host, const char *ikey, const char *skey,
-    const char *progname, const char *cafile, int https_timeout, const char* http_proxy)
+    const char *progname, const char *cafile, int https_timeout,
+    const char* http_proxy, int min_tls)
 {
     struct duo_ctx *ctx;
 
@@ -104,7 +105,7 @@ duo_open(const char *host, const char *ikey, const char *skey,
             progname, CANONICAL_HOST, PACKAGE_VERSION) == -1) {
         return (duo_close(ctx));
     }
-    if (https_init(cafile, http_proxy) != HTTPS_OK) {
+    if (https_init(cafile, http_proxy, min_tls) != HTTPS_OK) {
         ctx = duo_close(ctx);
     } else {
         ctx->conv_prompt = __prompt_fn;

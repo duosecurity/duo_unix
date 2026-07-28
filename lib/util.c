@@ -206,6 +206,22 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         }
     } else if (strcmp(name, "verified_push") == 0) {
         cfg->verified_push = duo_set_boolean_option(val);
+    } else if (strcmp(name, "min_tls") == 0) {
+        /* Opt-in minimum TLS version floor. An empty or unrecognized value
+           leaves the floor unset (current negotiation behavior) rather than
+           selecting the least-safe option. */
+        if (strcmp(val, "1.2") == 0) {
+            cfg->min_tls = DUO_MIN_TLS_1_2;
+        } else if (strcmp(val, "1.3") == 0) {
+            cfg->min_tls = DUO_MIN_TLS_1_3;
+        } else if (strcmp(val, "1.1") == 0) {
+            cfg->min_tls = DUO_MIN_TLS_1_1;
+        } else if (strcmp(val, "1.0") == 0) {
+            cfg->min_tls = DUO_MIN_TLS_1_0;
+        } else {
+            fprintf(stderr, "Invalid min_tls '%s' (expected 1.0, 1.1, 1.2, or 1.3)\n", val);
+            return (0);
+        }
     } else {
         /* Couldn't handle the option, maybe it's target specific? */
         return (0);

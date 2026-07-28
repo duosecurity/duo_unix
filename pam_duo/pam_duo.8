@@ -87,6 +87,18 @@ edited by the end user.  If you must enable it, first restrict
 (for example by setting
 .Cm CHFN_RESTRICT
 to deny the fields used, or by removing its setuid bit).
+.It Cm min_tls
+Require at least the given TLS protocol version when connecting to Duo.
+Accepts
+.Dq Li 1.0 ,
+.Dq Li 1.1 ,
+.Dq Li 1.2 ,
+or
+.Dq Li 1.3 .
+Connections that cannot negotiate at least this version will fail. When
+unset, the system default negotiation is used. Setting
+.Dq Li 1.2
+or higher is recommended.
 .El
 .Pp
 An example configuration file:
