@@ -794,6 +794,11 @@ https_init(const char *cafile, const char *http_proxy, int min_tls)
         SSL_CTX_set_verify(ctx.ssl_ctx, SSL_VERIFY_PEER, NULL);
     } else if (cafile[0] == '\0') {
         /* Skip verification */
+        duo_log(LOG_WARNING, "TLS certificate verification is disabled "
+            "(noverify is set, or cafile is empty); the connection to Duo is "
+            "encrypted but not authenticated and cannot be trusted. Remove "
+            "noverify and set a valid cafile to restore verification",
+            NULL, NULL, NULL);
         SSL_CTX_set_verify(ctx.ssl_ctx, SSL_VERIFY_NONE, NULL);
     } else {
         /* Load CA cert from file */
