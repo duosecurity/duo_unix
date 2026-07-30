@@ -189,6 +189,30 @@ class TestPamHosts(CommonSuites.Hosts):
     def call_binary(self, *args, **kwargs):
         return pam_duo(timeout=15, *args, **kwargs)
 
+    HOSTNAME_WARNING = r"Client address is a hostname, not an IP"
+
+    def test_hostname_client_warns(self):
+        """A non-IP PAM_RHOST is still sent, but logs the policy warning."""
+        with TempConfig(MOCKDUO_CONF) as temp:
+            result = self.call_binary(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "-h", "nowhere", "true"]
+            )
+            self.assertRegexSomeline(result["stderr"], self.HOSTNAME_WARNING)
+            # The hostname is still reported as the client address (no
+            # behavior change; only a warning is added).
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Skipped Duo login for 'preauth-allow' from nowhere: preauth-allowed",
+            )
+
+    def test_ip_client_does_not_warn(self):
+        """A valid IP literal must not trigger the hostname warning."""
+        with TempConfig(MOCKDUO_CONF) as temp:
+            result = self.call_binary(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "-h", "1.2.3.4", "true"]
+            )
+            self.assertNotRegexAnyline(result["stderr"], self.HOSTNAME_WARNING)
+
 
 @unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamHTTPProxy(CommonSuites.HTTPProxy):

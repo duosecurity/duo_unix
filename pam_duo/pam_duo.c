@@ -296,6 +296,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
                     "address reported to Duo is not the client's",
                     NULL, ip, NULL);
             }
+        } else if (ip[0] != '\0') {
+            /* PAM_RHOST is a hostname, not an IP; it is still sent as-is but
+               Duo network policies match on IP, so they will not apply. */
+            duo_log(LOG_WARNING, "Client address is a hostname, not an IP; "
+                "Duo network policies will not match this login (set "
+                "\"UseDNS no\" in sshd_config so the client IP is passed)",
+                NULL, ip, NULL);
         }
     }
 

@@ -156,7 +156,22 @@ When used with OpenSSH's
 .Xr sshd 8 ,
 only PAM-based authentication can be protected with this module;
 pubkey authentication bypasses PAM entirely. OpenSSH's PAM
-integration also does not honor an interactive 
+integration also does not honor an interactive
 .Xr pam_conv 3
 conversation, prohibiting real-time Duo status messages (such as
 during voice callback).
+.Pp
+Set
+.Cm UseDNS no
+in
+.Xr sshd_config 5
+so that
+.Nm
+receives the client's IP address rather than a resolved hostname. Duo
+network policies (Authorized Networks allow/deny lists) match on IP
+address; when
+.Cm UseDNS
+is enabled the client address arrives as a hostname, which no IP-based
+policy can match, and
+.Nm
+logs a warning to that effect.
