@@ -157,8 +157,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         return (PAM_SERVICE_ERR);
     } else if (i == -2) {
         int failmode = cfg.failmode;
-        duo_syslog(LOG_ERR, "%s must be readable only by user 'root'",
-            config);
+        duo_syslog(LOG_ERR, "%s must not be readable by other users "
+            "(a root-owned file may also be group-readable)", config);
         close_config(&cfg);
         return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     } else if (i == -1) {

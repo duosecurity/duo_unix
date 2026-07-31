@@ -127,11 +127,46 @@ pushinfo = yes
 autopush = yes
 .Ed
 .Pp
-If installed setuid root (the default), 
+If installed setuid root (the default),
 .Nm
-performs Duo authentication as a dedicated privilege separation user,
-requiring that the configuration file be owned and readable only by
-this user.
+performs Duo authentication as a dedicated privilege separation user.
+The configuration file holds the secret key, so it must not be readable by
+unprivileged accounts.
+It must be owned by
+.Li root
+or by the privilege separation user, must not be writable by group or other,
+and must not be world-readable.
+The privilege separation child needs read access to it.
+.Pp
+The recommended way to grant that access is a root-owned file that stays
+.Pq mode Li 0600
+to normal permission checks while an access control list grants read to the
+privilege separation user, for example:
+.Bd -literal -offset 8n
+chown root:root /etc/duo/login_duo.conf
+chmod 0600 /etc/duo/login_duo.conf
+setfacl -m u:duo:r /etc/duo/login_duo.conf
+.Ed
+.Pp
+This lets the privilege separation child read the configuration without
+owning it, so a compromise of that account cannot overwrite the file to
+disable authentication, and no other account is granted access.
+.Pp
+Alternatively the file may be owned by
+.Li root
+and made readable to a group
+.Pq for example Li root:duo No mode Li 0640 .
+Only use this layout with a
+.Em dedicated
+group whose sole member is the privilege separation user: on some systems
+that user's primary group is a shared low-privilege group
+.Pq such as Li nogroup ,
+and granting that group read access would expose the secret key to every
+account in it.
+.Pp
+In every supported layout only the owner may write the file.
+A configuration file that is writable by group or other, world-readable, or
+group-readable while owned by a non-root user is rejected.
 .Sh PATTERNS
 A
 .Em pattern
