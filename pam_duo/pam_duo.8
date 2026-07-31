@@ -111,7 +111,30 @@ pushinfo = yes
 autopush = yes
 .Ed
 .Pp
-Other authentication restrictions may be implemented using 
+The configuration file holds the secret key and must not be readable by
+unprivileged accounts.
+Because
+.Nm
+runs inside the PAM host process as root and does not use a privilege
+separation user, the recommended layout is a root-owned file readable only by
+its owner
+.Pq mode Li 0600 .
+The permission check is shared with
+.Xr login_duo 8
+and also accepts a root-owned group-readable file
+.Pq for example Li root:group No mode Li 0640 ,
+but
+.Nm
+has no need for that; keep
+.Pa pam_duo.conf
+owned by
+.Li root
+mode
+.Li 0600 .
+In every case the file must not be writable by group or other and must not be
+world-readable.
+.Pp
+Other authentication restrictions may be implemented using
 .Xr pam_listfile 8 ,
 .Xr pam_access 8 ,
 etc.

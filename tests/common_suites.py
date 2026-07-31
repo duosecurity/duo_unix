@@ -96,7 +96,7 @@ class CommonSuites:
                 result = self.call_binary(["-d", "-c", temp.name, "true"])
                 self.assertRegexSomeline(
                     result["stderr"],
-                    "{name} must be readable only by user '.*'".format(name=temp.name),
+                    "{name} must not be readable by other users".format(name=temp.name),
                 )
 
         def test_bad_configuration_files(self):

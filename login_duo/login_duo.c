@@ -169,8 +169,8 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         int failmode = cfg.failmode;
         switch (i) {
         case -2:
-            fprintf(stderr, "%s must be readable only by "
-                "user '%s'\n", config, pw->pw_name);
+            fprintf(stderr, "%s must not be readable by other users "
+                "(a root-owned file may also be group-readable)\n", config);
             break;
         case -1:
             fprintf(stderr, "Couldn't open %s: %s\n",

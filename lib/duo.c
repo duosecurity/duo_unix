@@ -132,7 +132,20 @@ duo_parse_config(const char *filename,
         close(fd);
         return (-1);
     }
-    if ((st.st_mode & (S_IRGRP|S_IROTH)) != 0) {
+    /*
+     * Reject a world-readable file always, accept an owner-only file always,
+     * and accept a group-readable file only when it is owned by root. This
+     * permits a root-owned root:<group> 0640 layout -- and, because a POSIX
+     * ACL mask aliases onto the group bits, a root-owned 0600 file carrying
+     * an "allow <privsep-user> read" ACL -- in addition to the traditional
+     * owner-only 0600, while still requiring that any non-root-owned config
+     * be readable by its owner alone.
+     */
+    if ((st.st_mode & S_IROTH) != 0) {
+        fclose(fp);
+        return (-2);
+    }
+    if ((st.st_mode & S_IRGRP) != 0 && st.st_uid != 0) {
         fclose(fp);
         return (-2);
     }
