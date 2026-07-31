@@ -86,13 +86,18 @@ You should only see "Hello World" if the authentication succeeds.
 
 ## Running the tests
 
-The additional prereq for running the tests is python
+The additional prereq for running the tests is Python 3.7 or higher. (The
+test harness uses features added in Python 3.7; note this is a test-only
+requirement, `login_duo` and `pam_duo` themselves have no Python dependency.)
 ```
 #  RHEL Based
-$ sudo yum install python
+$ sudo yum install python3
 #  Debian Based
-$ sudo apt-get install python
+$ sudo apt-get install python3
 ```
+On distributions whose default `python3` is older than 3.7 (for example
+RHEL/Rocky 8, which ships Python 3.6), install a newer interpreter and make
+sure `python3` on your `PATH` resolves to it before running the tests.
 
 To run all the automated tests simply run
 ```
@@ -101,17 +106,17 @@ $ sudo make check
 To run an individual test file
 ```
 $ cd tests/
-$ python test_login_duo.py
+$ python3 test_login_duo.py
 ```
 To run an individual test suite
 ```
 $ cd tests/
-$ python test_login_duo.py TestLoginDuoConfig
+$ python3 test_login_duo.py TestLoginDuoConfig
 ```
 To run an individual test case
 ```
 $ cd tests/
-$ python test_login_duo.py TestLoginDuoConfig.test_empty_args
+$ python3 test_login_duo.py TestLoginDuoConfig.test_empty_args
 ```
 
 ### Python Tests
@@ -144,7 +149,7 @@ Each test creates the mockduo server for you, but if you need to run it manually
 Below is an example of running a mockduo server in one session and authenticating against it in another.
 ```
 $ cd tests/
-$ python mockduo.py certs/mockduo.pem
+$ python3 mockduo.py certs/mockduo.pem
 Now in a separate terminal window
 $ ../login_duo/login_duo -d -c confs/mockduo.conf -f my_username echo "Success"
 ```
