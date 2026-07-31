@@ -175,8 +175,8 @@ class TestPamValidCerts(CommonSuites.WithValidCert):
 
 @unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamPreauthStates(CommonSuites.PreauthStates):
-    def call_binary(self, *args):
-        return pam_duo(*args)
+    def call_binary(self, *args, **kwargs):
+        return pam_duo(*args, **kwargs)
 
 
 class TestPamEscapeInjection(CommonSuites.EscapeInjection):

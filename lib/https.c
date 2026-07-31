@@ -14,9 +14,12 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 
+#include <errno.h>
+#include <limits.h>
 #include <netdb.h>
 #include <poll.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -97,28 +100,87 @@ __on_body(http_parser *p, const char *buf, size_t len)
     return (BIO_write(req->body, buf, len) != len);
 }
 
+/* Convert a validated relative delay (delta-seconds) to an absolute time_t
+   deadline relative to `now`, or DUO_RETRY_AFTER_INVALID if the value is
+   unusable. Takes `now` as a parameter so the overflow guard is unit-testable
+   without depending on the wall clock. */
+time_t
+_retry_after_deadline(long delay_seconds, int parse_errno, time_t now)
+{
+    /* A day is far larger than any legitimate retry delay for an auth flow.
+       An over-ceiling value is rejected as invalid (not merely capped): the
+       caller treats DUO_RETRY_AFTER_INVALID as terminal, so a hostile server
+       cannot use an implausibly large value to buy extra backoff retries. */
+    const long max_delay_seconds = 86400;
+
+    /* Largest representable time_t. time_t is signed in every environment we
+       target; derive its max from its width so the headroom check holds on
+       32-bit time_t as well as 64-bit. */
+    const time_t time_t_max =
+        (time_t)(((uintmax_t)1 << (sizeof(time_t) * CHAR_BIT - 1)) - 1);
+
+    /* Reject out-of-range (ERANGE from strtol), negative, or implausibly
+       large delays rather than performing an overflowing time_t addition. */
+    if (parse_errno == ERANGE || delay_seconds < 0 ||
+        delay_seconds > max_delay_seconds) {
+        return DUO_RETRY_AFTER_INVALID;
+    }
+    /* Guard the addition itself: even a capped delay can overflow when the
+       clock is near the time_t maximum (e.g. 32-bit time_t approaching
+       2038). Reject rather than wrap. */
+    if (now > time_t_max - (time_t)delay_seconds) {
+        return DUO_RETRY_AFTER_INVALID;
+    }
+    return now + delay_seconds;
+}
+
 time_t
 _parse_retry_after(const char *header_value)
 {
+    /* Only an absent header is "none"; a present-but-unusable header is
+       DUO_RETRY_AFTER_INVALID so the caller does not treat it as license to
+       back off. */
     if (header_value == NULL) {
-        return (time_t)-1;
+        return DUO_RETRY_AFTER_NONE;
     }
 
-    /* Try to parse as an integer (delay in seconds) */
+    /* Try to parse as an integer (delay in seconds). Snapshot errno right
+       after strtol so a later call (e.g. time()) can't clobber it before
+       _retry_after_deadline reads it. */
     char *endptr;
-    long delay_seconds = strtol(header_value, &endptr, 10);
-    if (*endptr == '\0') {
-        return time(NULL) + delay_seconds;
+    long delay_seconds;
+    int strtol_errno;
+
+    errno = 0;
+    delay_seconds = strtol(header_value, &endptr, 10);
+    strtol_errno = errno;
+    if (endptr != header_value && *endptr == '\0') {
+        return _retry_after_deadline(delay_seconds, strtol_errno, time(NULL));
     }
 
-    /* Try to parse as a date */
+    /* Try to parse as an HTTP-date. Use a literal "GMT" rather than %Z:
+       glibc's %Z consumes any token (or none) to the next whitespace/NUL
+       without validating it or applying an offset, so "PST", "XYZ", and an
+       absent zone would all be accepted and treated as GMT. Requiring the
+       literal and then checking for full consumption rejects a bogus or
+       trailing zone. */
     struct tm tm;
     memset(&tm, 0, sizeof(struct tm));
-    if (strptime(header_value, "%a, %d %b %Y %H:%M:%S %Z", &tm) != NULL) {
-        return timegm(&tm);
+    const char *rest = strptime(header_value,
+        "%a, %d %b %Y %H:%M:%S GMT", &tm);
+    if (rest == NULL || *rest != '\0') {
+        return DUO_RETRY_AFTER_INVALID;
     }
 
-    return (time_t)-1;
+    /* Run the parsed date through the same validation as the delta-seconds
+       branch: reject a past or unrepresentable date, and guard the time_t
+       overflow. A past date yields a non-positive delta and is rejected. */
+    time_t now = time(NULL);
+    time_t when = timegm(&tm);
+    if (when == (time_t)-1 || when <= now) {
+        return DUO_RETRY_AFTER_INVALID;
+    }
+    return _retry_after_deadline(when - now, 0, now);
 }
 
 static int
