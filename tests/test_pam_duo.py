@@ -189,6 +189,73 @@ class TestPamHosts(CommonSuites.Hosts):
     def call_binary(self, *args, **kwargs):
         return pam_duo(timeout=15, *args, **kwargs)
 
+    HOSTNAME_WARNING = r"Client address is not a valid IP address"
+
+    def test_hostname_client_warns(self):
+        """A non-IP PAM_RHOST is still sent, but logs the policy warning."""
+        with TempConfig(MOCKDUO_CONF) as temp:
+            result = self.call_binary(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "-h", "nowhere", "true"]
+            )
+            self.assertRegexSomeline(result["stderr"], self.HOSTNAME_WARNING)
+            # The hostname is still reported as the client address (no
+            # behavior change; only a warning is added).
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Skipped Duo login for 'preauth-allow' from nowhere: preauth-allowed",
+            )
+
+    def test_ip_client_does_not_warn(self):
+        """A valid IPv4 literal must not trigger the hostname warning."""
+        with TempConfig(MOCKDUO_CONF) as temp:
+            result = self.call_binary(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "-h", "1.2.3.4", "true"]
+            )
+            self.assertNotRegexAnyline(result["stderr"], self.HOSTNAME_WARNING)
+
+    def test_ipv6_client_does_not_warn(self):
+        """A valid IPv6 literal must not trigger the hostname warning.
+
+        Guards the inet_pton(AF_INET6, ...) half of the condition, which is
+        the only thing preventing a spurious warning on every IPv6 client.
+        """
+        with TempConfig(MOCKDUO_CONF) as temp:
+            result = self.call_binary(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "-h", "::1", "true"]
+            )
+            self.assertNotRegexAnyline(result["stderr"], self.HOSTNAME_WARNING)
+
+    def test_local_session_does_not_warn(self):
+        """A local session (empty PAM_RHOST, no -h) must stay silent.
+
+        Guards the `ip[0] != '\\0'` check: without it, every local su/sudo
+        session (empty PAM_RHOST -> ip = "") would fail both literal checks
+        and emit a spurious warning.
+        """
+        with TempConfig(MOCKDUO_CONF) as temp:
+            result = self.call_binary(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"]
+            )
+            self.assertNotRegexAnyline(result["stderr"], self.HOSTNAME_WARNING)
+
+    def test_hostname_with_fallback_warns_once(self):
+        """With fallback_local_ip on, only the fallback warning fires.
+
+        Guards the `else if`: downgrading it to a plain `if` would emit both
+        the fallback-substitution warning and the hostname warning for the
+        same login.
+        """
+        with TempConfig(MOCKDUO_FALLBACK) as temp:
+            result = self.call_binary(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "-h", "nowhere", "true"],
+                env={"FALLBACK": "1"},
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"fallback_local_ip is replacing the remote client address",
+            )
+            self.assertNotRegexAnyline(result["stderr"], self.HOSTNAME_WARNING)
+
 
 @unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamHTTPProxy(CommonSuites.HTTPProxy):
