@@ -14,6 +14,18 @@
 
 typedef struct https_request https_t;
 
+/* Sentinels for the retry_after value returned by https_recv().
+ *
+ * A Retry-After header has three outcomes, and the caller must treat two of
+ * them differently: an absent header means "no server-directed delay", so the
+ * caller applies its own bounded exponential backoff; a present-but-unusable
+ * header (negative, out of range, past-dated, or malformed) must NOT enable
+ * backoff, because that would let a hostile server buy extra retries and
+ * stall time by sending an implausible value. It is terminal instead, so
+ * failmode is applied at once. A usable header yields an absolute deadline. */
+#define DUO_RETRY_AFTER_NONE    ((time_t)-1)    /* header absent */
+#define DUO_RETRY_AFTER_INVALID ((time_t)-2)    /* header present but unusable */
+
 typedef enum {
     HTTPS_OK,
     HTTPS_ERR_SYSTEM,   /* system problem */

@@ -365,10 +365,19 @@ _duo_https_exchange(struct duo_ctx *ctx, const char *method, const char *uri, in
     const int max_backoff_wait_secs = 32;
     const int initial_backof_wait_secs = 1;
     const int backoff_factor = 2;
+    /* Hard cap on 429 retries. A malicious or misbehaving server that
+       answers every request with 429 and an in-range Retry-After header
+       could otherwise pin us in the loop forever, since the header
+       overwrites wait_secs each iteration and defeats the backoff-based
+       exit. Bounding the iteration count guarantees we return so the
+       caller can apply failmode. Six matches the no-header backoff
+       schedule (1,2,4,8,16,32). */
+    const int max_retries = 6;
 
     static const char fmt[] = "Rate-limiting response received from server. Waiting for %ld seconds before retrying.";
     char msg[(sizeof fmt) + max_int_digits];
     int wait_secs = initial_backof_wait_secs;
+    int retries = 0;
 
     while (1) {
         HTTPScode rc;
@@ -380,12 +389,38 @@ _duo_https_exchange(struct duo_ctx *ctx, const char *method, const char *uri, in
         if (rc != HTTPS_OK)
             return rc;
         rc = https_recv(ctx->https, code, &ctx->body, &ctx->body_len, &retry_after, msecs);
-        if (retry_after != (time_t)-1)
-            wait_secs = retry_after - time(NULL);
+
+        if (retry_after == DUO_RETRY_AFTER_INVALID) {
+            /* Header present but unusable (negative, out of range, past-dated,
+               or malformed). Treat it as terminal rather than as license to
+               back off: push wait_secs past the ceiling so the exit below
+               fires and failmode is applied. A hostile server must not be
+               able to buy extra retries by sending an implausible value. */
+            wait_secs = max_backoff_wait_secs + 1;
+        } else if (retry_after != DUO_RETRY_AFTER_NONE) {
+            /* Usable deadline. Compute the delay in time_t and clamp it into
+               the backoff band *before* narrowing to int, so a far-future
+               deadline cannot wrap to a small or negative int and slip past
+               the ceiling test (C11 6.3.1.3p3). */
+            time_t delay = retry_after - time(NULL);
+            if (delay < initial_backof_wait_secs)
+                delay = initial_backof_wait_secs;
+            else if (delay > max_backoff_wait_secs)
+                delay = max_backoff_wait_secs + 1;
+            wait_secs = (int)delay;
+        }
 
         if (rc != HTTPS_OK || *code != 429 || wait_secs > max_backoff_wait_secs)
             return rc;
 
+        /* Return once the retry cap is hit so failmode can be applied. */
+        if (++retries > max_retries)
+            return rc;
+
+        /* wait_secs is in [initial_backof_wait_secs, max_backoff_wait_secs]
+           here: the header-present branch clamped it and the header-absent
+           backoff never goes below the initial wait, so nanosleep() cannot
+           get a negative tv_sec and spin. */
         struct timespec timeout = {
             .tv_sec = wait_secs,
             .tv_nsec = (float)rand() / RAND_MAX * 1000000000
@@ -395,7 +430,9 @@ _duo_https_exchange(struct duo_ctx *ctx, const char *method, const char *uri, in
         if (ctx->conv_status)
             ctx->conv_status(NULL, msg);
         nanosleep(&timeout, NULL);
-        if (retry_after == (time_t)-1)
+        /* Only an absent header enables exponential backoff; a usable header
+           sets the wait explicitly each iteration. */
+        if (retry_after == DUO_RETRY_AFTER_NONE)
             wait_secs *= backoff_factor;
     }
 }
@@ -437,6 +474,12 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
         _duo_seterr(ctx, "Invalid ikey or skey");
     } else if (code / 100 == 5) {
         /* 5xx indicates an internal server error */
+        ret = DUO_SERVER_ERROR;
+        _duo_seterr(ctx, "HTTP %d", code);
+    } else if (code == 429) {
+        /* Rate-limited past the retry cap: treat as a server-availability
+           failure so the caller applies failmode, rather than a terminal
+           abort. Reaching here means the backoff loop exhausted its retries. */
         ret = DUO_SERVER_ERROR;
         _duo_seterr(ctx, "HTTP %d", code);
     } else {
