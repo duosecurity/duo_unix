@@ -204,6 +204,15 @@ CONF
 )" '' \
    '^groups = admins #devops$'
 
+assert_scrub min_tls_preserved "$(cat <<'CONF'
+[duo]
+ikey = DIABC
+min_tls = 1.2
+CONF
+)" '' \
+   '^ikey = DIABC$' \
+   '^min_tls = 1\.2$'
+
 assert_scrub skey_in_comment_dropped "$(cat <<'CONF'
 # backup skey: 4MjRQ2NmRiM2Q1Y
 [duo]
