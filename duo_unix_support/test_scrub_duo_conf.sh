@@ -15,16 +15,29 @@ if [ ! -f "${COLLECTOR}" ]; then
     exit 2
 fi
 
+# Solaris /usr/bin/grep has no -E and /usr/bin/awk is the legacy nawk, which
+# does not support POSIX bracket expressions.  Prefer the GNU tools when present.
+if type ggrep >/dev/null 2>&1; then
+    GREP=ggrep
+else
+    GREP=grep
+fi
+if type gawk >/dev/null 2>&1; then
+    AWK=gawk
+else
+    AWK=awk
+fi
+
 FN_TMP="$(mktemp)"
 trap 'rm -f "${FN_TMP}"' EXIT
 
-awk '
+"${AWK}" '
     /^scrub_duo_conf \(\) \{$/ { in_fn = 1 }
     in_fn { print }
     in_fn && /^\}$/ { exit }
 ' "${COLLECTOR}" > "${FN_TMP}"
 
-if ! grep -q '^scrub_duo_conf ()' "${FN_TMP}"; then
+if ! "${GREP}" -q '^scrub_duo_conf ()' "${FN_TMP}"; then
     echo "failed to extract scrub_duo_conf from ${COLLECTOR}" >&2
     exit 2
 fi
@@ -62,7 +75,7 @@ assert_scrub () {
         return
     fi
 
-    if [ -n "${forbidden}" ] && grep -qE "${forbidden}" "${dst}"; then
+    if [ -n "${forbidden}" ] && "${GREP}" -qE "${forbidden}" "${dst}"; then
         printf 'FAIL %s: forbidden regex %q matched in output:\n' "${name}" "${forbidden}" >&2
         sed 's/^/    /' "${dst}" >&2
         FAIL=$((FAIL + 1))
@@ -70,7 +83,7 @@ assert_scrub () {
     fi
 
     while [ "$#" -gt 0 ]; do
-        if ! grep -qE "$1" "${dst}"; then
+        if ! "${GREP}" -qE "$1" "${dst}"; then
             printf 'FAIL %s: expected regex %q not found in output:\n' "${name}" "$1" >&2
             sed 's/^/    /' "${dst}" >&2
             FAIL=$((FAIL + 1))
@@ -137,6 +150,19 @@ CONF
 )" '4MjRQ2NmRiM2Q1Y|PW|skey backup|internal notes' \
    '^ikey = DIXXXX$' \
    '^host = api-example\.com$'
+
+assert_scrub section_header_preserved "$(cat <<'CONF'
+[duo]
+ikey = DIABC
+CONF
+)" '' \
+   '^\[duo\]$' \
+   '^ikey = DIABC$'
+
+assert_scrub section_header_indented "$(printf '  [duo]  \nikey = DIABC\n')" \
+   '' \
+   '^  \[duo\]  $' \
+   '^ikey = DIABC$'
 
 assert_scrub section_header_junk "$(cat <<'CONF'
 [duo] skey = INSIDE_SECTION_HEADER
