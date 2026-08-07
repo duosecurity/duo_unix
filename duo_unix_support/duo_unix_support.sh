@@ -164,8 +164,22 @@ scrub_duo_conf () {
                 }
                 prev = c
             }
-            sub(/[[:space:]]+$/, "", v)
+            sub(/[ \t\r]+$/, "", v)
             return v
+        }
+        # True for a bare "[section]" line, matching lib/ini.c semantics.
+        function is_section_header(v,    t, inner) {
+            t = v
+            sub(/^[ \t\r]+/, "", t)
+            sub(/[ \t\r]+$/, "", t)
+            if (length(t) < 2) {
+                return 0
+            }
+            if (substr(t, 1, 1) != "[" || substr(t, length(t), 1) != "]") {
+                return 0
+            }
+            inner = substr(t, 2, length(t) - 2)
+            return index(inner, "]") == 0
         }
         # Replace userinfo in http_proxy with "REDACTED@", keeping the host.
         function redact_userinfo(v,    lower, scheme_len, scheme, rest, i, c, auth_end, last_at) {
@@ -212,11 +226,11 @@ scrub_duo_conf () {
         }
         {
             line = $0
-            if (line ~ /^[[:space:]]*$/) {
+            if (line ~ /^[ \t\r]*$/) {
                 print line
                 next
             }
-            if (line ~ /^[[:space:]]*[#;]/) {
+            if (line ~ /^[ \t\r]*[#;]/) {
                 if (tolower(line) ~ /skey/) {
                     dropped++
                     next
@@ -224,23 +238,23 @@ scrub_duo_conf () {
                 print line
                 next
             }
-            if (line ~ /^[[:space:]]*\[[^]]*\][[:space:]]*$/) {
+            if (is_section_header(line)) {
                 print line
                 next
             }
-            if (match(line, /^[[:space:]]*[A-Za-z_][A-Za-z0-9._-]*[[:space:]]*=/) == 0) {
+            if (match(line, /^[ \t\r]*[A-Za-z_][A-Za-z0-9._-]*[ \t\r]*=/) == 0) {
                 next
             }
             eq = index(line, "=")
             name = substr(line, 1, eq - 1)
-            sub(/^[[:space:]]+/, "", name)
-            sub(/[[:space:]]+$/, "", name)
+            sub(/^[ \t\r]+/, "", name)
+            sub(/[ \t\r]+$/, "", name)
             if (!(name in allow)) {
                 dropped++
                 next
             }
             value = substr(line, eq + 1)
-            sub(/^[[:space:]]+/, "", value)
+            sub(/^[ \t\r]+/, "", value)
             value = strip_inline_comment(value)
             if (name == "http_proxy") {
                 value = redact_userinfo(value)
