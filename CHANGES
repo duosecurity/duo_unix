@@ -1,3 +1,12 @@
+duo_unix-2.3.0:
+- Added a min_tls config option that defines the lowest TLS version that will be negotiated
+- Fixed a bug with non-English locales that caused Duo API calls to fail
+- Fixed an AIX timezone issue that caused Duo API calls to fail
+- Added log warnings for a variety of edge cases
+- Fixed a bug with IPv6 addresses triggering the fallback_local_ip configuration
+- Resolved a number of syntax and logic bugs
+- Added Ubuntu 26 and Fedora 44 support
+
 duo_unix-2.2.3:
 - RHEL 10 and CentOS Stream 10 packages correctly include a SELinux module
 
