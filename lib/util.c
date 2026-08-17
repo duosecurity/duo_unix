@@ -206,6 +206,8 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         }
     } else if (strcmp(name, "verified_push") == 0) {
         cfg->verified_push = duo_set_boolean_option(val);
+    } else if (strcmp(name, "disable_ca_pinning") == 0) {
+        cfg->disable_ca_pinning = duo_set_boolean_option(val);
     } else if (strcmp(name, "min_tls") == 0) {
         /* Opt-in minimum TLS version floor. An empty or unrecognized value
            leaves the floor unset (current negotiation behavior) rather than

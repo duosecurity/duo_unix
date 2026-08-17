@@ -39,6 +39,14 @@ enum {
     DUO_MIN_TLS_1_3
 };
 
+/*
+ * Sentinel cafile value meaning "verify against the OS trust store instead of
+ * the pinned CA bundle" (set when disable_ca_pinning is enabled). Passed
+ * through the cafile string so it reaches https_init() without a new argument;
+ * the "##...##" form cannot collide with a real filesystem path.
+ */
+#define DUO_USE_SYSTEM_CERTS "##SYSTEM##"
+
 struct duo_config {
     char *ikey;
     char *skey;
@@ -61,6 +69,7 @@ struct duo_config {
     int  send_gecos;
     int  gecos_username_pos;
     int  verified_push;
+    int  disable_ca_pinning;
     int  min_tls;   /* Minimum TLS version floor: DUO_MIN_TLS_* */
 };
 

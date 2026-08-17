@@ -162,6 +162,27 @@ static void test_fallback_local_ip_false() {
     TEST_ASSERT_EQUAL(expected_cfg_value, cfg.local_ip_fallback);
 }
 
+/* Test duo_common_ini_handler disable_ca_pinning flag */
+static void test_disable_ca_pinning_true() {
+    struct duo_config cfg = {0};
+    char *name = "disable_ca_pinning";
+    char *value = "true";
+    int expected_cfg_value = 1;
+
+    duo_common_ini_handler(&cfg, SECTION, name, value);
+    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.disable_ca_pinning);
+}
+
+static void test_disable_ca_pinning_false() {
+    struct duo_config cfg = {0};
+    char *name = "disable_ca_pinning";
+    char *value = "false";
+    int expected_cfg_value = 0;
+
+    duo_common_ini_handler(&cfg, SECTION, name, value);
+    TEST_ASSERT_EQUAL(expected_cfg_value, cfg.disable_ca_pinning);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_set_boolean_option_yes);
@@ -183,5 +204,7 @@ int main() {
     RUN_TEST(test_accept_env_false);
     RUN_TEST(test_fallback_local_ip_true);
     RUN_TEST(test_fallback_local_ip_false);
+    RUN_TEST(test_disable_ca_pinning_true);
+    RUN_TEST(test_disable_ca_pinning_false);
     return UNITY_END();
 }
