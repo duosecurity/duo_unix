@@ -347,7 +347,11 @@ class MockDuoHandler(BaseHTTPRequestHandler):
             elif self.args["username"] == "retry-after-date-preauth-allow":
                 if self._rl_req_num == 0:
                     self._rl_req_num = 1
-                    timestr = time.strftime("%a, %d %b %Y %H:%M:%S %Z", time.gmtime(time.time()+3))
+                    # Emit a literal "GMT" zone: the client requires it (a
+                    # permissive %Z is a parser weakness), and %Z on gmtime()
+                    # yields a system-dependent abbreviation (often "UTC" or
+                    # empty) that the strict parser would reject.
+                    timestr = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime(time.time()+3))
                     return self._send(429, headers={"Retry-After": timestr})
                 else:
                     self._rl_req_num = 0
@@ -361,6 +365,17 @@ class MockDuoHandler(BaseHTTPRequestHandler):
                     ret["response"] = {"result": "allow", "status_msg": "preauth-allowed"}
                 else:
                     return self._send(500, "Wrong timeout")
+            elif self.args["username"] == "retry-after-forever":
+                # Malicious server: answer EVERY request with 429 and an
+                # in-range Retry-After. The client must still return after a
+                # bounded number of retries so failmode can be applied.
+                # Uses 1s so the bounded retry sequence completes well within
+                # the test harness timeout.
+                return self._send(429, headers={"Retry-After": "1"})
+            elif self.args["username"] == "retry-after-negative":
+                # Malicious server: negative Retry-After. The client must not
+                # spin (nanosleep EINVAL) and must still return, bounded.
+                return self._send(429, headers={"Retry-After": "-100"})
             else:
                 ret["response"] = { "result": "auth" }
                 client_supports_verified_push = bool(
@@ -432,10 +447,19 @@ class MockDuoHandler(BaseHTTPRequestHandler):
 class HTTPServerV6(HTTPServer):
     address_family = socket.AF_INET6
 
+TLS_VERSIONS = {
+    "1.0": ssl.TLSVersion.TLSv1,
+    "1.1": ssl.TLSVersion.TLSv1_1,
+    "1.2": ssl.TLSVersion.TLSv1_2,
+    "1.3": ssl.TLSVersion.TLSv1_3,
+}
+
+
 def main():
     port = 4443
     host = "::"
     anull = False
+    max_tls = None
 
     args = sys.argv[1:]
     if "--anull" in args:
@@ -444,6 +468,13 @@ def main():
     if "--malformed" in args:
         MockDuoHandler._malformed = True
         args.remove("--malformed")
+    # Cap the highest TLS version the mock server will negotiate, e.g.
+    # "--max-tls=1.2", to exercise the client's min_tls floor and its
+    # downgrade warning.
+    for arg in list(args):
+        if arg.startswith("--max-tls="):
+            max_tls = arg.split("=", 1)[1]
+            args.remove(arg)
 
     if len(args) == 0:
         cafile = os.path.realpath(
@@ -452,7 +483,7 @@ def main():
     elif len(args) == 1:
         cafile = args[0]
     else:
-        print("Usage: {0} [--anull] [--malformed] [certfile]\n".format(sys.argv[0]), file=sys.stderr)
+        print("Usage: {0} [--anull] [--malformed] [--max-tls=VERSION] [certfile]\n".format(sys.argv[0]), file=sys.stderr)
         sys.exit(1)
 
     httpd = HTTPServerV6((host, port), MockDuoHandler)
@@ -463,6 +494,15 @@ def main():
         ctx.maximum_version = ssl.TLSVersion.TLSv1_2
     else:
         ctx.load_cert_chain(cafile)
+    if max_tls is not None:
+        if max_tls not in TLS_VERSIONS:
+            print("Invalid --max-tls value: {0}\n".format(max_tls), file=sys.stderr)
+            sys.exit(1)
+        # Lowering the ceiling below TLS 1.2 requires relaxing the OpenSSL
+        # security level so the deprecated protocol/ciphers remain available.
+        if TLS_VERSIONS[max_tls] < ssl.TLSVersion.TLSv1_2:
+            ctx.set_ciphers("DEFAULT@SECLEVEL=0")
+        ctx.maximum_version = TLS_VERSIONS[max_tls]
     httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
 
     httpd.serve_forever()

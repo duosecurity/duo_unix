@@ -24,6 +24,21 @@ enum {
     DUO_FAIL_SECURE
 };
 
+/*
+ * Configured minimum TLS version floor. DUO_MIN_TLS_UNSET (0, the default
+ * after duo_config_default()) leaves the library's negotiation behavior
+ * unchanged for backwards compatibility. The library maps the remaining
+ * values to OpenSSL protocol-version constants when initializing the
+ * SSL context.
+ */
+enum {
+    DUO_MIN_TLS_UNSET = 0,
+    DUO_MIN_TLS_1_0,
+    DUO_MIN_TLS_1_1,
+    DUO_MIN_TLS_1_2,
+    DUO_MIN_TLS_1_3
+};
+
 struct duo_config {
     char *ikey;
     char *skey;
@@ -47,6 +62,7 @@ struct duo_config {
     int  gecos_username_pos;
     int  verified_push;
     int  disable_ca_pinning;
+    int  min_tls;   /* Minimum TLS version floor: DUO_MIN_TLS_* */
 };
 
 void duo_config_default(struct duo_config *cfg);
@@ -66,6 +82,14 @@ void close_config(struct duo_config *cfg);
 void cleanup_config_groups(struct duo_config *cfg);
 
 int duo_check_groups(struct passwd *pw, char **groups, int groups_cnt);
+
+/*
+ * Return 1 if a groups filter is configured but every pattern is a
+ * negation ('!'-prefixed), meaning the filter can never match any user
+ * and Duo 2FA is effectively disabled host-wide. Returns 0 for an empty
+ * filter or any config containing at least one non-negated pattern.
+ */
+int duo_groups_all_negated(const struct duo_config *cfg);
 
 void duo_log(
     int priority,

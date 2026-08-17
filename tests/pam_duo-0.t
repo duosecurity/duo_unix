@@ -14,7 +14,7 @@ Bad permissions on conf file
 
   $ ${TESTDIR}/../autotools/install-sh -c -m 644 ${TESTDIR}/confs/duo.conf ${TMPDIR}
   $ ${TESTDIR}/testpam.py -d -c ${TMPDIR}/duo.conf true
-  */duo.conf must be readable only by user '*' (glob)
+  */duo.conf must not be readable by other users* (glob)
 
 Ensure perms on conf files
 

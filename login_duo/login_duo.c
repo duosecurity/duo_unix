@@ -169,8 +169,8 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         int failmode = cfg.failmode;
         switch (i) {
         case -2:
-            fprintf(stderr, "%s must be readable only by "
-                "user '%s'\n", config, pw->pw_name);
+            fprintf(stderr, "%s must not be readable by other users "
+                "(a root-owned file may also be group-readable)\n", config);
             break;
         case -1:
             fprintf(stderr, "Couldn't open %s: %s\n",
@@ -195,6 +195,12 @@ do_auth(struct login_ctx *ctx, const char *cmd)
         return (EXIT_FAILURE);
     }
 
+    if (duo_groups_all_negated(&cfg)) {
+        duo_log(LOG_WARNING, "All configured groups are negated; no user "
+            "can match, so Duo 2FA is disabled for every user (use "
+            "\"*,!group\" to require 2FA for everyone except a group)",
+            NULL, NULL, NULL);
+    }
 
     prompts = cfg.prompts;
 
@@ -268,6 +274,12 @@ do_auth(struct login_ctx *ctx, const char *cmd)
             inet_pton(AF_INET6, ip, &addr6) != 1) {
             if (cfg.local_ip_fallback) {
                 host = duo_local_ip();
+                if (ip[0] != '\0') {
+                    duo_log(LOG_WARNING, "fallback_local_ip is replacing the "
+                        "remote client address with this server's IP; the "
+                        "address reported to Duo is not the client's",
+                        NULL, ip, NULL);
+                }
             }
         }
     } else if ((host = ip = (char *)ctx->host) != NULL) {
@@ -275,6 +287,12 @@ do_auth(struct login_ctx *ctx, const char *cmd)
             inet_pton(AF_INET6, ip, &addr6) != 1) {
             if (cfg.local_ip_fallback) {
                 host = duo_local_ip();
+                if (ip[0] != '\0') {
+                    duo_log(LOG_WARNING, "fallback_local_ip is replacing the "
+                        "remote client address with this server's IP; the "
+                        "address reported to Duo is not the client's",
+                        NULL, ip, NULL);
+                }
             }
         }
     }
@@ -290,7 +308,7 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     if ((duo = duo_open(cfg.apihost, cfg.ikey, cfg.skey,
                     "login_duo/" PACKAGE_VERSION,
                     cafile,
-                    cfg.https_timeout, cfg.http_proxy)) == NULL) {
+                    cfg.https_timeout, cfg.http_proxy, cfg.min_tls)) == NULL) {
         duo_log(LOG_ERR, "Couldn't open Duo API handle",
             pw->pw_name, host, NULL);
         close_config(&cfg);

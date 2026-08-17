@@ -35,10 +35,22 @@ static void test_wrong_flag_null() {
     TEST_ASSERT_FALSE(duo_common_ini_handler(&cfg, SECTION, NULL_STR, value));
 }
 
+/* The removed dev_fips_mode option must be accepted as a no-op (return
+   true) rather than rejected, so a stale key left in a config after
+   upgrade does not abort parsing and silently disable 2FA. */
+static void test_dev_fips_mode_accepted_as_noop() {
+    struct duo_config cfg = {0};
+    char *name = "dev_fips_mode";
+    char *value = "no";
+
+    TEST_ASSERT_TRUE(duo_common_ini_handler(&cfg, SECTION, name, value));
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_wrong_flag);
     RUN_TEST(test_wrong_flag_empty);
     RUN_TEST(test_wrong_flag_null);
+    RUN_TEST(test_dev_fips_mode_accepted_as_noop);
     return UNITY_END();
 }

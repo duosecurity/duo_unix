@@ -32,6 +32,7 @@ from config import (
     MOCKDUO_GECOS_LONG_DELIM,
     MOCKDUO_GECOS_SEND_UNPARSED,
     MOCKDUO_GECOS_SLASH_DELIM_3_POS,
+    MOCKDUO_GROUPS_ALL_NEGATED,
     MOCKDUO_GROUPS_STAR,
     MOCKDUO_USERS,
     MOCKDUO_USERS_ADMINS,
@@ -216,14 +217,54 @@ class TestLoginDuoAnonCipher(CommonTestCase):
             )
 
 
+class TestLoginDuoMinTLS(CommonTestCase):
+    """The min_tls floor must reject a server that cannot meet it, and must
+    allow a server that can. The mock server is capped at TLS 1.2."""
+
+    def run(self, result=None):
+        with MockDuo(max_tls="1.2"):
+            return super(TestLoginDuoMinTLS, self).run(result)
+
+    def _config(self, **extra):
+        return DuoUnixConfig(
+            ikey="DIXYZV6YM8IFYVWBINCA",
+            skey="yWHSMhWucAcp7qvuH3HWTaSaKABs8Gaddiv1NIRo",
+            host="localhost:4443",
+            cafile="certs/mockduo-ca.pem",
+            failmode="secure",
+            **extra,
+        )
+
+    def test_min_tls_1_3_rejects_1_2_server(self):
+        """min_tls=1.3 against a TLS 1.2 server must fail the handshake."""
+        with TempConfig(self._config(min_tls="1.3")) as temp:
+            result = login_duo(["-d", "-c", temp.name, "-f", "preauth-allow", "true"])
+            self.assertEqual(result["returncode"], 1)
+            self.assertRegexSomeline(result["stderr"], r"Couldn't connect to")
+
+    def test_min_tls_1_2_allows_1_2_server(self):
+        """min_tls=1.2 against a TLS 1.2 server must connect and authenticate."""
+        with TempConfig(self._config(min_tls="1.2")) as temp:
+            result = login_duo(["-d", "-c", temp.name, "-f", "preauth-allow", "true"])
+            self.assertRegexSomeline(result["stderr"], r"preauth-allowed")
+            self.assertNotRegexAnyline(result["stderr"], r"Couldn't connect to")
+
+    def test_min_tls_unset_allows_1_2_server(self):
+        """An unset min_tls must preserve the existing permissive behavior."""
+        with TempConfig(self._config()) as temp:
+            result = login_duo(["-d", "-c", temp.name, "-f", "preauth-allow", "true"])
+            self.assertRegexSomeline(result["stderr"], r"preauth-allowed")
+            self.assertNotRegexAnyline(result["stderr"], r"Couldn't connect to")
+
+
 class TestMockDuoWithValidCert(CommonSuites.WithValidCert):
     def call_binary(self, *args):
         return login_duo(*args)
 
 
 class TestLoginDuoPreauthStates(CommonSuites.PreauthStates):
-    def call_binary(self, *args):
-        return login_duo(*args)
+    def call_binary(self, *args, **kwargs):
+        return login_duo(*args, **kwargs)
 
 
 class TestLoginDuoEscapeInjection(CommonSuites.EscapeInjection):
@@ -571,6 +612,32 @@ class TestLoginDuoGroups(CommonTestCase):
             self.assertRegexSomeline(
                 result["stderr"],
                 r"User preauth-allow bypassed Duo 2FA due to user's UNIX group",
+            )
+
+    def test_all_negated_groups_warns(self):
+        """An all-negated groups filter matches no user and must warn."""
+        with TempConfig(MOCKDUO_GROUPS_ALL_NEGATED) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={"UID": "1003"},
+                preload_script=os.path.join(TESTDIR, "groups.py"),
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"All configured groups are negated",
+            )
+
+    def test_mixed_groups_does_not_warn(self):
+        """A filter with at least one positive pattern must stay silent."""
+        with TempConfig(MOCKDUO_ADMINS_NO_USERS) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={"UID": "1003"},
+                preload_script=os.path.join(TESTDIR, "groups.py"),
+            )
+            self.assertNotRegexAnyline(
+                result["stderr"],
+                r"All configured groups are negated",
             )
 
 
@@ -949,6 +1016,56 @@ class TestLoginDuoIPv6(CommonTestCase):
             self.assertRegexSomeline(
                 result["stderr"],
                 r"Skipped Duo login for 'preauth-allow' from 1\.2\.3\.4",
+            )
+
+    def test_hostname_fallback_warns(self):
+        """Replacing a remote hostname with the server IP must log a warning."""
+        with TempConfig(MOCKDUO_FALLBACK) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={
+                    "SSH_CONNECTION": "badhost.example.com 50310 server 22",
+                    "FALLBACK": "1",
+                    "UID": "1001",
+                },
+                preload_script=os.path.join(TESTDIR, "login_duo.py"),
+            )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"fallback_local_ip is replacing the remote client address",
+            )
+
+    def test_ip_literal_fallback_does_not_warn(self):
+        """An IPv4 literal is used as-is; no substitution, so no warning."""
+        with TempConfig(MOCKDUO_FALLBACK) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={
+                    "SSH_CONNECTION": "203.0.113.5 50310 server 22",
+                    "FALLBACK": "1",
+                    "UID": "1001",
+                },
+                preload_script=os.path.join(TESTDIR, "login_duo.py"),
+            )
+            self.assertNotRegexAnyline(
+                result["stderr"],
+                r"fallback_local_ip is replacing the remote client address",
+            )
+
+    def test_local_session_fallback_does_not_warn(self):
+        """A local session (no SSH_CONNECTION) must not emit the remote warning."""
+        with TempConfig(MOCKDUO_FALLBACK) as temp:
+            result = login_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={
+                    "FALLBACK": "1",
+                    "UID": "1001",
+                },
+                preload_script=os.path.join(TESTDIR, "login_duo.py"),
+            )
+            self.assertNotRegexAnyline(
+                result["stderr"],
+                r"fallback_local_ip is replacing the remote client address",
             )
 
 

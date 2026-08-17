@@ -67,6 +67,13 @@ class CommonTestCase(unittest.TestCase):
 
         self.assertTrue(found, f"Regex '{regex}' not found in any lines of {result}")
 
+    def assertNotRegexAnyline(self, result: Sequence[str], regex: str):
+        for line in result:
+            self.assertIsNone(
+                re.search(regex, line),
+                f"Regex '{regex}' unexpectedly found in line '{line}'",
+            )
+
     def call_binary(self, *args, **kwargs):
         raise NotImplementedError
 
@@ -89,7 +96,7 @@ class CommonSuites:
                 result = self.call_binary(["-d", "-c", temp.name, "true"])
                 self.assertRegexSomeline(
                     result["stderr"],
-                    "{name} must be readable only by user '.*'".format(name=temp.name),
+                    "{name} must not be readable by other users".format(name=temp.name),
                 )
 
         def test_bad_configuration_files(self):
@@ -368,6 +375,55 @@ class CommonSuites:
             execution_time = time.time() - start_time
             # 1.x seconds + 2.x seconds executed twice
             self.assertGreater(execution_time, 6)
+
+        def test_retry_after_forever_is_bounded(self):
+            """A server that always returns 429 with an in-range Retry-After
+            must not loop forever: the retry cap is reached and failmode is
+            applied instead of hanging. Both failmode=safe (allow, "Failsafe")
+            and failmode=secure (deny, "Failsecure", exit 1) are exercised --
+            this PR changes how the failmode gate is reached for 429s, so the
+            secure half is the security-relevant path to pin."""
+            for config in [MOCKDUO_CONF, MOCKDUO_FAILSECURE]:
+                start_time = time.time()
+                with TempConfig(config) as temp:
+                    result = self.call_binary(
+                        ["-d", "-c", temp.name, "-f", "retry-after-forever", "true"],
+                        timeout=30,
+                    )
+                execution_time = time.time() - start_time
+                self.assertRegexSomeline(
+                    result["stderr"],
+                    r"{prefix} Duo login for 'retry-after-forever'".format(
+                        prefix=config.failmode_as_prefix()
+                    ),
+                )
+                if config.get("failmode") == "secure":
+                    self.assertEqual(result["returncode"], 1)
+                # 6 retries at ~1s each; must terminate well under an
+                # unbounded loop.
+                self.assertLess(execution_time, 20)
+
+        def test_retry_after_negative_is_terminal(self):
+            """A negative Retry-After is present-but-unusable, so it is
+            terminal: the client does not sleep on it (no nanosleep EINVAL
+            spin) and does not treat it as a header-less 429 that would earn
+            the full exponential backoff. It returns at once and applies
+            failmode. A hostile server must not be able to buy stall time or
+            extra requests by sending an invalid value."""
+            start_time = time.time()
+            with TempConfig(MOCKDUO_CONF) as temp:
+                result = self.call_binary(
+                    ["-d", "-c", temp.name, "-f", "retry-after-negative", "true"],
+                    timeout=30,
+                )
+            execution_time = time.time() - start_time
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Failsafe Duo login for 'retry-after-negative'",
+            )
+            # Terminal on the first invalid 429: no backoff, no spin. Must be
+            # far faster than the ~63s the old header-less-backoff path took.
+            self.assertLess(execution_time, 10)
 
     class EscapeInjection(CommonTestCase):
         def run(self, result=None):

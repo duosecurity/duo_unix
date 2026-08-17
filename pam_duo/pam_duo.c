@@ -157,8 +157,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         return (PAM_SERVICE_ERR);
     } else if (i == -2) {
         int failmode = cfg.failmode;
-        duo_syslog(LOG_ERR, "%s must be readable only by user 'root'",
-            config);
+        duo_syslog(LOG_ERR, "%s must not be readable by other users "
+            "(a root-owned file may also be group-readable)", config);
         close_config(&cfg);
         return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     } else if (i == -1) {
@@ -183,6 +183,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         duo_syslog(LOG_ERR, "autopush and verified_push cannot both be enabled in %s", config);
         close_config(&cfg);
         return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
+    }
+
+    if (duo_groups_all_negated(&cfg)) {
+        duo_log(LOG_WARNING, "All configured groups are negated; no user "
+            "can match, so Duo 2FA is disabled for every user (use "
+            "\"*,!group\" to require 2FA for everyone except a group)",
+            NULL, NULL, NULL);
     }
 
     /* Check user */
@@ -281,6 +288,23 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
         /* Not an IPv4 or IPv6 literal — likely a hostname, check fallback */
         if (cfg.local_ip_fallback) {
             host = duo_local_ip();
+            /* Only a non-empty PAM_RHOST is a real remote client; the empty
+               case is a local (su/sudo) session and must stay silent. */
+            if (ip[0] != '\0') {
+                duo_log(LOG_WARNING, "fallback_local_ip is replacing the "
+                    "remote client address with this server's IP; the "
+                    "address reported to Duo is not the client's",
+                    NULL, ip, NULL);
+            }
+        } else if (ip[0] != '\0') {
+            /* PAM_RHOST is not an IP literal (typically a resolved hostname);
+               it is still sent as-is but Duo network policies match on IP, so
+               they will not apply. */
+            duo_log(LOG_WARNING, "Client address is not a valid IP address; "
+                "Duo network policies will not match this login (if this is "
+                "sshd, set \"UseDNS no\" in sshd_config so the client IP is "
+                "passed)",
+                NULL, ip, NULL);
         }
     }
 
@@ -294,7 +318,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     }
     if ((duo = duo_open(cfg.apihost, cfg.ikey, cfg.skey,
                     "pam_duo/" PACKAGE_VERSION,
-                    cafile, cfg.https_timeout, cfg.http_proxy)) == NULL) {
+                    cafile, cfg.https_timeout, cfg.http_proxy,
+                    cfg.min_tls)) == NULL) {
         duo_log(LOG_ERR, "Couldn't open Duo API handle", pw->pw_name, host, NULL);
         close_config(&cfg);
         return (PAM_SERVICE_ERR);

@@ -176,6 +176,12 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         cfg->send_gecos = duo_set_boolean_option(val);
     } else if (strcmp(name, "gecos_parsed") == 0) {
         duo_log(LOG_ERR, "The gecos_parsed configuration item for Duo Unix is deprecated and no longer has any effect. Use gecos_delim and gecos_username_pos instead", NULL, NULL, NULL);
+    } else if (strcmp(name, "dev_fips_mode") == 0) {
+        /* Accepted as a no-op for backward compatibility. This option was
+           removed, but rejecting it would abort parsing of the rest of the
+           config file (including any later failmode directive) and could
+           silently disable 2FA on upgrade for configs that still set it. */
+        duo_log(LOG_ERR, "The dev_fips_mode configuration item for Duo Unix is deprecated and no longer has any effect", NULL, NULL, NULL);
     } else if (strcmp(name, "gecos_delim") == 0) {
         if (strlen(val) != 1) {
             fprintf(stderr, "Invalid character option length. Character fields must be 1 character long: '%s'\n", val);
@@ -202,6 +208,22 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
         cfg->verified_push = duo_set_boolean_option(val);
     } else if (strcmp(name, "disable_ca_pinning") == 0) {
         cfg->disable_ca_pinning = duo_set_boolean_option(val);
+    } else if (strcmp(name, "min_tls") == 0) {
+        /* Opt-in minimum TLS version floor. An empty or unrecognized value
+           leaves the floor unset (current negotiation behavior) rather than
+           selecting the least-safe option. */
+        if (strcmp(val, "1.2") == 0) {
+            cfg->min_tls = DUO_MIN_TLS_1_2;
+        } else if (strcmp(val, "1.3") == 0) {
+            cfg->min_tls = DUO_MIN_TLS_1_3;
+        } else if (strcmp(val, "1.1") == 0) {
+            cfg->min_tls = DUO_MIN_TLS_1_1;
+        } else if (strcmp(val, "1.0") == 0) {
+            cfg->min_tls = DUO_MIN_TLS_1_0;
+        } else {
+            fprintf(stderr, "Invalid min_tls '%s' (expected 1.0, 1.1, 1.2, or 1.3)\n", val);
+            return (0);
+        }
     } else {
         /* Couldn't handle the option, maybe it's target specific? */
         return (0);
@@ -279,6 +301,47 @@ duo_check_groups(struct passwd *pw, char **groups, int groups_cnt)
     } else {
         return 1;
     }
+}
+
+int
+duo_groups_all_negated(const struct duo_config *cfg)
+{
+    int i;
+
+    if (cfg->groups_cnt <= 0) {
+        return 0;
+    }
+    for (i = 0; i < cfg->groups_cnt; i++) {
+        const char *p = cfg->groups[i];
+
+        if (p == NULL) {
+            return 0;
+        }
+        /*
+         * Each stored token is a comma-separated pattern-list, and only
+         * the individual patterns can be negated. A single non-negated
+         * subpattern (e.g. the "admin" in "!wheel,admin") can still match
+         * a user, so the filter is not all-negated. An empty subpattern
+         * (from a leading, trailing, or doubled comma) matches no group,
+         * so it is skipped rather than treated as a positive match.
+         */
+        while (*p != '\0') {
+            if (*p == ',') {
+                p++;
+                continue;
+            }
+            if (*p != '!') {
+                return 0;
+            }
+            while (*p != '\0' && *p != ',') {
+                p++;
+            }
+            if (*p == ',') {
+                p++;
+            }
+        }
+    }
+    return 1;
 }
 
 int

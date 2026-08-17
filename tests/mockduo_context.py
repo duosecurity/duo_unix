@@ -70,11 +70,13 @@ class MockDuoTimeoutException(MockDuoException):
 
 
 class MockDuo:
-    def __init__(self, cert=NORMAL_CERT, anull=False, malformed=False):
+    def __init__(self, cert=NORMAL_CERT, anull=False, malformed=False, max_tls=None):
         self.cert = cert
         self.cmd = ["python3", os.path.join(TESTDIR, "mockduo.py")]
         if malformed:
             self.cmd.append("--malformed")
+        if max_tls is not None:
+            self.cmd.append("--max-tls={0}".format(max_tls))
         if anull:
             self.cmd.append("--anull")
         else:

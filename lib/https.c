@@ -14,9 +14,12 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 
+#include <errno.h>
+#include <limits.h>
 #include <netdb.h>
 #include <poll.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,6 +40,7 @@
 #include "http_parser.h"
 #include "https.h"
 #include "match.h"
+#include "util.h"
 
 #ifdef HAVE_X509_TEA_SET_STATE
 extern void X509_TEA_set_state(int change);
@@ -96,28 +100,87 @@ __on_body(http_parser *p, const char *buf, size_t len)
     return (BIO_write(req->body, buf, len) != len);
 }
 
+/* Convert a validated relative delay (delta-seconds) to an absolute time_t
+   deadline relative to `now`, or DUO_RETRY_AFTER_INVALID if the value is
+   unusable. Takes `now` as a parameter so the overflow guard is unit-testable
+   without depending on the wall clock. */
+time_t
+_retry_after_deadline(long delay_seconds, int parse_errno, time_t now)
+{
+    /* A day is far larger than any legitimate retry delay for an auth flow.
+       An over-ceiling value is rejected as invalid (not merely capped): the
+       caller treats DUO_RETRY_AFTER_INVALID as terminal, so a hostile server
+       cannot use an implausibly large value to buy extra backoff retries. */
+    const long max_delay_seconds = 86400;
+
+    /* Largest representable time_t. time_t is signed in every environment we
+       target; derive its max from its width so the headroom check holds on
+       32-bit time_t as well as 64-bit. */
+    const time_t time_t_max =
+        (time_t)(((uintmax_t)1 << (sizeof(time_t) * CHAR_BIT - 1)) - 1);
+
+    /* Reject out-of-range (ERANGE from strtol), negative, or implausibly
+       large delays rather than performing an overflowing time_t addition. */
+    if (parse_errno == ERANGE || delay_seconds < 0 ||
+        delay_seconds > max_delay_seconds) {
+        return DUO_RETRY_AFTER_INVALID;
+    }
+    /* Guard the addition itself: even a capped delay can overflow when the
+       clock is near the time_t maximum (e.g. 32-bit time_t approaching
+       2038). Reject rather than wrap. */
+    if (now > time_t_max - (time_t)delay_seconds) {
+        return DUO_RETRY_AFTER_INVALID;
+    }
+    return now + delay_seconds;
+}
+
 time_t
 _parse_retry_after(const char *header_value)
 {
+    /* Only an absent header is "none"; a present-but-unusable header is
+       DUO_RETRY_AFTER_INVALID so the caller does not treat it as license to
+       back off. */
     if (header_value == NULL) {
-        return (time_t)-1;
+        return DUO_RETRY_AFTER_NONE;
     }
 
-    /* Try to parse as an integer (delay in seconds) */
+    /* Try to parse as an integer (delay in seconds). Snapshot errno right
+       after strtol so a later call (e.g. time()) can't clobber it before
+       _retry_after_deadline reads it. */
     char *endptr;
-    long delay_seconds = strtol(header_value, &endptr, 10);
-    if (*endptr == '\0') {
-        return time(NULL) + delay_seconds;
+    long delay_seconds;
+    int strtol_errno;
+
+    errno = 0;
+    delay_seconds = strtol(header_value, &endptr, 10);
+    strtol_errno = errno;
+    if (endptr != header_value && *endptr == '\0') {
+        return _retry_after_deadline(delay_seconds, strtol_errno, time(NULL));
     }
 
-    /* Try to parse as a date */
+    /* Try to parse as an HTTP-date. Use a literal "GMT" rather than %Z:
+       glibc's %Z consumes any token (or none) to the next whitespace/NUL
+       without validating it or applying an offset, so "PST", "XYZ", and an
+       absent zone would all be accepted and treated as GMT. Requiring the
+       literal and then checking for full consumption rejects a bogus or
+       trailing zone. */
     struct tm tm;
     memset(&tm, 0, sizeof(struct tm));
-    if (strptime(header_value, "%a, %d %b %Y %H:%M:%S %Z", &tm) != NULL) {
-        return timegm(&tm);
+    const char *rest = strptime(header_value,
+        "%a, %d %b %Y %H:%M:%S GMT", &tm);
+    if (rest == NULL || *rest != '\0') {
+        return DUO_RETRY_AFTER_INVALID;
     }
 
-    return (time_t)-1;
+    /* Run the parsed date through the same validation as the delta-seconds
+       branch: reject a past or unrepresentable date, and guard the time_t
+       overflow. A past date yields a non-positive delta and is rejected. */
+    time_t now = time(NULL);
+    time_t when = timegm(&tm);
+    if (when == (time_t)-1 || when <= now) {
+        return DUO_RETRY_AFTER_INVALID;
+    }
+    return _retry_after_deadline(when - now, 0, now);
 }
 
 static int
@@ -677,8 +740,66 @@ HMAC_CTX_free(HMAC_CTX *ctx)
 }
 #endif
 
+/*
+ * Apply the configured minimum TLS version floor to the SSL context.
+ * min_tls is a DUO_MIN_TLS_* value; DUO_MIN_TLS_UNSET leaves the context
+ * untouched so existing deployments keep their current negotiation behavior.
+ * Returns 0 on success, or -1 if the requested floor cannot be enforced by
+ * the linked TLS library (e.g. a 1.3 floor on a library without TLS 1.3).
+ * Callers must fail rather than silently negotiate below the requested floor.
+ */
+static int
+_apply_min_tls(SSL_CTX *ssl_ctx, int min_tls)
+{
+    if (min_tls == DUO_MIN_TLS_UNSET) {
+        return (0);
+    }
+    /* A 1.3 floor requires a TLS 1.3-capable library. Reject it otherwise
+       rather than lowering the floor, which would violate the documented
+       guarantee that connections below the configured version fail. */
+    if (min_tls == DUO_MIN_TLS_1_3) {
+#ifndef TLS1_3_VERSION
+        ctx.errstr = "min_tls 1.3 requires a TLS 1.3-capable library";
+        return (-1);
+#endif
+    }
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
+    int version = 0;
+    switch (min_tls) {
+    case DUO_MIN_TLS_1_0: version = TLS1_VERSION; break;
+    case DUO_MIN_TLS_1_1: version = TLS1_1_VERSION; break;
+    case DUO_MIN_TLS_1_2: version = TLS1_2_VERSION; break;
+#ifdef TLS1_3_VERSION
+    case DUO_MIN_TLS_1_3: version = TLS1_3_VERSION; break;
+#endif
+    default: return (-1);
+    }
+    if (!SSL_CTX_set_min_proto_version(ssl_ctx, version)) {
+        ctx.errstr = "failed to set minimum TLS version";
+        return (-1);
+    }
+#else
+    /* Older OpenSSL / LibreSSL lack SSL_CTX_set_min_proto_version; approximate
+       the floor by disabling protocols below it via SSL_CTX_set_options. */
+    long opts = 0;
+    if (min_tls >= DUO_MIN_TLS_1_1) {
+        opts |= SSL_OP_NO_TLSv1;
+    }
+    if (min_tls >= DUO_MIN_TLS_1_2) {
+        opts |= SSL_OP_NO_TLSv1_1;
+    }
+#ifdef SSL_OP_NO_TLSv1_2
+    if (min_tls >= DUO_MIN_TLS_1_3) {
+        opts |= SSL_OP_NO_TLSv1_2;
+    }
+#endif
+    SSL_CTX_set_options(ssl_ctx, opts);
+#endif
+    return (0);
+}
+
 HTTPScode
-https_init(const char *cafile, const char *http_proxy)
+https_init(const char *cafile, const char *http_proxy, int min_tls)
 {
     X509_STORE *store;
     X509 *cert;
@@ -708,6 +829,13 @@ https_init(const char *cafile, const char *http_proxy)
     /* Blacklist SSLv23 */
     const long blacklist = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
     SSL_CTX_set_options(ctx.ssl_ctx, blacklist);
+    /* Apply the opt-in minimum TLS version floor, if configured. Fail rather
+       than negotiate below a floor the library cannot enforce. */
+    if (_apply_min_tls(ctx.ssl_ctx, min_tls) != 0) {
+        SSL_CTX_free(ctx.ssl_ctx);
+        ctx.ssl_ctx = NULL;
+        return (HTTPS_ERR_CLIENT);
+    }
     /* Exclude anonymous and null-encryption ciphers for TLS 1.2 and below.
        Failure is non-fatal: on TLS 1.3-only builds no 1.2 ciphers exist,
        and TLS 1.3 has no aNULL suites. */
@@ -728,6 +856,11 @@ https_init(const char *cafile, const char *http_proxy)
         SSL_CTX_set_verify(ctx.ssl_ctx, SSL_VERIFY_PEER, NULL);
     } else if (cafile[0] == '\0') {
         /* Skip verification */
+        duo_log(LOG_WARNING, "TLS certificate verification is disabled "
+            "(noverify is set, or cafile is empty); the connection to Duo is "
+            "encrypted but not authenticated and cannot be trusted. Remove "
+            "noverify and set a valid cafile to restore verification",
+            NULL, NULL, NULL);
         SSL_CTX_set_verify(ctx.ssl_ctx, SSL_VERIFY_NONE, NULL);
     } else if (strcmp(cafile, HTTPS_USE_SYSTEM_CERTS) == 0) {
         /* Use OS trust store without pinning, TLS verification still enforced */
@@ -781,6 +914,27 @@ https_init(const char *cafile, const char *http_proxy)
     return (0);
 }
 
+/*
+ * Warn once per connection if the negotiated protocol is older than TLS 1.2.
+ * This fires regardless of the min_tls setting: it is a signal that the Duo
+ * endpoint (or an intermediary) negotiated a deprecated protocol version.
+ */
+static void
+_warn_on_tls_downgrade(SSL *ssl)
+{
+    int version;
+
+    if (ssl == NULL) {
+        return;
+    }
+    version = SSL_version(ssl);
+    if (version < TLS1_2_VERSION) {
+        duo_log(LOG_WARNING, "Negotiated a TLS version older than 1.2 with "
+            "the Duo service; set min_tls to require a newer protocol",
+            NULL, NULL, SSL_get_version(ssl));
+    }
+}
+
 HTTPScode
 https_open(struct https_request **reqp, const char *host, const char *useragent)
 {
@@ -830,6 +984,7 @@ https_open(struct https_request **reqp, const char *host, const char *useragent)
         }
 
         /* SSL already established, skip to the end */
+        _warn_on_tls_downgrade(req->ssl);
         *reqp = req;
         return (HTTPS_OK);
     }
@@ -896,6 +1051,7 @@ https_open(struct https_request **reqp, const char *host, const char *useragent)
         https_close(&req);
         return connection_error;
     }
+    _warn_on_tls_downgrade(req->ssl);
     *reqp = req;
 
     return (HTTPS_OK);
