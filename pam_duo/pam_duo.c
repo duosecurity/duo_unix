@@ -316,6 +316,11 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     } else {
         cafile = cfg.cafile;
     }
+    duo_syslog(LOG_INFO, "CA bundle version: %s", DUO_CA_BUNDLE_VERSION);
+    if (cfg.disable_ca_pinning) {
+        duo_log(LOG_WARNING, "CA certificate pinning is disabled",
+            NULL, NULL, NULL);
+    }
     if ((duo = duo_open(cfg.apihost, cfg.ikey, cfg.skey,
                     "pam_duo/" PACKAGE_VERSION,
                     cafile, cfg.https_timeout, cfg.http_proxy,

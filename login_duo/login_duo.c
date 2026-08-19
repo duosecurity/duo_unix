@@ -305,6 +305,11 @@ do_auth(struct login_ctx *ctx, const char *cmd)
     } else {
         cafile = cfg.cafile;
     }
+    duo_syslog(LOG_INFO, "CA bundle version: %s", DUO_CA_BUNDLE_VERSION);
+    if (cfg.disable_ca_pinning) {
+        duo_log(LOG_WARNING, "CA certificate pinning is disabled",
+            NULL, NULL, NULL);
+    }
     if ((duo = duo_open(cfg.apihost, cfg.ikey, cfg.skey,
                     "login_duo/" PACKAGE_VERSION,
                     cafile,

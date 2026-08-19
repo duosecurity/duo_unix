@@ -513,7 +513,7 @@ class TestLoginDuoTimeout(CommonTestCase):
                 preload_script=os.path.join(TESTDIR, "login_duo.py"),
                 timeout=10,
             )
-            for line in result["stderr"][1:4]:
+            for line in result["stderr"][2:5]:
                 self.assertEqual(line, "Attempting connection")
 
             self.assertRegexSomeline(

@@ -297,7 +297,7 @@ class TestPamPrompts(CommonTestCase):
     def test_max_prompts_equals_maximum(self):
         with TempConfig(MOCKDUO_PROMPTS_DEFAULT) as temp:
             result = pam_duo(["-d", "-f", "pam_prompt", "-c", temp.name, "true"])
-            for i in range(0, 3):
+            for i in range(1, 4):
                 self.assertRegex(
                     result["stderr"][i], "Failed Duo login for 'pam_prompt'"
                 )
@@ -346,7 +346,7 @@ class TestPamPreauthFailures(CommonSuites.PreauthFailures):
 
 @unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
 class TestPamDuoInteractive(CommonSuites.Interactive):
-    INITIAL_TEXT = []
+    INITIAL_TEXT = [".*CA bundle version.*"]
 
     def call_binary(self, *args, **kwargs):
         return pam_duo_interactive(*args, **kwargs)

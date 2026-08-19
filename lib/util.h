@@ -47,6 +47,13 @@ enum {
  */
 #define DUO_USE_SYSTEM_CERTS "##SYSTEM##"
 
+/* CA bundle version reported in the user agent string. Update this when
+ * the pinned certificate bundle is refreshed. */
+#define DUO_CA_BUNDLE_VERSION "1.0"
+
+/* Returns "enabled" or "disabled" based on the cafile value */
+const char *duo_ca_pinning_status(const char *cafile);
+
 struct duo_config {
     char *ikey;
     char *skey;
