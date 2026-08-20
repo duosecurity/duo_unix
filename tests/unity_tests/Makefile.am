@@ -7,12 +7,12 @@
 # All rights reserved.
 #
 
-AM_CPPFLAGS = -I$(top_srcdir)/compat -I$(top_srcdir)/lib -I$(top_srcdir)/pam_duo -I$(top_srcdir)/tests/unity_tests/$(UNITY_VERSION) @OPENSSL_INCLUDES@
+AM_CPPFLAGS = -I$(top_srcdir)/compat -I$(top_srcdir)/lib -I$(top_srcdir)/pam_duo -I$(top_srcdir)/tests/unity_tests/$(UNITY_VERSION) @OPENSSL_INCLUDES@ -DTOP_SRCDIR=\"$(abs_top_srcdir)\"
 TESTS_ENVIRONMENT = env BUILDDIR=$(abs_top_builddir)/unityrunner
 
 SUBDIRS = $(UNITY_VERSION)
 
-UNITY_TESTS = unityrunner add_param_test common_ini_wrong_flag_test common_ini_failmode_test common_ini_prompts_test common_ini_https_timeout common_ini_string_options common_ini_bool_options_test common_ini_min_tls_test common_ini_groups_negation_test add_groupname_test gecos_ini_test duo_log_test https_ipaddr_test sanitize_str_test ga_init_retry_test parse_retry_after_test parse_config_perms_test
+UNITY_TESTS = unityrunner add_param_test common_ini_wrong_flag_test common_ini_failmode_test common_ini_prompts_test common_ini_https_timeout common_ini_string_options common_ini_bool_options_test common_ini_min_tls_test common_ini_groups_negation_test add_groupname_test gecos_ini_test duo_log_test https_ipaddr_test sanitize_str_test ga_init_retry_test parse_retry_after_test parse_config_perms_test useragent_test
 
 # Create the unity runner executable
 check_PROGRAMS = $(UNITY_TESTS)

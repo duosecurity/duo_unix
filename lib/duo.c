@@ -101,8 +101,9 @@ duo_open(const char *host, const char *ikey, const char *skey,
             (ctx->skey = strdup(skey)) == NULL) {
         return (duo_close(ctx));
     }
-    if (asprintf(&ctx->useragent, "%s (%s) libduo/%s",
-            progname, CANONICAL_HOST, PACKAGE_VERSION) == -1) {
+    if (asprintf(&ctx->useragent, "%s (%s) libduo/%s ca_bundle/%s (ca_pinning=%s)",
+            progname, CANONICAL_HOST, PACKAGE_VERSION,
+            DUO_CA_BUNDLE_VERSION, duo_ca_pinning_status(cafile)) == -1) {
         return (duo_close(ctx));
     }
     if (https_init(cafile, http_proxy, min_tls) != HTTPS_OK) {

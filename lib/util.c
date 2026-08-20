@@ -25,6 +25,16 @@
 
 int duo_debug = 0;
 
+const char *
+duo_ca_pinning_status(const char *cafile)
+{
+    if (cafile != NULL && (cafile[0] == '\0' ||
+        strcmp(cafile, DUO_USE_SYSTEM_CERTS) == 0)) {
+        return "disabled";
+    }
+    return "enabled";
+}
+
 void
 duo_config_default(struct duo_config *cfg)
 {

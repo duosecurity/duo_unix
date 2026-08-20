@@ -642,6 +642,7 @@ class CommonSuites:
         PROMPT_REGEX = ".* or option \\(1-4\\): $"
         INITIAL_TEXT = [
             ".*Loading config file .*",
+            ".*CA bundle version.*",
         ]
         PROMPT_TEXT = [
             "Duo login for foobar",
