@@ -26,9 +26,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <locale.h>
-#ifdef __APPLE__
-#include <xlocale.h>
-#endif
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
