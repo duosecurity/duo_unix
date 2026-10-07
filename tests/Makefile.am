@@ -9,7 +9,7 @@
 
 TESTS_ENVIRONMENT = env BUILDDIR=$(abs_top_builddir) $(PYTHON)
 
-TESTS = test_login_duo.py test_crypto.py test_duo_split_at.py
+TESTS = test_login_duo.py test_crypto.py test_duo_split_at.py test_check_pie.py
 PAM_TESTS = test_pam_duo.py
 
 check_LTLIBRARIES = libgroups_preload.la
