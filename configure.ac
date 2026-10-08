@@ -113,6 +113,18 @@ fi
 
 AC_SUBST(IS_AIX, "$IS_AIX")
 
+# Check whether the linker supports -pie (needed for login_duo PIE/ASLR)
+AC_MSG_CHECKING([whether the linker supports -pie])
+save_LDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS -pie"
+AC_LINK_IFELSE(
+  [AC_LANG_PROGRAM([], [return 0;])],
+  [AC_MSG_RESULT([yes]); PIE_LDFLAGS="-pie"],
+  [AC_MSG_RESULT([no]);  PIE_LDFLAGS=""]
+)
+LDFLAGS="$save_LDFLAGS"
+AC_SUBST([PIE_LDFLAGS])
+
 # Check for platform features
 AC_C_BIGENDIAN
 AC_C_CONST
