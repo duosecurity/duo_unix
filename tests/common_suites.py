@@ -376,6 +376,32 @@ class CommonSuites:
             # 1.x seconds + 2.x seconds executed twice
             self.assertGreater(execution_time, 6)
 
+        def test_rate_limit_log_recovered_no_header(self):
+            """When 429s arrive without Retry-After and the server eventually
+            recovers, duo_log emits a 'recovered' + 'absent' message."""
+            with TempConfig(MOCKDUO_CONF) as temp:
+                result = self.call_binary(
+                    ["-d", "-c", temp.name, "-f", "rate-limited-preauth-allow", "true"],
+                    timeout=30,
+                )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Duo API rate limit:.*recovered.*Retry-After absent",
+            )
+
+        def test_rate_limit_log_exhausted_with_header(self):
+            """When every response is 429 with a valid Retry-After and the
+            retry cap is hit, duo_log emits 'exhausted' + 'present'."""
+            with TempConfig(MOCKDUO_CONF) as temp:
+                result = self.call_binary(
+                    ["-d", "-c", temp.name, "-f", "retry-after-forever", "true"],
+                    timeout=30,
+                )
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Duo API rate limit:.*exhausted.*Retry-After present",
+            )
+
         def test_retry_after_forever_is_bounded(self):
             """A server that always returns 429 with an in-range Retry-After
             must not loop forever: the retry cap is reached and failmode is
