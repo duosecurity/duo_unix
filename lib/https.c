@@ -304,11 +304,11 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
             const GENERAL_NAME *altname = sk_GENERAL_NAME_value(altnames, i);
             if (hostnametype == altname->type) {
                 if (altname->type == GEN_DNS) {
-                    char *altptr = (char *)ASN1_STRING_data(altname->d.dNSName);
+                    const char *altptr = (const char *)ASN1_STRING_get0_data(altname->d.dNSName);
                     size_t altsize = (size_t)ASN1_STRING_length(altname->d.dNSName);
                     match = (altsize == strlen(altptr) && match_pattern(hostname, altptr));
                 } else if (altname->type == GEN_IPADD) {
-                    unsigned char *altptr = ASN1_STRING_data(altname->d.iPAddress);
+                    const unsigned char *altptr = ASN1_STRING_get0_data(altname->d.iPAddress);
                     size_t altsize = (size_t)ASN1_STRING_length(altname->d.iPAddress);
                     match = _https_ipaddr_matches(&addr, addrsize, altptr,
                         altsize);
@@ -328,7 +328,7 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
             if ((tmp = X509_NAME_ENTRY_get_data(
                        X509_NAME_get_entry(subject, i))) != NULL &&
                 ASN1_STRING_type(tmp) == V_ASN1_UTF8STRING) {
-                const char *pattern = (char *)ASN1_STRING_data(tmp);
+                const char *pattern = (const char *)ASN1_STRING_get0_data(tmp);
                 size_t patternsize = (size_t)ASN1_STRING_length(tmp);
                 if (patternsize == strlen(pattern)) {
                     if (!strchr(pattern, '*')) {
