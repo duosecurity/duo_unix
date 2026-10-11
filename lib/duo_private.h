@@ -32,6 +32,9 @@ struct duo_ctx {
     void  (*conv_status)(void *arg, const char *msg);
     void   *conv_arg;
     long time_offset; /* time difference in seconds between Duo's current time and the local system time */
+
+    const char *log_user;
+    const char *log_ip;
 };
 
 duo_code_t

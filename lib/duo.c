@@ -392,16 +392,16 @@ _duo_https_exchange(struct duo_ctx *ctx, const char *method, const char *uri, in
     char msg[(sizeof fmt) + max_int_digits];
     int wait_secs = initial_backof_wait_secs;
     int retries = 0;
+    int saw_retry_after = 0;
+    HTTPScode rc;
+    time_t retry_after;
 
     while (1) {
-        HTTPScode rc;
-        time_t retry_after;
-
         rc = https_send(ctx->https, method, uri,
             ctx->argc, ctx->argv, ctx->ikey, ctx->skey, ctx->useragent,
             ctx->time_offset);
         if (rc != HTTPS_OK)
-            return rc;
+            break;
         rc = https_recv(ctx->https, code, &ctx->body, &ctx->body_len, &retry_after, msecs);
 
         if (retry_after == DUO_RETRY_AFTER_INVALID) {
@@ -425,11 +425,14 @@ _duo_https_exchange(struct duo_ctx *ctx, const char *method, const char *uri, in
         }
 
         if (rc != HTTPS_OK || *code != 429 || wait_secs > max_backoff_wait_secs)
-            return rc;
+            break;
 
-        /* Return once the retry cap is hit so failmode can be applied. */
+        if (retry_after != DUO_RETRY_AFTER_NONE && retry_after != DUO_RETRY_AFTER_INVALID)
+            saw_retry_after = 1;
+
+        /* Break once the retry cap is hit so failmode can be applied. */
         if (++retries > max_retries)
-            return rc;
+            break;
 
         /* wait_secs is in [initial_backof_wait_secs, max_backoff_wait_secs]
            here: the header-present branch clamped it and the header-absent
@@ -449,6 +452,20 @@ _duo_https_exchange(struct duo_ctx *ctx, const char *method, const char *uri, in
         if (retry_after == DUO_RETRY_AFTER_NONE)
             wait_secs *= backoff_factor;
     }
+
+    if (retries > 0) {
+        int exhausted = (*code == 429);
+        char detail[256];
+        snprintf(detail, sizeof(detail),
+            "Duo API rate limit: %d 429 response(s), backoff %s, "
+            "Retry-After %s [ikey=%s]",
+            retries,
+            exhausted ? "exhausted" : "recovered",
+            saw_retry_after ? "present" : "absent",
+            ctx->ikey ? ctx->ikey : "(none)");
+        duo_log(LOG_WARNING, detail, ctx->log_user, ctx->log_ip, NULL);
+    }
+    return rc;
 }
 
 static duo_code_t
@@ -691,6 +708,9 @@ duo_login(struct duo_ctx *ctx, const char *username,
         _duo_seterr(ctx, "need username to authenticate");
         return (DUO_CLIENT_ERROR);
     }
+
+    ctx->log_user = username;
+    ctx->log_ip = client_ip;
 
     ret = duo_sync_time_offset(ctx);
 
