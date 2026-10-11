@@ -37,8 +37,8 @@
 #include <openssl/x509v3.h>
 
 #include "cacert.h"
-#include "http_parser.h"
 #include "https.h"
+#include "llhttp/llhttp.h"
 #include "match.h"
 #include "util.h"
 
@@ -56,18 +56,10 @@ struct https_ctx {
     const char *errstr;
     char errbuf[512];
 
-    http_parser_settings parse_settings;
     char parse_buf[4096];
 };
 
 struct https_ctx ctx;
-
-typedef enum
-{
-	CB_NONE = 0, /* First callback*/
-	CB_KEY,      /* Last was key */
-	CB_VAL       /* Last was value */
-} callback_status_t;
 
 struct https_request {
     BIO *cbio;
@@ -77,7 +69,7 @@ struct https_request {
     char *host;
     const char *port;
 
-    http_parser *parser;
+    llhttp_t parser;
     int done;
 
     int sigpipe_ignored;
@@ -85,15 +77,15 @@ struct https_request {
 
     time_t retry_after;
 
-    char *value;
+    char *value; /* last Retry-After/X-Retry-After value, NULL if absent */
     size_t value_size;
     char* key; /* current header name */
     size_t key_size; /* size of header name */
-    callback_status_t last_cb;
+    int capture_value; /* current header's value should go into value */
 };
 
 static int
-__on_body(http_parser *p, const char *buf, size_t len)
+__on_body(llhttp_t *p, const char *buf, size_t len)
 {
     struct https_request *req = (struct https_request *)p->data;
 
@@ -183,20 +175,25 @@ _parse_retry_after(const char *header_value)
     return _retry_after_deadline(when - now, 0, now);
 }
 
-static int
-__on_message_complete(http_parser *p)
+static void
+_free_header_state(struct https_request *req)
 {
-    struct https_request *req = (struct https_request *)p->data;
-
-    req->retry_after = _parse_retry_after(req->value);
-
     free(req->value);
     req->value = NULL;
     req->value_size = 0;
     free(req->key);
     req->key = NULL;
     req->key_size = 0;
-    req->last_cb = CB_NONE;
+    req->capture_value = 0;
+}
+
+static int
+__on_message_complete(llhttp_t *p)
+{
+    struct https_request *req = (struct https_request *)p->data;
+
+    req->retry_after = _parse_retry_after(req->value);
+    _free_header_state(req);
 
     req->done = 1;
     return (0);
@@ -205,45 +202,79 @@ __on_message_complete(http_parser *p)
 static const char retry_after_header[] = "Retry-After";
 static const char x_retry_after_header[] = "X-Retry-After";
 
+/* Append a span to a NUL-terminated buffer. llhttp may deliver a header name
+   or value in several pieces when it straddles reads. */
 static int
-__on_header_field(http_parser* p, const char* at, size_t length)
+_append_span(char **buf, size_t *size, const char *at, size_t length)
 {
-    struct https_request *client = p->data;
+    char *p;
 
-    if (client->last_cb == CB_VAL)
-        client->key_size = 0;
-
-    client->key = realloc(client->key, client->key_size + length + 1);
-    memcpy(client->key + client->key_size, at, length);
-    client->key_size += length;
-    client->key[client->key_size] = 0;
-
-	client->last_cb = CB_KEY;
-
-	return 0;
-}
-
-static int
-__on_header_value(http_parser* p, const char* at, size_t length)
-{
-    struct https_request *client = p->data;
-
-    if (strcasecmp(client->key, retry_after_header) == 0
-        || strcasecmp(client->key, x_retry_after_header) == 0)
-    {
-        if (client->last_cb != CB_VAL)
-            client->value_size = 0;
-
-        client->value = realloc(client->value, client->value_size + length + 1);
-        memcpy(client->value + client->value_size, at, length);
-        client->value_size += length;
-        client->value[client->value_size] = 0;
+    if ((p = realloc(*buf, *size + length + 1)) == NULL) {
+        return (-1);
     }
-
-	client->last_cb = CB_VAL;
-
-	return 0;
+    memcpy(p + *size, at, length);
+    *size += length;
+    p[*size] = '\0';
+    *buf = p;
+    return (0);
 }
+
+static int
+__on_header_field(llhttp_t *p, const char *at, size_t length)
+{
+    struct https_request *client = p->data;
+
+    return (_append_span(&client->key, &client->key_size, at, length));
+}
+
+static int
+__on_header_field_complete(llhttp_t *p)
+{
+    struct https_request *client = p->data;
+
+    client->capture_value = client->key != NULL &&
+        (strcasecmp(client->key, retry_after_header) == 0 ||
+         strcasecmp(client->key, x_retry_after_header) == 0);
+    client->key_size = 0;
+
+    if (client->capture_value) {
+        /* A repeated header replaces the earlier value. Start from "" rather
+           than NULL so a present-but-empty header reads as invalid, not as
+           absent. */
+        client->value_size = 0;
+        return (_append_span(&client->value, &client->value_size, "", 0));
+    }
+    return (0);
+}
+
+static int
+__on_header_value(llhttp_t *p, const char *at, size_t length)
+{
+    struct https_request *client = p->data;
+
+    if (!client->capture_value) {
+        return (0);
+    }
+    return (_append_span(&client->value, &client->value_size, at, length));
+}
+
+static int
+__on_header_value_complete(llhttp_t *p)
+{
+    struct https_request *client = p->data;
+
+    client->capture_value = 0;
+    return (0);
+}
+
+static const llhttp_settings_t parse_settings = {
+    .on_body = __on_body,
+    .on_message_complete = __on_message_complete,
+    .on_header_field = __on_header_field,
+    .on_header_field_complete = __on_header_field_complete,
+    .on_header_value = __on_header_value,
+    .on_header_value_complete = __on_header_value_complete,
+};
 
 static const char *
 _SSL_strerror(void)
@@ -905,12 +936,6 @@ https_init(const char *cafile, const char *http_proxy, int min_tls)
             ctx.proxy_port = "80";
         }
     }
-    /* Set HTTP parser callbacks */
-    ctx.parse_settings.on_body = __on_body;
-    ctx.parse_settings.on_message_complete = __on_message_complete;
-    ctx.parse_settings.on_header_field = __on_header_field;
-    ctx.parse_settings.on_header_value = __on_header_value;
-
     return (0);
 }
 
@@ -935,31 +960,21 @@ _warn_on_tls_downgrade(SSL *ssl)
     }
 }
 
+/* Allocate a request handle with its response body buffer and parser, but
+   no connection. Split out of https_open() so the response parser can be
+   unit-tested without a server. */
 HTTPScode
-https_open(struct https_request **reqp, const char *host, const char *useragent)
+_https_request_new(struct https_request **reqp, const char *host)
 {
     struct https_request *req;
-    BIO *b64;
     char *p;
-    int n;
-    int connection_error = 0;
-    struct sigaction sigpipe;
 
-    /* Set up our handle */
     if ((req = calloc(1, sizeof(*req))) == NULL ||
-        (req->host = strdup(host)) == NULL ||
-        (req->parser = malloc(sizeof(http_parser))) == NULL) {
+        (req->host = strdup(host)) == NULL) {
         ctx.errstr = strerror(errno);
         https_close(&req);
         return (HTTPS_ERR_SYSTEM);
     }
-
-    memset(&sigpipe, 0, sizeof(sigpipe));
-    sigpipe.sa_handler = SIG_IGN;
-    if (sigaction(SIGPIPE, &sigpipe, &req->old_sigpipe) == 0) {
-      req->sigpipe_ignored = 1;
-    }
-
     if ((p = strchr(req->host, ':')) != NULL) {
         *p = '\0';
         req->port = p + 1;
@@ -971,8 +986,33 @@ https_open(struct https_request **reqp, const char *host, const char *useragent)
         https_close(&req);
         return (HTTPS_ERR_LIB);
     }
-    http_parser_init(req->parser, HTTP_RESPONSE);
-    req->parser->data = req;
+    llhttp_init(&req->parser, HTTP_RESPONSE, &parse_settings);
+    req->parser.data = req;
+
+    *reqp = req;
+    return (HTTPS_OK);
+}
+
+HTTPScode
+https_open(struct https_request **reqp, const char *host, const char *useragent)
+{
+    struct https_request *req;
+    BIO *b64;
+    char *p;
+    int n;
+    int connection_error = 0;
+    struct sigaction sigpipe;
+
+    /* Set up our handle */
+    if ((connection_error = _https_request_new(&req, host)) != HTTPS_OK) {
+        return (connection_error);
+    }
+
+    memset(&sigpipe, 0, sizeof(sigpipe));
+    sigpipe.sa_handler = SIG_IGN;
+    if (sigaction(SIGPIPE, &sigpipe, &req->old_sigpipe) == 0) {
+      req->sigpipe_ignored = 1;
+    }
 
     /* Connect to server */
     if (!ctx.proxy) {
@@ -1106,8 +1146,6 @@ https_send(struct https_request *req, const char *method, const char *uri,
     time_t t;
     locale_t c_locale;
 
-    req->done = 0;
-
     t = time(NULL) + time_offset; /* adjust time by offset */
     c_locale = newlocale(LC_TIME_MASK, "C", (locale_t)0);
     if (c_locale == (locale_t)0) {
@@ -1191,34 +1229,45 @@ https_send(struct https_request *req, const char *method, const char *uri,
     return (HTTPS_OK);
 }
 
+/* Prepare to read the next response on this connection. */
 HTTPScode
-https_recv(struct https_request *req, int *code, const char **body, int *len,
-        time_t *retry_after, int msecs)
+_https_recv_begin(struct https_request *req)
 {
-    int n, err;
-
+    req->done = 0;
     if (BIO_reset(req->body) != 1) {
         ctx.errstr = _SSL_strerror();
         return (HTTPS_ERR_LIB);
     }
-    /* Read loop sentinel set by parser in __on_message_done() */
-    while (!req->done) {
-        while ((n = BIO_read(req->cbio, ctx.parse_buf,
-                    sizeof(ctx.parse_buf))) <= 0) {
-            if ((n = _BIO_wait(req->cbio, msecs)) != 1) {
-                ctx.errstr = n ? _SSL_strerror() : "Connection closed";
-                return (HTTPS_ERR_SERVER);
-            }
-        }
-        if ((err = http_parser_execute(req->parser,
-                    &ctx.parse_settings, ctx.parse_buf, n)) != n) {
-            /* http_parser_execute() returns the count of bytes consumed, not
-               an error code; on a parse failure that is the offset of the
-               failing byte. Read the actual error code from the parser so we
-               don't index http_errno_description()'s table out of bounds. */
-            ctx.errstr = http_errno_description(HTTP_PARSER_ERRNO(req->parser));
-            return (HTTPS_ERR_SERVER);
-        }
+    return (HTTPS_OK);
+}
+
+/* Feed len bytes read from the server to the response parser. On success
+   req->done is set once a complete response has been seen. */
+HTTPScode
+_https_parse(struct https_request *req, const char *buf, size_t len)
+{
+    llhttp_errno_t err;
+    const char *reason;
+
+    if ((err = llhttp_execute(&req->parser, buf, len)) != HPE_OK) {
+        /* No HPE_PAUSED* case applies here: callbacks never pause, and
+           Upgrade/CONNECT responses are not valid replies from the Duo API,
+           so they are failures too. */
+        reason = llhttp_get_error_reason(&req->parser);
+        ctx.errstr = reason ? reason : llhttp_errno_name(err);
+        return (HTTPS_ERR_SERVER);
+    }
+    return (HTTPS_OK);
+}
+
+/* Hand back the parsed response once _https_parse() has reported it done. */
+HTTPScode
+_https_recv_end(struct https_request *req, int *code, const char **body,
+        int *len, time_t *retry_after)
+{
+    if (!req->done) {
+        ctx.errstr = "Incomplete HTTP response";
+        return (HTTPS_ERR_SERVER);
     }
     /* Add NUL after the real body so debugging server responses with
      * invalid JSON is easier.
@@ -1228,11 +1277,37 @@ https_recv(struct https_request *req, int *code, const char **body, int *len,
         return (HTTPS_ERR_LIB);
     }
     *len = BIO_get_mem_data(req->body, (char **)body) - 1;
-    *code = req->parser->status_code;
+    *code = req->parser.status_code;
     if (retry_after)
         *retry_after = req->retry_after;
 
     return (HTTPS_OK);
+}
+
+HTTPScode
+https_recv(struct https_request *req, int *code, const char **body, int *len,
+        time_t *retry_after, int msecs)
+{
+    int n;
+    HTTPScode ret;
+
+    if ((ret = _https_recv_begin(req)) != HTTPS_OK) {
+        return (ret);
+    }
+    /* Read loop sentinel set by parser in __on_message_complete() */
+    while (!req->done) {
+        while ((n = BIO_read(req->cbio, ctx.parse_buf,
+                    sizeof(ctx.parse_buf))) <= 0) {
+            if ((n = _BIO_wait(req->cbio, msecs)) != 1) {
+                ctx.errstr = n ? _SSL_strerror() : "Connection closed";
+                return (HTTPS_ERR_SERVER);
+            }
+        }
+        if ((ret = _https_parse(req, ctx.parse_buf, n)) != HTTPS_OK) {
+            return (ret);
+        }
+    }
+    return (_https_recv_end(req, code, body, len, retry_after));
 }
 
 const char *
@@ -1258,7 +1333,7 @@ https_close(struct https_request **reqp)
         if (req->sigpipe_ignored) {
           sigaction(SIGPIPE, &req->old_sigpipe, NULL);
         }
-        free(req->parser);
+        _free_header_state(req);
         free(req->host);
         free(req);
         *reqp = NULL;
