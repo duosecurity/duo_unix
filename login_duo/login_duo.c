@@ -28,6 +28,10 @@
 #include <arpa/inet.h>
 #include <openssl/crypto.h>
 #include <openssl/err.h>
+#ifdef __FreeBSD__
+#include <sys/socket.h>
+#include <netinet/in.h>
+#endif
 
 #include "util.h"
 #include "duo.h"
