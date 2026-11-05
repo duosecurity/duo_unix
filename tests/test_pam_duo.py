@@ -597,6 +597,7 @@ class TestPamDuoIPv6(CommonTestCase):
 
 MEM_FLOOR = 1024 * 1024 * 1024
 NOFILE_FLOOR = 1024
+FD_HEADROOM = 16
 
 
 def _can_raise_hard_rlimit():
@@ -624,6 +625,9 @@ def _parse_rlimit_reports(stderr_lines):
         limits = {}
         for item in rest.split():
             name, _, value = item.partition("=")
+            if ":" not in value:
+                limits[name] = int(value)
+                continue
             cur, _, hard = value.partition(":")
             limits[name] = (
                 float("inf") if cur == "inf" else int(cur),
@@ -669,6 +673,19 @@ class TestPamResourceLimits(CommonTestCase):
         self.assertEqual(reports["before"][0]["AS"], (mem, mem))
         self.assertEqual(reports["after"], reports["before"])
 
+    def test_fd_headroom_with_occupied_descriptors(self):
+        """Free descriptors are made available even when the limit is above the floor"""
+        result, reports = self._run_with_limits("NOFILE:1024,FILLFDS:2")
+        self.assertRegexSomeline(
+            result["stderr"], r"Aborted Duo login for 'preauth-deny'"
+        )
+        self.assertNotEqual(result["returncode"], 0)
+
+        self.assertIn("during", reports)
+        for during in reports["during"]:
+            self.assertGreaterEqual(during["FREEFD"], FD_HEADROOM)
+        self.assertEqual(reports["after"], reports["before"])
+
     def test_limits_above_floor_unchanged(self):
         """Limits already at or above the floor are left alone"""
         mem = 2 * MEM_FLOOR
@@ -678,6 +695,7 @@ class TestPamResourceLimits(CommonTestCase):
         self.assertNotEqual(result["returncode"], 0)
         self.assertIn("during", reports)
         for during in reports["during"]:
+            during = {k: v for k, v in during.items() if k != "FREEFD"}
             self.assertEqual(during, reports["before"][0])
         self.assertEqual(reports["after"], reports["before"])
 
