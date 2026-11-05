@@ -36,10 +36,21 @@ IPV6_LOOPBACK_ADDR = (
 )
 IPV4_LOOPBACK_ADDR = "1.0.0.127.in-addr.arpa"
 VERIFIED_PUSH_TXID = "verified-push-txid"
+# A string with a leading zero, as the real API returns it
+VERIFIED_PUSH_CODE = "037601"
+# Verified Push users. All of them expect the preauth txid back on /auth,
+# except VP_IGNORED_USER, whose preauth acts as if the client did not ask
+# for Verified Push.
+VP_USER = "client_supports_verified_push"
+VP_IGNORED_USER = "client_supports_verified_push-ignored"
+VP_EXPIRED_USER = "verified_push_expired"    # preauth already expired
+VP_REJECTED_USER = "verified_push_rejected"  # /auth answers HTTP 400
+VP_BAD_CODE_USER = "verified_push_bad_code"  # non-numeric code
+VP_TXID_USERS = (VP_USER, VP_EXPIRED_USER, VP_REJECTED_USER, VP_BAD_CODE_USER)
 
 tx_msgs = {
     VERIFIED_PUSH_TXID: [
-        "0:Please enter verification code 376 into Duo Mobile...",
+        "0:Please enter verification code " + VERIFIED_PUSH_CODE + " into Duo Mobile...",
         "1:Success. Logging you in...",
     ],
     "txPUSH1": [
@@ -378,9 +389,10 @@ class MockDuoHandler(BaseHTTPRequestHandler):
                 return self._send(429, headers={"Retry-After": "-100"})
             else:
                 ret["response"] = { "result": "auth" }
+                username = self.args["username"]
                 client_supports_verified_push = bool(
                     self.args.get("client_supports_verified_push", False)
-                ) and self.args["username"] != "client-supports-verified-push-ignored"
+                ) and username != VP_IGNORED_USER
                 if self.args["text_prompt"]:
                     ret["response"]["prompt"] = {
                         "text": "Duo login for {0}\n\n".format(self.args["username"])
@@ -388,42 +400,55 @@ class MockDuoHandler(BaseHTTPRequestHandler):
                         + "  1. Push 1\n  2. Phone 1\n"
                         + "  3. SMS 1 (deny)\n  4. Phone 2 (deny)\n\n"
                         + "Passcode or option (1-4): ",
+                        # The real API uses the same factor names with and
+                        # without Verified Push
                         "factors": {
-                            "default": "verified_push1" if client_supports_verified_push else "push1",
-                            "1": "verified_push1" if client_supports_verified_push else "push1",
+                            "default": "push1",
+                            "1": "push1",
                             "2": "voice1",
                             "3": "smsrefresh1",
                             "4": "voice2",
                         }
                     }
                     if client_supports_verified_push:
+                        # The real API's txid stops being accepted by /auth
+                        # 60 seconds after preauth
+                        now = int(time.time()) + self._get_skew()
                         ret["response"]["txid"] = VERIFIED_PUSH_TXID
+                        ret["response"]["verification_code"] = (
+                            "12ab" if username == VP_BAD_CODE_USER
+                            else VERIFIED_PUSH_CODE
+                        )
+                        ret["response"]["expiration"] = (
+                            now - 1 if username == VP_EXPIRED_USER else now + 60
+                        )
         elif self.path == "/auth/v2/auth":
             if self.args["factor"] == "prompt":
+                username = self.args["username"]
                 txid = self.args.get("txid", None)
-                if txid:
-                    if (
-                        self.args["username"] == "client-supports-verified-push-ignored"
-                        or not self.args["prompt"].startswith("verified_push")
-                    ):
-                        ret["response"] = {
-                            "result": "deny",
-                            "status_msg": "txid should not be passed to /auth",
-                        }
-                    elif self.args["username"] == "client-supports-verified-push" and txid != VERIFIED_PUSH_TXID:
-                        ret["response"] = {
-                            "result": "deny",
-                            "status_msg": "wrong txid passed to /auth",
-                        }
-                else:
-                    if self.args["username"] == "client-supports-verified-push":
-                        ret["response"] = {
-                            "result": "deny",
-                            "status_msg": "txid should be passed to /auth",
-                        }
-                    else:
-                        txid = "tx" + self.args["prompt"].upper()
-                if self.args["username"] == "pam_prompt":
+                if username == VP_IGNORED_USER and txid:
+                    ret["response"] = {
+                        "result": "deny",
+                        "status_msg": "txid should not be passed to /auth",
+                    }
+                    return self._send(200, json.dumps(ret))
+                if username in VP_TXID_USERS and txid != VERIFIED_PUSH_TXID:
+                    ret["response"] = {
+                        "result": "deny",
+                        "status_msg": "missing or wrong txid passed to /auth",
+                    }
+                    return self._send(200, json.dumps(ret))
+                if username == VP_REJECTED_USER:
+                    # What the real API answers for an expired txid
+                    return self._send(400, json.dumps({
+                        "stat": "FAIL",
+                        "code": 40002,
+                        "message": "Invalid request parameters",
+                        "message_detail": "No verification code found for the given txid.",
+                    }))
+                if txid is None or self.args["prompt"] != "push1":
+                    txid = "tx" + self.args["prompt"].upper()
+                if username == "pam_prompt":
                     ret["response"] = {"txid": "wrongFactor1"}
                 elif self.args["async"] == "1":
                     ret["response"] = {"txid": txid}
