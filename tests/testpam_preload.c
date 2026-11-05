@@ -12,6 +12,7 @@
 #include "config.h"
 
 #include <sys/types.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #include <netdb.h>
 
@@ -133,7 +134,38 @@ getpwnam(const char *name)
     return &ret;
 }
 
+/* When TESTPAM_REPORT_RLIMITS is set, print the current resource limits so
+ * tests can check what a PAM module sees and what the caller gets back. */
+static void
+report_rlimits(const char *when)
+{
+    static const struct { int res; const char *name; } lims[] = {
+        { RLIMIT_AS, "AS" }, { RLIMIT_DATA, "DATA" }, { RLIMIT_NOFILE, "NOFILE" },
+    };
+    struct rlimit rl;
+    size_t i;
+
+    if (getenv("TESTPAM_REPORT_RLIMITS") == NULL)
+        return;
+    fprintf(stderr, "TESTPAM rlimits %s:", when);
+    for (i = 0; i < sizeof(lims) / sizeof(lims[0]); i++) {
+        if (getrlimit(lims[i].res, &rl) != 0)
+            continue;
+        fprintf(stderr, " %s=", lims[i].name);
+        if (rl.rlim_cur == RLIM_INFINITY)
+            fprintf(stderr, "inf");
+        else
+            fprintf(stderr, "%llu", (unsigned long long)rl.rlim_cur);
+        if (rl.rlim_max == RLIM_INFINITY)
+            fprintf(stderr, ":inf");
+        else
+            fprintf(stderr, ":%llu", (unsigned long long)rl.rlim_max);
+    }
+    fputc('\n', stderr);
+}
+
 int pam_get_item(const pam_handle_t *pamh, int item_type, pam_item item) {
+    report_rlimits("during");
     if(item_type == PAM_SERVICE) {
         char *s = getenv("SIMULATE_SERVICE");
         if(s) {
