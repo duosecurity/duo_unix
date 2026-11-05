@@ -45,6 +45,9 @@
 #define AUTOPHONE_MSG       "Calling your phone..."
 #define AUTODEFAULT_MSG     "Using default second-factor authentication."
 #define ENV_VAR_MSG         "Reading $DUO_PASSCODE..."
+#define VP_CODE_MSG         "If Duo Mobile asks for a code, enter %s"
+#define VP_EXPIRED_MSG      "Login request expired, please try again."
+#define VP_REJECTED_MSG     "Login request could not be completed, please try again."
 
 /*
  * Finding the maximum length for the machine's hostname
@@ -491,6 +494,7 @@ duo_call(struct duo_ctx *ctx, const char *method, const char *uri, int msecs)
         https_close(&ctx->https);
     }
     duo_reset(ctx);
+    ctx->http_code = code;
 
     if (code == 0) {
         ret = DUO_CONN_ERROR;
@@ -527,6 +531,128 @@ duo_geterr(struct duo_ctx *ctx)
     return (ctx->err[0] ? ctx->err : NULL);
 }
 
+/*
+ * Keep the Verified Push code from preauth only if it is a short string of
+ * ASCII digits; it is shown to the user verbatim.
+ */
+static void
+_duo_store_vp_code(struct duo_ctx *ctx, const char *code)
+{
+    size_t i, len;
+
+    ctx->vp_code[0] = '\0';
+    if (code == NULL) {
+        return;
+    }
+    len = strlen(code);
+    if (len == 0 || len >= sizeof(ctx->vp_code)) {
+        return;
+    }
+    for (i = 0; i < len; i++) {
+        if (code[i] < '0' || code[i] > '9') {
+            return;
+        }
+    }
+    memcpy(ctx->vp_code, code, len + 1);
+}
+
+/* Return 1 if any factor offered in the preauth prompt is a push factor. */
+static int
+_duo_factors_offer_push(JSON_Object *factors_obj)
+{
+    size_t i, count;
+
+    if (factors_obj == NULL) {
+        return 0;
+    }
+    count = json_object_get_count(factors_obj);
+    for (i = 0; i < count; i++) {
+        const char *factor = json_value_get_string(
+            json_object_get_value_at(factors_obj, i));
+        if (factor != NULL && strstr(factor, "push") != NULL) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/*
+ * Build the factor prompt with the Verified Push code inserted on its own
+ * line just above the final input line, e.g.:
+ *
+ *     ...
+ *     3. SMS passcodes to XXX-XXX-1234
+ *
+ *     If Duo Mobile asks for a code, enter 123456
+ *
+ *     Passcode or option (1-3):
+ *
+ * Returns a malloc'd string, or NULL on allocation failure.
+ *
+ * Workaround: this is only used when incremental status reporting is
+ * disabled (DUO_FLAG_SYNC, set by pam_duo for sshd). sshd builds affected by
+ * OpenSSH bug 2876 (https://bugzilla.mindrot.org/show_bug.cgi?id=2876) hold
+ * PAM_TEXT_INFO messages until the next prompt or until the module returns,
+ * so a status message sent while the push is outstanding arrives too late to
+ * be useful. Text that is part of a prompt is always delivered immediately.
+ * Preauth already returns the code, so it can go into the factor prompt.
+ *
+ * The correct fix, once sshd builds that include the upstream fix for bug
+ * 2876 are in wide use: stop setting DUO_FLAG_SYNC for sshd in pam_duo.c so
+ * sshd uses the asynchronous /auth + /auth_status flow like every other
+ * service. The code then arrives as a status message after the user selects
+ * push, together with the other progress messages, and this function, its
+ * call in _duo_prompt() and VP_CODE_MSG can be removed.
+ */
+static char *
+_duo_vp_prompt(const char *prompt, const char *code)
+{
+    char *out = NULL;
+    const char *last_nl = strrchr(prompt, '\n');
+    int head_len = last_nl ? (int)(last_nl - prompt + 1) : 0;
+
+    if (asprintf(&out, "%.*s" VP_CODE_MSG "\n\n%s",
+            head_len, prompt, code, prompt + head_len) < 0) {
+        return NULL;
+    }
+    return out;
+}
+
+static void
+_duo_vp_expired(struct duo_ctx *ctx)
+{
+    _duo_seterr(ctx, "Verified Push request expired before /auth");
+    if (ctx->conv_status != NULL) {
+        ctx->conv_status(ctx->conv_arg, VP_EXPIRED_MSG);
+    }
+}
+
+/*
+ * /auth answered HTTP 400 while a Verified Push txid was in use. The API
+ * uses the same generic error for an expired txid as for other invalid
+ * parameters, so log what the server said rather than assuming expiry.
+ */
+static void
+_duo_vp_rejected(struct duo_ctx *ctx)
+{
+    JSON_Value *json = ctx->body ? json_parse_string(ctx->body) : NULL;
+    JSON_Object *obj = json_value_get_object(json);
+    const char *message = json_object_get_string(obj, "message");
+    const char *detail = json_object_get_string(obj, "message_detail");
+    int code = (int)json_object_get_number(obj, "code");
+
+    _duo_seterr(ctx, "Verified Push request rejected by /auth: HTTP %d %d: %s%s%s%s",
+        ctx->http_code, code,
+        message ? message : "(no message)",
+        detail ? " (" : "", detail ? detail : "", detail ? ")" : "");
+    if (json != NULL) {
+        json_value_free(json);
+    }
+    if (ctx->conv_status != NULL) {
+        ctx->conv_status(ctx->conv_arg, VP_REJECTED_MSG);
+    }
+}
+
 duo_code_t
 _duo_preauth(struct duo_ctx *ctx, const char *username,
     const char *client_ip, int flags, int failmode)
@@ -561,6 +687,13 @@ _duo_preauth(struct duo_ctx *ctx, const char *username,
             const char *txid = json_object_get_string(response, "txid");
             if (duo_add_optional_param(ctx, "txid", txid) != DUO_OK) {
                 ret = DUO_LIB_ERROR;
+            }
+            if (txid != NULL) {
+                _duo_store_vp_code(ctx,
+                    json_object_get_string(response, "verification_code"));
+                /* json_object_get_number returns 0 if absent */
+                ctx->vp_expiration =
+                    (long)json_object_get_number(response, "expiration");
             }
         }
         _JSON_VALUE_FREE(json);
@@ -667,7 +800,25 @@ _duo_prompt(struct duo_ctx *ctx, int flags, char *buf,
         const char* prompt;
         _JSON_FIND_STRING(prompt, prompt_obj, "text", json);
 
-        if (ctx->conv_prompt(ctx->conv_arg, prompt, buf, sz) == NULL) {
+        /*
+         * Without incremental status reporting the code would otherwise never
+         * be shown; see _duo_vp_prompt(). With it, the /auth_status polling
+         * loop shows the code after push is selected, so leave the prompt as is.
+         */
+        char *vp_prompt = NULL;
+        if ((flags & DUO_FLAG_SYNC) != 0 && ctx->vp_code[0] != '\0' &&
+            _duo_factors_offer_push(
+                json_object_get_object(prompt_obj, "factors"))) {
+            if ((vp_prompt = _duo_vp_prompt(prompt, ctx->vp_code)) == NULL) {
+                _JSON_VALUE_FREE(json);
+                return (DUO_LIB_ERROR);
+            }
+        }
+
+        char *rp = ctx->conv_prompt(ctx->conv_arg,
+            vp_prompt ? vp_prompt : prompt, buf, sz);
+        free(vp_prompt);
+        if (rp == NULL) {
             _duo_seterr(ctx, "Error gathering user response");
             _JSON_VALUE_FREE(json);
             return (DUO_ABORT);
@@ -711,6 +862,8 @@ duo_login(struct duo_ctx *ctx, const char *username,
 
     ctx->log_user = username;
     ctx->log_ip = client_ip;
+    ctx->vp_code[0] = '\0';
+    ctx->vp_expiration = 0;
 
     ret = duo_sync_time_offset(ctx);
 
@@ -728,6 +881,20 @@ duo_login(struct duo_ctx *ctx, const char *username,
     /* Handle factor selection */
     if ((ret = _duo_prompt(ctx, flags, buf, sizeof(buf), p, sizeof(p))) != DUO_CONTINUE) {
         return (ret);
+    }
+
+    /*
+     * For push, /auth rejects a Verified Push txid once its preauth
+     * expiration has passed (the push itself may still be answered after
+     * that). If the user took too long at the prompt, fail this attempt so
+     * the caller can retry with a fresh preauth instead of sending a request
+     * that cannot succeed. Other factors are left to the server to decide;
+     * see the HTTP 400 handling below.
+     */
+    if (ctx->vp_expiration != 0 && strstr(p, "push") != NULL &&
+        (long)time(NULL) + ctx->time_offset >= ctx->vp_expiration) {
+        _duo_vp_expired(ctx);
+        return (DUO_FAIL);
     }
 
     /* Add request parameters */
@@ -772,8 +939,22 @@ duo_login(struct duo_ctx *ctx, const char *username,
      * immediately.
      */
     if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/auth",
-                   flags & DUO_FLAG_SYNC ? DUO_NO_TIMEOUT : ctx->https_timeout)) != DUO_OK ||
-         (ret = _duo_json_response(ctx)) != DUO_OK) {
+                   flags & DUO_FLAG_SYNC ? DUO_NO_TIMEOUT : ctx->https_timeout)) != DUO_OK) {
+        /*
+         * HTTP 400 while a Verified Push txid is in use. Most likely the
+         * expired-txid case above, for a non-push factor or for push when the
+         * local clock check passed but the request arrived late (e.g. network
+         * delay); the API does not distinguish it from other invalid
+         * parameters. Retry with a fresh preauth rather than abort, and log
+         * the server's error.
+         */
+        if (ctx->vp_expiration != 0 && ctx->http_code == 400) {
+            _duo_vp_rejected(ctx);
+            return (DUO_FAIL);
+        }
+        return (ret);
+    }
+    if ((ret = _duo_json_response(ctx)) != DUO_OK) {
         return (ret);
     }
 
