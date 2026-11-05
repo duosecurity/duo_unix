@@ -889,7 +889,10 @@ https_init(const char *cafile, const char *http_proxy, int min_tls)
             }
             http_proxy += 7;
         }
-        p = strdup(http_proxy);
+        if ((p = strdup(http_proxy)) == NULL) {
+            ctx.errstr = strerror(errno);
+            return (HTTPS_ERR_SYSTEM);
+        }
 
         if ((ctx.proxy = strchr(p, '@')) != NULL) {
             *ctx.proxy++ = '\0';
