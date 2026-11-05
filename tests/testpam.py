@@ -53,6 +53,30 @@ class TempPamConfig(object):
         os.remove(PAM_SERVICE_PATH)
 
 
+def _rlimit_preexec(spec):
+    """Build a preexec_fn applying resource limits to the testpam child.
+
+    spec is "NAME:value[,NAME:value...]" using resource.RLIMIT_<NAME>, e.g.
+    "AS:33554432,NOFILE:16". Both the soft and hard limit are set, so only a
+    privileged process can raise them again. Limits are applied to the
+    testpam binary only, not to this Python wrapper.
+    """
+    if not spec:
+        return None
+    import resource
+
+    limits = []
+    for item in spec.split(","):
+        name, value = item.split(":")
+        limits.append((getattr(resource, "RLIMIT_" + name), int(value)))
+
+    def apply():
+        for res, value in limits:
+            resource.setrlimit(res, (value, value))
+
+    return apply
+
+
 def testpam(args, config_file_name, env_overrides=None, capture_output=False):
     env = os.environ.copy()
     env["PAM_CONF"] = config_file_name
@@ -78,7 +102,8 @@ def testpam(args, config_file_name, env_overrides=None, capture_output=False):
         stderr=subprocess.PIPE if capture_output else None,
         stdin=subprocess.PIPE if capture_output else None,
         close_fds=capture_output,
-        env=env
+        env=env,
+        preexec_fn=_rlimit_preexec(env.pop("TESTPAM_RLIMITS", None)),
     )
     p.wait()
 
