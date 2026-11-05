@@ -47,6 +47,7 @@
 #define ENV_VAR_MSG         "Reading $DUO_PASSCODE..."
 #define VP_CODE_MSG         "If Duo Mobile asks for a code, enter %s"
 #define VP_EXPIRED_MSG      "Login request expired, please try again."
+#define VP_REJECTED_MSG     "Login request could not be completed, please try again."
 
 /*
  * Finding the maximum length for the machine's hostname
@@ -626,6 +627,32 @@ _duo_vp_expired(struct duo_ctx *ctx)
     }
 }
 
+/*
+ * /auth answered HTTP 400 while a Verified Push txid was in use. The API
+ * uses the same generic error for an expired txid as for other invalid
+ * parameters, so log what the server said rather than assuming expiry.
+ */
+static void
+_duo_vp_rejected(struct duo_ctx *ctx)
+{
+    JSON_Value *json = ctx->body ? json_parse_string(ctx->body) : NULL;
+    JSON_Object *obj = json_value_get_object(json);
+    const char *message = json_object_get_string(obj, "message");
+    const char *detail = json_object_get_string(obj, "message_detail");
+    int code = (int)json_object_get_number(obj, "code");
+
+    _duo_seterr(ctx, "Verified Push request rejected by /auth: HTTP %d %d: %s%s%s%s",
+        ctx->http_code, code,
+        message ? message : "(no message)",
+        detail ? " (" : "", detail ? detail : "", detail ? ")" : "");
+    if (json != NULL) {
+        json_value_free(json);
+    }
+    if (ctx->conv_status != NULL) {
+        ctx->conv_status(ctx->conv_arg, VP_REJECTED_MSG);
+    }
+}
+
 duo_code_t
 _duo_preauth(struct duo_ctx *ctx, const char *username,
     const char *client_ip, int flags, int failmode)
@@ -914,13 +941,15 @@ duo_login(struct duo_ctx *ctx, const char *username,
     if ((ret = duo_call(ctx, "POST", DUO_API_VERSION "/auth",
                    flags & DUO_FLAG_SYNC ? DUO_NO_TIMEOUT : ctx->https_timeout)) != DUO_OK) {
         /*
-         * The server rejected the Verified Push txid: the expired-txid case
-         * above for a non-push factor, or for push when the local clock check
-         * passed but the request arrived after the expiration (e.g. network
-         * delay). Retry with a fresh preauth rather than abort.
+         * HTTP 400 while a Verified Push txid is in use. Most likely the
+         * expired-txid case above, for a non-push factor or for push when the
+         * local clock check passed but the request arrived late (e.g. network
+         * delay); the API does not distinguish it from other invalid
+         * parameters. Retry with a fresh preauth rather than abort, and log
+         * the server's error.
          */
         if (ctx->vp_expiration != 0 && ctx->http_code == 400) {
-            _duo_vp_expired(ctx);
+            _duo_vp_rejected(ctx);
             return (DUO_FAIL);
         }
         return (ret);

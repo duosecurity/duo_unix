@@ -45,8 +45,12 @@ VP_USER = "client_supports_verified_push"
 VP_IGNORED_USER = "client_supports_verified_push-ignored"
 VP_EXPIRED_USER = "verified_push_expired"    # preauth already expired
 VP_REJECTED_USER = "verified_push_rejected"  # /auth answers HTTP 400
+VP_REJECTED_EMPTY_USER = "verified_push_rejected_empty"  # 400, no body
 VP_BAD_CODE_USER = "verified_push_bad_code"  # non-numeric code
-VP_TXID_USERS = (VP_USER, VP_EXPIRED_USER, VP_REJECTED_USER, VP_BAD_CODE_USER)
+VP_TXID_USERS = (
+    VP_USER, VP_EXPIRED_USER, VP_REJECTED_USER, VP_REJECTED_EMPTY_USER,
+    VP_BAD_CODE_USER,
+)
 
 tx_msgs = {
     VERIFIED_PUSH_TXID: [
@@ -438,6 +442,8 @@ class MockDuoHandler(BaseHTTPRequestHandler):
                         "status_msg": "missing or wrong txid passed to /auth",
                     }
                     return self._send(200, json.dumps(ret))
+                if username == VP_REJECTED_EMPTY_USER:
+                    return self._send(400)
                 if username == VP_REJECTED_USER:
                     # What the real API answers for an expired txid
                     return self._send(400, json.dumps({

@@ -39,6 +39,7 @@ from mockduo import (
     VP_BAD_CODE_USER,
     VP_EXPIRED_USER,
     VP_IGNORED_USER,
+    VP_REJECTED_EMPTY_USER,
     VP_REJECTED_USER,
     VP_USER,
 )
@@ -657,7 +658,7 @@ class TestPamDuoVerifiedPush(CommonTestCase):
             )
             self.assertIn("Successful Duo login for '{0}'".format(VP_USER), output)
 
-    def assert_expired_retry(self, user):
+    def assert_retry(self, user, message, log_error):
         with TempConfig(MOCKDUO_VERIFIED_PUSH) as temp:
             process, prompt = self.start(temp, user, self.SSHD)
             self.assertIn(self.CODE_LINE, prompt)
@@ -665,19 +666,39 @@ class TestPamDuoVerifiedPush(CommonTestCase):
             # The attempt fails and a fresh preauth prompts again
             self.assertEqual(process.expect(self.PROMPT_REGEX, timeout=10), 0)
             retry = (process.before + process.after).decode()
-            self.assertIn("Login request expired, please try again.", retry)
-            self.assertIn("Failed Duo login for '{0}'".format(user), retry)
+            self.assertIn(message, retry)
+            self.assertIn(
+                "Failed Duo login for '{0}': {1}".format(user, log_error), retry
+            )
             self.assertNotIn("Aborted Duo login", retry)
             self.assertIn(self.CODE_LINE, retry)
             process.terminate(force=True)
 
     def test_sshd_expired_before_auth_retries(self):
         """Preauth expiration already passed when the user answers"""
-        self.assert_expired_retry(VP_EXPIRED_USER)
+        self.assert_retry(
+            VP_EXPIRED_USER,
+            "Login request expired, please try again.",
+            "Verified Push request expired before /auth",
+        )
 
     def test_sshd_auth_rejected_retries(self):
-        """/auth answers HTTP 400 for the txid"""
-        self.assert_expired_retry(VP_REJECTED_USER)
+        """/auth answers HTTP 400: retry, and log the server's error"""
+        self.assert_retry(
+            VP_REJECTED_USER,
+            "Login request could not be completed, please try again.",
+            "Verified Push request rejected by /auth: HTTP 400 40002: "
+            "Invalid request parameters "
+            "(No verification code found for the given txid.)",
+        )
+
+    def test_sshd_auth_rejected_without_body_retries(self):
+        """/auth answers HTTP 400 with no JSON body"""
+        self.assert_retry(
+            VP_REJECTED_EMPTY_USER,
+            "Login request could not be completed, please try again.",
+            "Verified Push request rejected by /auth: HTTP 400 0: (no message)",
+        )
 
     def test_sshd_expired_passcode_left_to_server(self):
         """The local expiry check only applies to push; /auth decides for others"""
