@@ -4,3 +4,5 @@
 *:lib/https.c:492
 *:lib/https.c:503
 *:pam_duo/pam_extra.c:92
+syntaxError:lib/parson.c
+syntaxError:pam_duo/pam_duo.c
