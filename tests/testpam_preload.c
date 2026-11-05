@@ -17,6 +17,7 @@
 #include <netdb.h>
 
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <pwd.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -134,6 +135,26 @@ getpwnam(const char *name)
     return &ret;
 }
 
+/* Count how many descriptors (up to max) can be allocated right now. */
+static int
+count_free_fds(int max)
+{
+    int fds[64];
+    int i, n;
+
+    if (max > 64)
+        max = 64;
+    if ((fds[0] = open("/dev/null", O_RDONLY)) < 0)
+        return 0;
+    for (n = 1; n < max; n++) {
+        if ((fds[n] = dup(fds[0])) < 0)
+            break;
+    }
+    for (i = 0; i < n; i++)
+        close(fds[i]);
+    return n;
+}
+
 /* When TESTPAM_REPORT_RLIMITS is set, print the current resource limits so
  * tests can check what a PAM module sees and what the caller gets back. */
 static void
@@ -161,6 +182,7 @@ report_rlimits(const char *when)
         else
             fprintf(stderr, ":%llu", (unsigned long long)rl.rlim_max);
     }
+    fprintf(stderr, " FREEFD=%d", count_free_fds(64));
     fputc('\n', stderr);
 }
 

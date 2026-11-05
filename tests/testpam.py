@@ -57,7 +57,8 @@ def _rlimit_preexec(spec):
     """Build a preexec_fn applying resource limits to the testpam child.
 
     spec is "NAME:value[,NAME:value...]" using resource.RLIMIT_<NAME>, e.g.
-    "AS:33554432,NOFILE:16". Both the soft and hard limit are set, so only a
+    "AS:33554432,NOFILE:16". FILLFDS:<n> then fills the descriptor
+    table, leaving n free below the limit and occupying numbers above it. Both the soft and hard limit are set, so only a
     privileged process can raise them again. Limits are applied to the
     testpam binary only, not to this Python wrapper.
     """
@@ -66,13 +67,40 @@ def _rlimit_preexec(spec):
     import resource
 
     limits = []
+    fill = None
     for item in spec.split(","):
         name, value = item.split(":")
+        if name == "FILLFDS":
+            fill = int(value)
+            continue
         limits.append((getattr(resource, "RLIMIT_" + name), int(value)))
+
+    def fill_fds(leave_free, above=32):
+        # Occupy descriptor numbers just above the soft limit, then all free
+        # numbers below it except leave_free. Needs privilege for the
+        # temporary raise.
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        base = os.open(os.devnull, os.O_RDONLY)
+        resource.setrlimit(resource.RLIMIT_NOFILE, (soft + above, max(hard, soft + above)))
+        for fd in range(soft, soft + above):
+            os.dup2(base, fd, inheritable=True)
+        resource.setrlimit(resource.RLIMIT_NOFILE, (soft, hard))
+        held = []
+        while True:
+            try:
+                fd = os.dup(base)
+            except OSError:
+                break
+            os.set_inheritable(fd, True)
+            held.append(fd)
+        for fd in held[:leave_free]:
+            os.close(fd)
 
     def apply():
         for res, value in limits:
             resource.setrlimit(res, (value, value))
+        if fill is not None:
+            fill_fds(fill)
 
     return apply
 

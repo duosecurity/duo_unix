@@ -20,6 +20,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <grp.h>
 #include <limits.h>
 #include <netdb.h>
@@ -124,14 +125,16 @@ __duo_prompt(void *arg, const char *prompt, char *buf, size_t bufsz)
  * pam_duo runs inside the calling application and inherits its resource
  * limits. Make sure authentication has a reasonable minimum budget of
  * memory and file descriptors to work with, independent of the limits the
- * application was started with. A limit is only ever raised up to its
- * floor, never lowered, and limits already at or above the floor are left
- * alone. The original limits are restored before returning to the
- * application.
+ * application was started with. Limits below their floor are raised to it,
+ * nothing is ever lowered, and the original limits are restored before
+ * returning to the application. RLIMIT_NOFILE may additionally be raised
+ * past its floor if too few descriptors are actually free (see
+ * __duo_rlimits_ensure_fd_headroom()).
  *
- * This follows sudo's approach (unlimit_sudo()/restore_limits() in sudo's
- * src/limits.c), including its 1 GB floor for the memory limits and its
- * retry when restoring a limit below current usage.
+ * The floors follow sudo's approach (unlimit_sudo()/restore_limits() in
+ * sudo's src/limits.c), including its 1 GB floor for the memory limits and
+ * its retry when restoring a limit below current usage. sudo compares the
+ * descriptor limit's value only; the free-descriptor check is additional.
  */
 #define DUO_RLIMIT_MEM_FLOOR    ((rlim_t)1024 * 1024 * 1024)  /* 1 GB */
 #define DUO_RLIMIT_NOFILE_FLOOR ((rlim_t)1024)
@@ -141,6 +144,7 @@ struct duo_rlimit {
     const char *name;
     rlim_t floor;
     struct rlimit saved;
+    int saved_ok;
     int changed;
 };
 
@@ -180,9 +184,11 @@ __duo_rlimits_raise(struct duo_rlimit *lims, size_t nlims)
         int err;
 
         lim->changed = 0;
+        lim->saved_ok = 0;
         if (getrlimit(lim->resource, &lim->saved) != 0) {
             continue;
         }
+        lim->saved_ok = 1;
         if (lim->saved.rlim_cur == RLIM_INFINITY ||
             lim->saved.rlim_cur >= lim->floor) {
             continue;
@@ -212,6 +218,88 @@ __duo_rlimits_raise(struct duo_rlimit *lims, size_t nlims)
         duo_syslog(LOG_WARNING, "Could not raise %s to the minimum "
             "required for authentication: %s", lim->name, strerror(err));
     }
+}
+
+/*
+ * RLIMIT_NOFILE bounds descriptor numbers, not how many descriptors are
+ * free: descriptors the application already has open use up part of it,
+ * whatever the limit's value. Authentication only needs a few at a time
+ * (configuration and CA files, sockets, syslog), so check that
+ * DUO_FD_HEADROOM descriptors can actually be allocated, and raise the soft
+ * limit until they can or no further increase is possible.
+ */
+#define DUO_FD_HEADROOM 16
+
+/* Returns how many descriptors (up to max) could be allocated, or -1 if
+ * the check itself could not be done. */
+static int
+__duo_count_free_fds(int max)
+{
+    int fds[DUO_FD_HEADROOM];
+    int fd, i, n;
+
+    if (max > DUO_FD_HEADROOM) {
+        max = DUO_FD_HEADROOM;
+    }
+    if ((fds[0] = open("/dev/null", O_RDONLY)) < 0) {
+        return (errno == EMFILE ? 0 : -1);
+    }
+    for (n = 1; n < max; n++) {
+        if ((fd = dup(fds[0])) < 0) {
+            break;
+        }
+        fds[n] = fd;
+    }
+    for (i = 0; i < n; i++) {
+        close(fds[i]);
+    }
+    return (n);
+}
+
+static void
+__duo_rlimits_ensure_fd_headroom(struct duo_rlimit *lim)
+{
+    struct rlimit cur, want;
+    rlim_t step = DUO_FD_HEADROOM;
+    int tries, n;
+
+    for (tries = 0; tries < 8; tries++, step *= 2) {
+        if ((n = __duo_count_free_fds(DUO_FD_HEADROOM)) < 0 ||
+            n >= DUO_FD_HEADROOM) {
+            return;
+        }
+        if (getrlimit(RLIMIT_NOFILE, &cur) != 0 ||
+            cur.rlim_cur == RLIM_INFINITY) {
+            return;
+        }
+
+        want = cur;
+        want.rlim_cur = cur.rlim_cur + step;
+        if (want.rlim_max != RLIM_INFINITY && want.rlim_max < want.rlim_cur) {
+            /* Raising the hard limit requires privilege. */
+            want.rlim_max = want.rlim_cur;
+        }
+        if (setrlimit(RLIMIT_NOFILE, &want) != 0) {
+            /* Unprivileged: go as far as the hard limit allows. */
+            if (cur.rlim_max == RLIM_INFINITY ||
+                cur.rlim_max <= cur.rlim_cur) {
+                break;
+            }
+            want = cur;
+            want.rlim_cur = cur.rlim_max;
+            if (setrlimit(RLIMIT_NOFILE, &want) != 0) {
+                break;
+            }
+            lim->changed = 1;
+            if (__duo_count_free_fds(DUO_FD_HEADROOM) >= DUO_FD_HEADROOM) {
+                return;
+            }
+            break;
+        }
+        lim->changed = 1;
+    }
+    duo_syslog(LOG_WARNING, "Could not make %d file descriptors available "
+        "for authentication", DUO_FD_HEADROOM);
 }
 
 static void
@@ -264,11 +352,16 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
     int argc, const char *argv[])
 {
     struct duo_rlimit lims[3];
-    size_t nlims;
+    size_t i, nlims;
     int pam_err;
 
     __duo_rlimits_init(lims, &nlims);
     __duo_rlimits_raise(lims, nlims);
+    for (i = 0; i < nlims; i++) {
+        if (lims[i].resource == RLIMIT_NOFILE && lims[i].saved_ok) {
+            __duo_rlimits_ensure_fd_headroom(&lims[i]);
+        }
+    }
     pam_err = __pam_duo_authenticate(pamh, pam_flags, argc, argv);
     __duo_rlimits_restore(lims, nlims);
 
