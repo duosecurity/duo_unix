@@ -595,5 +595,110 @@ class TestPamDuoIPv6(CommonTestCase):
             )
 
 
+MEM_FLOOR = 1024 * 1024 * 1024
+NOFILE_FLOOR = 1024
+FD_HEADROOM = 16
+
+
+def _can_raise_hard_rlimit():
+    """True if a child process can raise a hard limit it has lowered.
+
+    Raising a hard limit needs privilege (CAP_SYS_RESOURCE on Linux), which
+    root inside a container may not have.
+    """
+    code = (
+        "import resource as r\n"
+        "s, h = r.getrlimit(r.RLIMIT_NOFILE)\n"
+        "r.setrlimit(r.RLIMIT_NOFILE, (64, 64))\n"
+        "r.setrlimit(r.RLIMIT_NOFILE, (2048, 2048))\n"
+    )
+    return subprocess.call([sys.executable, "-c", code]) == 0
+
+
+def _parse_rlimit_reports(stderr_lines):
+    """Map "before"/"during"/"after" to a list of {name: (cur, max)} dicts."""
+    reports = {}
+    for line in stderr_lines:
+        if not line.startswith("TESTPAM rlimits "):
+            continue
+        when, _, rest = line[len("TESTPAM rlimits "):].partition(":")
+        limits = {}
+        for item in rest.split():
+            name, _, value = item.partition("=")
+            if ":" not in value:
+                limits[name] = int(value)
+                continue
+            cur, _, hard = value.partition(":")
+            limits[name] = (
+                float("inf") if cur == "inf" else int(cur),
+                float("inf") if hard == "inf" else int(hard),
+            )
+        reports.setdefault(when, []).append(limits)
+    return reports
+
+
+@unittest.skipIf(sys.platform != "linux", "resource limit tests are Linux-only")
+@unittest.skipUnless(_can_raise_hard_rlimit(), "needs privilege to raise hard limits")
+class TestPamResourceLimits(CommonTestCase):
+    def run(self, result=None):
+        with MockDuo(NORMAL_CERT):
+            return super(TestPamResourceLimits, self).run(result)
+
+    def _run_with_limits(self, spec):
+        with TempConfig(MOCKDUO_CONF) as temp:
+            result = pam_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-deny", "true"],
+                env={"TESTPAM_RLIMITS": spec, "TESTPAM_REPORT_RLIMITS": "1"},
+            )
+        return result, _parse_rlimit_reports(result["stderr"])
+
+    def test_low_limits_raised_during_auth_and_restored(self):
+        """Limits below the floor are raised for authentication, then restored"""
+        mem = 64 * 1024 * 1024
+        result, reports = self._run_with_limits(
+            "AS:{0},DATA:{0},NOFILE:64".format(mem)
+        )
+        self.assertRegexSomeline(
+            result["stderr"], r"Aborted Duo login for 'preauth-deny'"
+        )
+        self.assertNotEqual(result["returncode"], 0)
+
+        self.assertIn("during", reports)
+        for during in reports["during"]:
+            for name in ("AS", "DATA"):
+                self.assertGreaterEqual(during[name][0], MEM_FLOOR)
+                self.assertGreaterEqual(during[name][1], MEM_FLOOR)
+            self.assertGreaterEqual(during["NOFILE"][0], NOFILE_FLOOR)
+
+        self.assertEqual(reports["before"][0]["AS"], (mem, mem))
+        self.assertEqual(reports["after"], reports["before"])
+
+    def test_fd_headroom_with_occupied_descriptors(self):
+        """Free descriptors are made available even when the limit is above the floor"""
+        result, reports = self._run_with_limits("NOFILE:1024,FILLFDS:2")
+        self.assertRegexSomeline(
+            result["stderr"], r"Aborted Duo login for 'preauth-deny'"
+        )
+        self.assertNotEqual(result["returncode"], 0)
+
+        self.assertIn("during", reports)
+        for during in reports["during"]:
+            self.assertGreaterEqual(during["FREEFD"], FD_HEADROOM)
+        self.assertEqual(reports["after"], reports["before"])
+
+    def test_limits_above_floor_unchanged(self):
+        """Limits already at or above the floor are left alone"""
+        mem = 2 * MEM_FLOOR
+        result, reports = self._run_with_limits(
+            "AS:{0},DATA:{0},NOFILE:4096".format(mem)
+        )
+        self.assertNotEqual(result["returncode"], 0)
+        self.assertIn("during", reports)
+        for during in reports["during"]:
+            during = {k: v for k, v in during.items() if k != "FREEFD"}
+            self.assertEqual(during, reports["before"][0])
+        self.assertEqual(reports["after"], reports["before"])
+
+
 if __name__ == "__main__":
     unittest.main()
