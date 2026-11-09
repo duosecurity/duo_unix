@@ -84,6 +84,16 @@ void duo_config_default(struct duo_config *cfg);
 
 int duo_set_boolean_option(const char *val);
 
+/*
+ * Return the value of the boolean option name. "yes", "true", "on" and "1"
+ * are true and "no", "false", "off" and "0" are false, in any case. Only
+ * "yes" and "no" are documented; the others have always worked and are
+ * accepted for compatibility. Any other value is false, as it always has
+ * been, and logs a warning. It is not an error, since that would stop the
+ * rest of the file being parsed.
+ */
+int duo_parse_boolean_option(const char *name, const char *val);
+
 int duo_common_ini_handler(
     struct duo_config *cfg,
     const char *section,

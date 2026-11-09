@@ -18,6 +18,7 @@ import sys
 import pexpect
 from common_suites import NORMAL_CERT, CommonSuites, EOF, CommonTestCase
 from config import (
+    DuoUnixConfig,
     MOCKDUO_CONF,
     MOCKDUO_FALLBACK,
     MOCKDUO_GECOS_DEFAULT_DELIM_6_POS,
@@ -736,6 +737,14 @@ class TestPamDuoVerifiedPush(CommonTestCase):
             process, prompt = self.start(temp, "foobar", self.SSHD)
             self.assertNotIn("If Duo Mobile asks for a code", prompt)
             process.terminate(force=True)
+
+    def test_sshd_mixed_case_value_enables_verified_push(self):
+        config = DuoUnixConfig(MOCKDUO_VERIFIED_PUSH, verified_push="True")
+        with TempConfig(config) as temp:
+            process, prompt = self.start(temp, VP_USER, self.SSHD)
+            self.assertIn(self.CODE_LINE, prompt)
+            output = self.finish(process)
+            self.assertIn("Successful Duo login for '{0}'".format(VP_USER), output)
 
 
 if __name__ == "__main__":
