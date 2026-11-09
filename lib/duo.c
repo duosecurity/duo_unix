@@ -20,6 +20,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -63,6 +64,17 @@
 #  define HOST_NAME_MAX 255
 # endif
 #endif /* HOST_NAME_MAX */
+
+/*
+ * Largest timestamp accepted from the API: 9999-12-31T23:59:59Z, or LONG_MAX
+ * where long is 32 bits. Keeps the clock offset, and the times derived from
+ * it, within what long and gmtime() can represent.
+ */
+#if LONG_MAX > 253402300799
+# define DUO_MAX_TIMESTAMP 253402300799L
+#else
+# define DUO_MAX_TIMESTAMP LONG_MAX
+#endif
 
 /* For sizing buffers; sufficient to cover the longest possible DNS FQDN */
 #define DNS_MAXNAMELEN 256
@@ -340,6 +352,36 @@ int _duo_add_failmode_param(struct duo_ctx *ctx, const int failmode)
   value = NULL; \
 } while(0)
 
+/*
+ * Read an integer member of a JSON object. JSON numbers are doubles, and
+ * converting a double that is out of range for the target type is undefined
+ * behavior, so check the range before converting. Returns 1 and sets *out
+ * only if the member is a number with an integral value in [min, max].
+ * Returns 0 if it is absent, not a number, fractional, or out of range.
+ * min and max must be exactly representable as doubles.
+ */
+static int
+_duo_json_get_long(const JSON_Object *obj, const char *name,
+    long min, long max, long *out)
+{
+    JSON_Value *value = json_object_get_value(obj, name);
+    double number;
+
+    if (value == NULL || json_value_get_type(value) != JSONNumber) {
+        return 0;
+    }
+    number = json_value_get_number(value);
+    /* Both comparisons are false for NaN */
+    if (!(number >= (double)min && number <= (double)max)) {
+        return 0;
+    }
+    if ((double)(long)number != number) {
+        return 0;
+    }
+    *out = (long)number;
+    return 1;
+}
+
 static duo_code_t
 _duo_json_response(struct duo_ctx *ctx) {
     JSON_Value *json;
@@ -360,15 +402,14 @@ _duo_json_response(struct duo_ctx *ctx) {
     }
     if (strcasecmp(p, "FAIL") == 0) {
         const char *message;
-        code = json_object_get_number(json_obj, "code");
-        // json_object_get_number will return 0 if "code" not found
-        if (code == 0) {
+        long api_code;
+        if (!_duo_json_get_long(json_obj, "code", 1, INT_MAX, &api_code)) {
                _duo_seterr(ctx, "JSON missing valid 'code'");
                _JSON_VALUE_FREE(json);
                return (DUO_SERVER_ERROR);
         }
         _JSON_FIND_STRING(message, json_obj, "message", json);
-        _duo_seterr(ctx, "%d: %s", code, message);
+        _duo_seterr(ctx, "%ld: %s", api_code, message);
         code = DUO_FAIL;
     }
     _JSON_VALUE_FREE(json);
@@ -639,9 +680,10 @@ _duo_vp_rejected(struct duo_ctx *ctx)
     JSON_Object *obj = json_value_get_object(json);
     const char *message = json_object_get_string(obj, "message");
     const char *detail = json_object_get_string(obj, "message_detail");
-    int code = (int)json_object_get_number(obj, "code");
+    long code = 0; /* logged as 0 if absent or invalid */
 
-    _duo_seterr(ctx, "Verified Push request rejected by /auth: HTTP %d %d: %s%s%s%s",
+    (void)_duo_json_get_long(obj, "code", 0, INT_MAX, &code);
+    _duo_seterr(ctx, "Verified Push request rejected by /auth: HTTP %d %ld: %s%s%s%s",
         ctx->http_code, code,
         message ? message : "(no message)",
         detail ? " (" : "", detail ? detail : "", detail ? ")" : "");
@@ -691,9 +733,13 @@ _duo_preauth(struct duo_ctx *ctx, const char *username,
             if (txid != NULL) {
                 _duo_store_vp_code(ctx,
                     json_object_get_string(response, "verification_code"));
-                /* json_object_get_number returns 0 if absent */
-                ctx->vp_expiration =
-                    (long)json_object_get_number(response, "expiration");
+                /* An absent expiration leaves vp_expiration at 0 (no check) */
+                if (json_object_get_value(response, "expiration") != NULL &&
+                    !_duo_json_get_long(response, "expiration", 1,
+                        DUO_MAX_TIMESTAMP, &ctx->vp_expiration)) {
+                    _duo_seterr(ctx, "JSON missing valid 'expiration'");
+                    ret = DUO_SERVER_ERROR;
+                }
             }
         }
         _JSON_VALUE_FREE(json);
@@ -1088,8 +1134,8 @@ duo_sync_time_offset(struct duo_ctx *ctx) {
         json_value_free(json);
         return DUO_SERVER_ERROR;
     }
-    duo_time = (long)json_object_get_number(response_obj, "time");
-    if (duo_time == 0) {
+    if (!_duo_json_get_long(response_obj, "time", 1, DUO_MAX_TIMESTAMP,
+            &duo_time)) {
         _duo_seterr(ctx, "JSON missing valid 'time'");
         json_value_free(json);
         return DUO_SERVER_ERROR;
