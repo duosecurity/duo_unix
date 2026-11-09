@@ -211,6 +211,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int pam_flags,
          * Disable incremental status reporting for sshd :-(
          * OpenSSH accumulates PAM_TEXT_INFO from modules to send in
          * an SSH_MSG_USERAUTH_BANNER post-auth, not real-time!
+         * (OpenSSH bug 2876, https://bugzilla.mindrot.org/show_bug.cgi?id=2876)
+         *
+         * Workaround: with this flag set, libduo shows the Verified Push
+         * code in the factor prompt instead (see _duo_vp_prompt() in
+         * lib/duo.c). Once sshd builds with the upstream fix for bug 2876
+         * are in wide use, remove this flag so sshd gets the same
+         * asynchronous, real-time status messages (including the Verified
+         * Push code) as other services, and drop the prompt workaround.
          */
         flags |= DUO_FLAG_SYNC;
     } else if (strcmp(service, "sudo") == 0) {

@@ -35,6 +35,12 @@ struct duo_ctx {
 
     const char *log_user;
     const char *log_ip;
+
+    int http_code; /* HTTP status of the most recent duo_call(), 0 if none */
+
+    /* Verified Push state from the most recent preauth; cleared per login */
+    char vp_code[17];   /* verification code, empty if none or invalid */
+    long vp_expiration; /* Duo time after which /auth rejects the txid, 0 if unknown */
 };
 
 duo_code_t
