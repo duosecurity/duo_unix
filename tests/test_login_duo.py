@@ -282,6 +282,11 @@ class TestLoginDuoHTTPProxy(CommonSuites.HTTPProxy):
         return login_duo(*args)
 
 
+class TestLoginDuoHTTPProxyAuth(CommonSuites.HTTPProxyAuth):
+    def call_binary(self, *args, **kwargs):
+        return login_duo(*args)
+
+
 class TestLoginDuoGetHostname(CommonSuites.GetHostname):
     def call_binary(self, *args):
         return login_duo(*args)
