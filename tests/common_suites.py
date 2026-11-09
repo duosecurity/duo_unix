@@ -25,6 +25,7 @@ from config import (
     BAD_EMPTY_CONF,
     BAD_HEADER_CONF,
     BAD_MISSING_VALUES_CONF,
+    DuoUnixConfig,
     MOCKDUO_AUTOPUSH,
     MOCKDUO_AUTOPUSH_SECURE,
     MOCKDUO_BADKEYS,
@@ -41,6 +42,7 @@ from config import (
     TESTCONF,
     TempConfig,
 )
+from mockduo import VP_USER
 from mockduo_context import NORMAL_CERT, SELFSIGNED_CERT, WRONGHOST_CERT, MockDuo
 
 from typing import Sequence
@@ -975,3 +977,40 @@ class CommonSuites:
                         result["stderr"],
                         r"Successful Duo login for 'client_supports_verified_push-ignored'",
                     )
+            def test_verified_push_mixed_case_value(self):
+                """A mixed-case "True" enables Verified Push"""
+                config = DuoUnixConfig(MOCKDUO_VERIFIED_PUSH, verified_push="True")
+                with TempConfig(config) as temp:
+                    result = self.call_binary([
+                        "-d", "-c", temp.name, "-f", VP_USER, "true"
+                    ])
+                self.assertRegexSomeline(
+                    result["stderr"], r"Successful Duo login for '{0}'".format(VP_USER)
+                )
+                self.assertNotRegexAnyline(result["stderr"], r"Unrecognized value")
+
+            def test_verified_push_unrecognized_value(self):
+                """An unrecognized value is logged and treated as "no", and
+                the rest of the file is still parsed"""
+                # Put the bad line first, ahead of ikey, skey and host
+                config = DuoUnixConfig(verified_push="enabled")
+                config.update(
+                    (k, v) for k, v in MOCKDUO_VERIFIED_PUSH.items()
+                    if k != "verified_push"
+                )
+                with TempConfig(config) as temp:
+                    result = self.call_binary([
+                        "-d", "-c", temp.name, "-f", VP_USER, "true"
+                    ])
+                self.assertRegexSomeline(
+                    result["stderr"],
+                    r"\[4\] Unrecognized value for verified_push, which is "
+                    r'treated as "no"; use "yes" or "no"',
+                )
+                # Verified Push was not requested, so the mock denies the
+                # login for want of a txid. Reaching Duo at all shows that
+                # ikey, skey and host after the bad line were still read.
+                self.assertRegexSomeline(
+                    result["stderr"],
+                    r"\[4\] Failed Duo login for '{0}'$".format(VP_USER),
+                )
