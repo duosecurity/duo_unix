@@ -267,6 +267,11 @@ class TestLoginDuoPreauthStates(CommonSuites.PreauthStates):
         return login_duo(*args, **kwargs)
 
 
+class TestLoginDuoApiNumberValidation(CommonSuites.ApiNumberValidation):
+    def call_binary(self, *args, **kwargs):
+        return login_duo(*args, **kwargs)
+
+
 class TestLoginDuoEscapeInjection(CommonSuites.EscapeInjection):
     def call_binary(self, *args):
         return login_duo(*args)
