@@ -37,7 +37,10 @@ done
 
 # end weird permission hacking
 
+# Keep going on test failure so the coverage report is still produced, but
+# exit non-zero at the end so a failing test suite fails the job.
 make check
+check_status=$?
 gcovr --xml-pretty --exclude-unreachable-branches --print-summary -o coverage/coverage.xml --root .
 
 if [ -f pam_duo/pam_duo.gcno ]; then
@@ -76,4 +79,9 @@ if [ -f lib/duo.gcno ]; then
     mv lib/*.{css,html} coverage
 else
     echo "No coverage information found for duo.c"
+fi
+
+if [ "$check_status" -ne 0 ]; then
+    echo "make check failed with exit status $check_status"
+    exit "$check_status"
 fi
