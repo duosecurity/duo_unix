@@ -8,6 +8,7 @@
 # test_pam_duo.py
 #
 
+import errno
 import getpass
 import os
 import subprocess
@@ -18,6 +19,7 @@ import sys
 import pexpect
 from common_suites import NORMAL_CERT, CommonSuites, EOF, CommonTestCase
 from config import (
+    DuoUnixConfig,
     MOCKDUO_CONF,
     MOCKDUO_FALLBACK,
     MOCKDUO_GECOS_DEFAULT_DELIM_6_POS,
@@ -856,6 +858,42 @@ class TestPamResourceLimits(CommonTestCase):
             during = {k: v for k, v in during.items() if k != "FREEFD"}
             self.assertEqual(during, reports["before"][0])
         self.assertEqual(reports["after"], reports["before"])
+
+
+@unittest.skipIf(sys.platform != "linux", "open() error injection is Linux-only")
+class TestPamConfigOpenErrors(CommonTestCase):
+    """How a failed open() of the config file affects the result, with failmode=safe"""
+
+    def _auth_with_open_error(self, err):
+        config = DuoUnixConfig(MOCKDUO_CONF, failmode="safe")
+        with TempConfig(config) as temp:
+            return pam_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={
+                    "TESTPAM_OPEN_FAIL_PATH": temp.name,
+                    "TESTPAM_OPEN_FAIL_ERRNO": str(err),
+                },
+            )
+
+    def test_resource_errors_deny(self):
+        """Running out of descriptors or memory denies authentication"""
+        for err in (errno.EMFILE, errno.ENFILE, errno.ENOMEM):
+            with self.subTest(errno=errno.errorcode[err]):
+                result = self._auth_with_open_error(err)
+                self.assertRegexSomeline(
+                    result["stderr"], r"Couldn't open .*: " + os.strerror(err)
+                )
+                self.assertNotEqual(result["returncode"], 0)
+
+    def test_other_errors_follow_failmode(self):
+        """Other open() errors still follow failmode"""
+        for err in (errno.ENOENT, errno.EACCES):
+            with self.subTest(errno=errno.errorcode[err]):
+                result = self._auth_with_open_error(err)
+                self.assertRegexSomeline(
+                    result["stderr"], r"Couldn't open .*: " + os.strerror(err)
+                )
+                self.assertEqual(result["returncode"], 0)
 
 
 if __name__ == "__main__":

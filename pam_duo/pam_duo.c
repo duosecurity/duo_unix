@@ -403,7 +403,7 @@ __pam_duo_authenticate(pam_handle_t *pamh, int pam_flags,
     const char *cmd, *p, *host, *cafile;
     const char *config = DUO_CONF;
 
-    int i, flags, pam_err, matched;
+    int i, flags, pam_err, matched, parse_errno;
 
     duo_syslog(LOG_INFO, "starting Duo Unix: PAM Duo");
     duo_config_default(&cfg);
@@ -415,9 +415,20 @@ __pam_duo_authenticate(pam_handle_t *pamh, int pam_flags,
     }
 
     i = duo_parse_config(config, __ini_handler, &cfg);
+    parse_errno = errno;
     if (i == -3) {
         close_config(&cfg);
         duo_syslog(LOG_ERR, "Internal error reading %s", config);
+        return (PAM_SERVICE_ERR);
+    } else if (i == -1 && (parse_errno == EMFILE || parse_errno == ENFILE ||
+            parse_errno == ENOMEM)) {
+        /*
+         * Running out of descriptors or memory is a local error, not a
+         * problem with the configuration, so failmode doesn't apply.
+         */
+        duo_syslog(LOG_ERR, "Couldn't open %s: %s",
+            config, strerror(parse_errno));
+        close_config(&cfg);
         return (PAM_SERVICE_ERR);
     } else if (i == -2) {
         int failmode = cfg.failmode;
@@ -428,7 +439,7 @@ __pam_duo_authenticate(pam_handle_t *pamh, int pam_flags,
     } else if (i == -1) {
         int failmode = cfg.failmode;
         duo_syslog(LOG_ERR, "Couldn't open %s: %s",
-            config, strerror(errno));
+            config, strerror(parse_errno));
         close_config(&cfg);
         return (failmode == DUO_FAIL_SAFE ? PAM_SUCCESS : PAM_SERVICE_ERR);
     } else if (i > 0) {

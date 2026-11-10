@@ -133,7 +133,10 @@ duo_parse_config(const char *filename,
         return (-1);
     }
     if (fstat(fd, &st) < 0 || (fp = fdopen(fd, "r")) == NULL) {
+        /* Callers report errno, so keep the one from fstat/fdopen. */
+        int saved_errno = errno;
         close(fd);
+        errno = saved_errno;
         return (-1);
     }
     /*
