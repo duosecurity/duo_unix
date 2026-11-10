@@ -58,8 +58,9 @@ def _rlimit_preexec(spec):
 
     spec is "NAME:value[,NAME:value...]" using resource.RLIMIT_<NAME>, e.g.
     "AS:33554432,NOFILE:16". FILLFDS:<n> then fills the descriptor
-    table, leaving n free below the limit and occupying numbers above it. Both the soft and hard limit are set, so only a
-    privileged process can raise them again. Limits are applied to the
+    table, leaving n free below the limit and occupying numbers above it
+    (32 of them, or FILLABOVE:<m>). Both the soft and hard limit are set,
+    so only a privileged process can raise them again. Limits are applied to the
     testpam binary only, not to this Python wrapper.
     """
     if not spec:
@@ -68,14 +69,18 @@ def _rlimit_preexec(spec):
 
     limits = []
     fill = None
+    above = 32
     for item in spec.split(","):
         name, value = item.split(":")
         if name == "FILLFDS":
             fill = int(value)
             continue
+        if name == "FILLABOVE":
+            above = int(value)
+            continue
         limits.append((getattr(resource, "RLIMIT_" + name), int(value)))
 
-    def fill_fds(leave_free, above=32):
+    def fill_fds(leave_free, above):
         # Occupy descriptor numbers just above the soft limit, then all free
         # numbers below it except leave_free. Needs privilege for the
         # temporary raise.
@@ -100,7 +105,7 @@ def _rlimit_preexec(spec):
         for res, value in limits:
             resource.setrlimit(res, (value, value))
         if fill is not None:
-            fill_fds(fill)
+            fill_fds(fill, above)
 
     return apply
 

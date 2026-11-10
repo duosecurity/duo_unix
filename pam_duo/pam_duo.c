@@ -261,9 +261,15 @@ __duo_rlimits_ensure_fd_headroom(struct duo_rlimit *lim)
 {
     struct rlimit cur, want;
     rlim_t step = DUO_FD_HEADROOM;
-    int tries, n;
+    int n;
 
-    for (tries = 0; tries < 8; tries++, step *= 2) {
+    /*
+     * Keep raising the soft limit in doubling steps until enough
+     * descriptors are free or the system refuses a further increase. There
+     * is no fixed number of rounds: any number of descriptors may already
+     * be open above the starting limit.
+     */
+    for (;;) {
         if ((n = __duo_count_free_fds(DUO_FD_HEADROOM)) < 0 ||
             n >= DUO_FD_HEADROOM) {
             return;
@@ -271,6 +277,10 @@ __duo_rlimits_ensure_fd_headroom(struct duo_rlimit *lim)
         if (getrlimit(RLIMIT_NOFILE, &cur) != 0 ||
             cur.rlim_cur == RLIM_INFINITY) {
             return;
+        }
+        if (RLIM_INFINITY - cur.rlim_cur <= step) {
+            /* No representable limit left above the current one. */
+            break;
         }
 
         want = cur;
@@ -297,6 +307,9 @@ __duo_rlimits_ensure_fd_headroom(struct duo_rlimit *lim)
             break;
         }
         lim->changed = 1;
+        if (step < RLIM_INFINITY / 2) {
+            step *= 2;
+        }
     }
     duo_syslog(LOG_WARNING, "Could not make %d file descriptors available "
         "for authentication", DUO_FD_HEADROOM);

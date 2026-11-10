@@ -829,6 +829,21 @@ class TestPamResourceLimits(CommonTestCase):
             self.assertGreaterEqual(during["FREEFD"], FD_HEADROOM)
         self.assertEqual(reports["after"], reports["before"])
 
+    def test_fd_headroom_with_many_descriptors_above_limit(self):
+        """Free descriptors are made available however many are open above the limit"""
+        result, reports = self._run_with_limits(
+            "NOFILE:1024,FILLFDS:0,FILLABOVE:6000"
+        )
+        self.assertRegexSomeline(
+            result["stderr"], r"Aborted Duo login for 'preauth-deny'"
+        )
+        self.assertNotEqual(result["returncode"], 0)
+
+        self.assertIn("during", reports)
+        for during in reports["during"]:
+            self.assertGreaterEqual(during["FREEFD"], FD_HEADROOM)
+        self.assertEqual(reports["after"], reports["before"])
+
     def test_limits_above_floor_unchanged(self):
         """Limits already at or above the floor are left alone"""
         mem = 2 * MEM_FLOOR
