@@ -1,3 +1,13 @@
+duo_unix-2.4.0:
+- Verified Push codes are now shown when logging in over SSH
+- Added a disable_ca_pinning config option that validates Duo's certificate against the operating system's trust store instead of the built-in CA bundle
+- The CA bundle version and CA pinning status are now logged at startup
+- Fixed the SELinux module for OpenSSH 9.8 and later, which split sshd into separate binaries (for example, RHEL 10)
+- Fixed building from source on FreeBSD
+- Duo API rate-limit responses are now logged
+- Removed support for Debian 11 and 32-bit (i386) Debian 12
+- Fedora 41, Fedora 42 and Debian 12 support will be removed in the next release
+
 duo_unix-2.3.0:
 - Added a min_tls config option that defines the lowest TLS version that will be negotiated
 - Fixed a bug with non-English locales that caused Duo API calls to fail
