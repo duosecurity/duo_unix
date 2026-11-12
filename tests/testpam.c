@@ -11,6 +11,8 @@
 #include "config.h"
 #endif
 
+#include <sys/resource.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -89,6 +91,36 @@ fail:
 
 static struct pam_conv conv = { my_conv, NULL };
 
+/* When TESTPAM_REPORT_RLIMITS is set, print the current resource limits so
+ * tests can check what a PAM module sees and what the caller gets back. */
+static void
+report_rlimits(const char *when)
+{
+    static const struct { int res; const char *name; } lims[] = {
+        { RLIMIT_AS, "AS" }, { RLIMIT_DATA, "DATA" }, { RLIMIT_NOFILE, "NOFILE" },
+    };
+    struct rlimit rl;
+    size_t i;
+
+    if (getenv("TESTPAM_REPORT_RLIMITS") == NULL)
+        return;
+    fprintf(stderr, "TESTPAM rlimits %s:", when);
+    for (i = 0; i < sizeof(lims) / sizeof(lims[0]); i++) {
+        if (getrlimit(lims[i].res, &rl) != 0)
+            continue;
+        fprintf(stderr, " %s=", lims[i].name);
+        if (rl.rlim_cur == RLIM_INFINITY)
+            fprintf(stderr, "inf");
+        else
+            fprintf(stderr, "%llu", (unsigned long long)rl.rlim_cur);
+        if (rl.rlim_max == RLIM_INFINITY)
+            fprintf(stderr, ":inf");
+        else
+            fprintf(stderr, ":%llu", (unsigned long long)rl.rlim_max);
+    }
+    fputc('\n', stderr);
+}
+
 static void
 die(pam_handle_t *pamh, int errnum)
 {
@@ -119,7 +151,10 @@ main(int argc, char *argv[])
             die(pamh, ret);
         }
     }
-    if ((ret = pam_authenticate(pamh, 0)) != PAM_SUCCESS) {
+    report_rlimits("before");
+    ret = pam_authenticate(pamh, 0);
+    report_rlimits("after");
+    if (ret != PAM_SUCCESS) {
         if (ret != PAM_MAXTRIES) {
             die(pamh, ret);
         }

@@ -12,10 +12,13 @@
 #include "config.h"
 
 #include <sys/types.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #include <netdb.h>
 
 #include <dlfcn.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <pwd.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -62,6 +65,72 @@ _isfallback(void)
 {
         char *t = getenv("FALLBACK");
         return (t ? atoi(t) : 0);
+}
+
+/*
+ * When TESTPAM_OPEN_FAIL_PATH and TESTPAM_OPEN_FAIL_ERRNO are set, opening
+ * that exact path fails with that errno, so tests can check how pam_duo
+ * handles a specific open() error. Every other open() passes through.
+ */
+static int
+_open_should_fail(const char *pathname)
+{
+    const char *path = getenv("TESTPAM_OPEN_FAIL_PATH");
+    const char *err = getenv("TESTPAM_OPEN_FAIL_ERRNO");
+
+    if (path == NULL || err == NULL || strcmp(pathname, path) != 0)
+        return 0;
+    errno = atoi(err);
+    return 1;
+}
+
+static mode_t
+_open_mode(int flags, va_list ap)
+{
+#ifdef O_TMPFILE
+    if ((flags & O_CREAT) || (flags & O_TMPFILE) == O_TMPFILE)
+#else
+    if (flags & O_CREAT)
+#endif
+        return (mode_t)va_arg(ap, int);
+    return 0;
+}
+
+int
+open(const char *pathname, int flags, ...)
+{
+    va_list ap;
+    mode_t mode;
+
+    va_start(ap, flags);
+    mode = _open_mode(flags, ap);
+    va_end(ap);
+    if (_open_should_fail(pathname))
+        return -1;
+    if (_sys_open == NULL)
+        _sys_open = dlsym(RTLD_NEXT, "open");
+    return (*_sys_open)(pathname, flags, mode);
+}
+
+int
+open64(const char *pathname, int flags, ...)
+{
+    va_list ap;
+    mode_t mode;
+
+    va_start(ap, flags);
+    mode = _open_mode(flags, ap);
+    va_end(ap);
+    if (_open_should_fail(pathname))
+        return -1;
+    if (_sys_open64 == NULL)
+        _sys_open64 = dlsym(RTLD_NEXT, "open64");
+    if (_sys_open64 == NULL) {
+        if (_sys_open == NULL)
+            _sys_open = dlsym(RTLD_NEXT, "open");
+        return (*_sys_open)(pathname, flags, mode);
+    }
+    return (*_sys_open64)(pathname, flags, mode);
 }
 
 char *
@@ -133,7 +202,59 @@ getpwnam(const char *name)
     return &ret;
 }
 
+/* Count how many descriptors (up to max) can be allocated right now. */
+static int
+count_free_fds(int max)
+{
+    int fds[64];
+    int i, n;
+
+    if (max > 64)
+        max = 64;
+    if ((fds[0] = open("/dev/null", O_RDONLY)) < 0)
+        return 0;
+    for (n = 1; n < max; n++) {
+        if ((fds[n] = dup(fds[0])) < 0)
+            break;
+    }
+    for (i = 0; i < n; i++)
+        close(fds[i]);
+    return n;
+}
+
+/* When TESTPAM_REPORT_RLIMITS is set, print the current resource limits so
+ * tests can check what a PAM module sees and what the caller gets back. */
+static void
+report_rlimits(const char *when)
+{
+    static const struct { int res; const char *name; } lims[] = {
+        { RLIMIT_AS, "AS" }, { RLIMIT_DATA, "DATA" }, { RLIMIT_NOFILE, "NOFILE" },
+    };
+    struct rlimit rl;
+    size_t i;
+
+    if (getenv("TESTPAM_REPORT_RLIMITS") == NULL)
+        return;
+    fprintf(stderr, "TESTPAM rlimits %s:", when);
+    for (i = 0; i < sizeof(lims) / sizeof(lims[0]); i++) {
+        if (getrlimit(lims[i].res, &rl) != 0)
+            continue;
+        fprintf(stderr, " %s=", lims[i].name);
+        if (rl.rlim_cur == RLIM_INFINITY)
+            fprintf(stderr, "inf");
+        else
+            fprintf(stderr, "%llu", (unsigned long long)rl.rlim_cur);
+        if (rl.rlim_max == RLIM_INFINITY)
+            fprintf(stderr, ":inf");
+        else
+            fprintf(stderr, ":%llu", (unsigned long long)rl.rlim_max);
+    }
+    fprintf(stderr, " FREEFD=%d", count_free_fds(64));
+    fputc('\n', stderr);
+}
+
 int pam_get_item(const pam_handle_t *pamh, int item_type, pam_item item) {
+    report_rlimits("during");
     if(item_type == PAM_SERVICE) {
         char *s = getenv("SIMULATE_SERVICE");
         if(s) {
