@@ -8,6 +8,7 @@
 # test_pam_duo.py
 #
 
+import errno
 import getpass
 import os
 import subprocess
@@ -18,6 +19,7 @@ import sys
 import pexpect
 from common_suites import NORMAL_CERT, CommonSuites, EOF, CommonTestCase
 from config import (
+    DuoUnixConfig,
     MOCKDUO_CONF,
     MOCKDUO_FALLBACK,
     MOCKDUO_GECOS_DEFAULT_DELIM_6_POS,
@@ -31,7 +33,17 @@ from config import (
     MOCKDUO_GECOS_SLASH_DELIM_3_POS,
     MOCKDUO_PROMPTS_1,
     MOCKDUO_PROMPTS_DEFAULT,
+    MOCKDUO_VERIFIED_PUSH,
     TempConfig,
+)
+from mockduo import (
+    VERIFIED_PUSH_CODE,
+    VP_BAD_CODE_USER,
+    VP_EXPIRED_USER,
+    VP_IGNORED_USER,
+    VP_REJECTED_EMPTY_USER,
+    VP_REJECTED_USER,
+    VP_USER,
 )
 from mockduo_context import MockDuo
 from paths import topbuilddir
@@ -593,6 +605,295 @@ class TestPamDuoIPv6(CommonTestCase):
                 result["stderr"],
                 r"Skipped Duo login for 'preauth-allow' from 1\.2\.3\.4",
             )
+
+
+@unittest.skipIf(sys.platform == "sunos5", SOLARIS_ISSUE)
+class TestPamDuoVerifiedPush(CommonTestCase):
+    """Verified Push code display for sshd (sync) and other services (async)"""
+
+    PROMPT_REGEX = CommonSuites.Interactive.PROMPT_REGEX
+    CODE_LINE = "If Duo Mobile asks for a code, enter " + VERIFIED_PUSH_CODE
+    SSHD = {"SIMULATE_SERVICE": "sshd"}
+
+    def run(self, result=None):
+        with MockDuo(NORMAL_CERT):
+            return super(TestPamDuoVerifiedPush, self).run(result)
+
+    def start(self, temp, user, env=None):
+        process = pam_duo_interactive(
+            ["-d", "-c", temp.name, "-f", user, "true"], env=env or {}
+        )
+        process.expect(self.PROMPT_REGEX, timeout=10)
+        return process, (process.before + process.after).decode()
+
+    def finish(self, process, choice=b"1"):
+        process.sendline(choice)
+        self.assertEqual(process.expect(EOF, timeout=10), 0)
+        return process.before.decode()
+
+    def test_sshd_prompt_shows_code(self):
+        with TempConfig(MOCKDUO_VERIFIED_PUSH) as temp:
+            process, prompt = self.start(temp, VP_USER, self.SSHD)
+            # On its own line, between the factor list and the input line
+            self.assertIn(
+                "  4. Phone 2 (deny)\r\n\r\n"
+                + self.CODE_LINE
+                + "\r\n\r\nPasscode or option (1-4): ",
+                prompt,
+            )
+            output = self.finish(process)
+            self.assertIn("Success. Logging you in...", output)
+            self.assertIn("Successful Duo login for '{0}'".format(VP_USER), output)
+            self.assertNotIn(VERIFIED_PUSH_CODE, output)
+
+    def test_async_service_shows_code_once(self):
+        with TempConfig(MOCKDUO_VERIFIED_PUSH) as temp:
+            process, prompt = self.start(temp, VP_USER)
+            self.assertNotIn(VERIFIED_PUSH_CODE, prompt)
+            output = self.finish(process)
+            self.assertEqual(output.count(VERIFIED_PUSH_CODE), 1)
+            self.assertIn(
+                "Please enter verification code {0} into Duo Mobile...".format(
+                    VERIFIED_PUSH_CODE
+                ),
+                output,
+            )
+            self.assertIn("Successful Duo login for '{0}'".format(VP_USER), output)
+
+    def assert_retry(self, user, message, log_error):
+        with TempConfig(MOCKDUO_VERIFIED_PUSH) as temp:
+            process, prompt = self.start(temp, user, self.SSHD)
+            self.assertIn(self.CODE_LINE, prompt)
+            process.sendline(b"1")
+            # The attempt fails and a fresh preauth prompts again
+            self.assertEqual(process.expect(self.PROMPT_REGEX, timeout=10), 0)
+            retry = (process.before + process.after).decode()
+            self.assertIn(message, retry)
+            self.assertIn(
+                "Failed Duo login for '{0}': {1}".format(user, log_error), retry
+            )
+            self.assertNotIn("Aborted Duo login", retry)
+            self.assertIn(self.CODE_LINE, retry)
+            process.terminate(force=True)
+
+    def test_sshd_expired_before_auth_retries(self):
+        """Preauth expiration already passed when the user answers"""
+        self.assert_retry(
+            VP_EXPIRED_USER,
+            "Login request expired, please try again.",
+            "Verified Push request expired before /auth",
+        )
+
+    def test_sshd_auth_rejected_retries(self):
+        """/auth answers HTTP 400: retry, and log the server's error"""
+        self.assert_retry(
+            VP_REJECTED_USER,
+            "Login request could not be completed, please try again.",
+            "Verified Push request rejected by /auth: HTTP 400 40002: "
+            "Invalid request parameters "
+            "(No verification code found for the given txid.)",
+        )
+
+    def test_sshd_auth_rejected_without_body_retries(self):
+        """/auth answers HTTP 400 with no JSON body"""
+        self.assert_retry(
+            VP_REJECTED_EMPTY_USER,
+            "Login request could not be completed, please try again.",
+            "Verified Push request rejected by /auth: HTTP 400 0: (no message)",
+        )
+
+    def test_sshd_expired_passcode_left_to_server(self):
+        """The local expiry check only applies to push; /auth decides for others"""
+        with TempConfig(MOCKDUO_VERIFIED_PUSH) as temp:
+            process, _ = self.start(temp, VP_EXPIRED_USER, self.SSHD)
+            process.sendline(b"123456")
+            self.assertEqual(process.expect(self.PROMPT_REGEX, timeout=10), 0)
+            retry = (process.before + process.after).decode()
+            # Reached the mock's /auth, which rejects this passcode
+            self.assertIn("Invalid passcode, please try again.", retry)
+            self.assertNotIn("Login request expired", retry)
+            process.terminate(force=True)
+
+    def test_sshd_non_numeric_code_not_shown(self):
+        with TempConfig(MOCKDUO_VERIFIED_PUSH) as temp:
+            process, prompt = self.start(temp, VP_BAD_CODE_USER, self.SSHD)
+            self.assertNotIn("If Duo Mobile asks for a code", prompt)
+            self.assertNotIn("12ab", prompt)
+            output = self.finish(process)
+            self.assertIn(
+                "Successful Duo login for '{0}'".format(VP_BAD_CODE_USER), output
+            )
+
+    def test_sshd_no_code_from_server(self):
+        with TempConfig(MOCKDUO_VERIFIED_PUSH) as temp:
+            process, prompt = self.start(temp, VP_IGNORED_USER, self.SSHD)
+            self.assertNotIn("If Duo Mobile asks for a code", prompt)
+            output = self.finish(process)
+            self.assertIn(
+                "Successful Duo login for '{0}'".format(VP_IGNORED_USER), output
+            )
+
+    def test_sshd_verified_push_disabled(self):
+        with TempConfig(MOCKDUO_CONF) as temp:
+            process, prompt = self.start(temp, "foobar", self.SSHD)
+            self.assertNotIn("If Duo Mobile asks for a code", prompt)
+            process.terminate(force=True)
+
+
+MEM_FLOOR = 1024 * 1024 * 1024
+NOFILE_FLOOR = 1024
+FD_HEADROOM = 16
+
+
+def _can_raise_hard_rlimit():
+    """True if a child process can raise a hard limit it has lowered.
+
+    Raising a hard limit needs privilege (CAP_SYS_RESOURCE on Linux), which
+    root inside a container may not have.
+    """
+    code = (
+        "import resource as r\n"
+        "s, h = r.getrlimit(r.RLIMIT_NOFILE)\n"
+        "r.setrlimit(r.RLIMIT_NOFILE, (64, 64))\n"
+        "r.setrlimit(r.RLIMIT_NOFILE, (2048, 2048))\n"
+    )
+    return subprocess.call([sys.executable, "-c", code]) == 0
+
+
+def _parse_rlimit_reports(stderr_lines):
+    """Map "before"/"during"/"after" to a list of {name: (cur, max)} dicts."""
+    reports = {}
+    for line in stderr_lines:
+        if not line.startswith("TESTPAM rlimits "):
+            continue
+        when, _, rest = line[len("TESTPAM rlimits "):].partition(":")
+        limits = {}
+        for item in rest.split():
+            name, _, value = item.partition("=")
+            if ":" not in value:
+                limits[name] = int(value)
+                continue
+            cur, _, hard = value.partition(":")
+            limits[name] = (
+                float("inf") if cur == "inf" else int(cur),
+                float("inf") if hard == "inf" else int(hard),
+            )
+        reports.setdefault(when, []).append(limits)
+    return reports
+
+
+@unittest.skipIf(sys.platform != "linux", "resource limit tests are Linux-only")
+@unittest.skipUnless(_can_raise_hard_rlimit(), "needs privilege to raise hard limits")
+class TestPamResourceLimits(CommonTestCase):
+    def run(self, result=None):
+        with MockDuo(NORMAL_CERT):
+            return super(TestPamResourceLimits, self).run(result)
+
+    def _run_with_limits(self, spec):
+        with TempConfig(MOCKDUO_CONF) as temp:
+            result = pam_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-deny", "true"],
+                env={"TESTPAM_RLIMITS": spec, "TESTPAM_REPORT_RLIMITS": "1"},
+            )
+        return result, _parse_rlimit_reports(result["stderr"])
+
+    def test_low_limits_raised_during_auth_and_restored(self):
+        """Limits below the floor are raised for authentication, then restored"""
+        mem = 64 * 1024 * 1024
+        result, reports = self._run_with_limits(
+            "AS:{0},DATA:{0},NOFILE:64".format(mem)
+        )
+        self.assertRegexSomeline(
+            result["stderr"], r"Aborted Duo login for 'preauth-deny'"
+        )
+        self.assertNotEqual(result["returncode"], 0)
+
+        self.assertIn("during", reports)
+        for during in reports["during"]:
+            for name in ("AS", "DATA"):
+                self.assertGreaterEqual(during[name][0], MEM_FLOOR)
+                self.assertGreaterEqual(during[name][1], MEM_FLOOR)
+            self.assertGreaterEqual(during["NOFILE"][0], NOFILE_FLOOR)
+
+        self.assertEqual(reports["before"][0]["AS"], (mem, mem))
+        self.assertEqual(reports["after"], reports["before"])
+
+    def test_fd_headroom_with_occupied_descriptors(self):
+        """Free descriptors are made available even when the limit is above the floor"""
+        result, reports = self._run_with_limits("NOFILE:1024,FILLFDS:2")
+        self.assertRegexSomeline(
+            result["stderr"], r"Aborted Duo login for 'preauth-deny'"
+        )
+        self.assertNotEqual(result["returncode"], 0)
+
+        self.assertIn("during", reports)
+        for during in reports["during"]:
+            self.assertGreaterEqual(during["FREEFD"], FD_HEADROOM)
+        self.assertEqual(reports["after"], reports["before"])
+
+    def test_fd_headroom_with_many_descriptors_above_limit(self):
+        """Free descriptors are made available however many are open above the limit"""
+        result, reports = self._run_with_limits(
+            "NOFILE:1024,FILLFDS:0,FILLABOVE:6000"
+        )
+        self.assertRegexSomeline(
+            result["stderr"], r"Aborted Duo login for 'preauth-deny'"
+        )
+        self.assertNotEqual(result["returncode"], 0)
+
+        self.assertIn("during", reports)
+        for during in reports["during"]:
+            self.assertGreaterEqual(during["FREEFD"], FD_HEADROOM)
+        self.assertEqual(reports["after"], reports["before"])
+
+    def test_limits_above_floor_unchanged(self):
+        """Limits already at or above the floor are left alone"""
+        mem = 2 * MEM_FLOOR
+        result, reports = self._run_with_limits(
+            "AS:{0},DATA:{0},NOFILE:4096".format(mem)
+        )
+        self.assertNotEqual(result["returncode"], 0)
+        self.assertIn("during", reports)
+        for during in reports["during"]:
+            during = {k: v for k, v in during.items() if k != "FREEFD"}
+            self.assertEqual(during, reports["before"][0])
+        self.assertEqual(reports["after"], reports["before"])
+
+
+@unittest.skipIf(sys.platform != "linux", "open() error injection is Linux-only")
+class TestPamConfigOpenErrors(CommonTestCase):
+    """How a failed open() of the config file affects the result, with failmode=safe"""
+
+    def _auth_with_open_error(self, err):
+        config = DuoUnixConfig(MOCKDUO_CONF, failmode="safe")
+        with TempConfig(config) as temp:
+            return pam_duo(
+                ["-d", "-c", temp.name, "-f", "preauth-allow", "true"],
+                env={
+                    "TESTPAM_OPEN_FAIL_PATH": temp.name,
+                    "TESTPAM_OPEN_FAIL_ERRNO": str(err),
+                },
+            )
+
+    def test_resource_errors_deny(self):
+        """Running out of descriptors or memory denies authentication"""
+        for err in (errno.EMFILE, errno.ENFILE, errno.ENOMEM):
+            with self.subTest(errno=errno.errorcode[err]):
+                result = self._auth_with_open_error(err)
+                self.assertRegexSomeline(
+                    result["stderr"], r"Couldn't open .*: " + os.strerror(err)
+                )
+                self.assertNotEqual(result["returncode"], 0)
+
+    def test_other_errors_follow_failmode(self):
+        """Other open() errors still follow failmode"""
+        for err in (errno.ENOENT, errno.EACCES):
+            with self.subTest(errno=errno.errorcode[err]):
+                result = self._auth_with_open_error(err)
+                self.assertRegexSomeline(
+                    result["stderr"], r"Couldn't open .*: " + os.strerror(err)
+                )
+                self.assertEqual(result["returncode"], 0)
 
 
 if __name__ == "__main__":

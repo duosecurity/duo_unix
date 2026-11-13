@@ -78,10 +78,15 @@ AC_DEFINE_DIR([UNITY_VERSION], [unity_version], [Unity directory name])
 
 # Compiler options
 if test "x$GCC" = "xyes"; then
+   # -fPIE is needed in every build because login_duo is linked with -pie
+   # (PIE_LDFLAGS below). _FORTIFY_SOURCE needs optimization, so it is left
+   # out of -O0 coverage builds.
    if test "x$with_coverage" != "xyes"; then
       CFLAGS="$CFLAGS -Wall -D_FORTIFY_SOURCE=2 -fPIE"
-      AC_MSG_NOTICE([Adding gcc options: $CFLAGS])
+   else
+      CFLAGS="$CFLAGS -fPIE"
    fi
+   AC_MSG_NOTICE([Adding gcc options: $CFLAGS])
 fi
 GGL_CHECK_STACK_PROTECTOR([has_stack_protector=yes], [has_stack_protector=no])
 IS_AIX=no
