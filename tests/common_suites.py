@@ -25,6 +25,7 @@ from config import (
     BAD_EMPTY_CONF,
     BAD_HEADER_CONF,
     BAD_MISSING_VALUES_CONF,
+    DuoUnixConfig,
     MOCKDUO_AUTOPUSH,
     MOCKDUO_AUTOPUSH_SECURE,
     MOCKDUO_BADKEYS,
@@ -42,6 +43,7 @@ from config import (
     TempConfig,
 )
 from mockduo_context import NORMAL_CERT, SELFSIGNED_CERT, WRONGHOST_CERT, MockDuo
+from mockproxy import MockProxy, ipv6_loopback_available
 
 from typing import Sequence
 
@@ -975,3 +977,103 @@ class CommonSuites:
                         result["stderr"],
                         r"Successful Duo login for 'client_supports_verified_push-ignored'",
                     )
+    class HTTPProxyAuth(CommonTestCase):
+        """http_proxy credentials follow the HTTP_PROXY convention: they end
+        at the last '@' and are percent-decoded"""
+
+        def run(self, result=None):
+            with MockDuo(NORMAL_CERT):
+                return super(CommonSuites.HTTPProxyAuth, self).run(result)
+
+        def login(self, http_proxy, base=MOCKDUO_CONF, user="preauth-allow"):
+            with TempConfig(DuoUnixConfig(base, http_proxy=http_proxy)) as temp:
+                return self.call_binary(
+                    ["-d", "-c", temp.name, "-f", user, "true"]
+                )
+
+        def assertLoggedIn(self, result):
+            self.assertRegexSomeline(
+                result["stderr"],
+                r"Skipped Duo login for 'preauth-allow'.*: preauth-allowed",
+            )
+
+        def test_encoded_password(self):
+            with MockProxy("pxuser:p@ss:w0rd") as proxy:
+                result = self.login(
+                    "http://pxuser:p%40ss%3Aw0rd@127.0.0.1:{0}".format(proxy.port)
+                )
+            self.assertLoggedIn(result)
+            self.assertIn("pxuser:p@ss:w0rd", proxy.seen_credentials)
+
+        def test_raw_at_in_password(self):
+            with MockProxy("pxuser:p@ss@w0rd") as proxy:
+                result = self.login(
+                    "http://pxuser:p@ss@w0rd@127.0.0.1:{0}/".format(proxy.port)
+                )
+            self.assertLoggedIn(result)
+            self.assertIn("pxuser:p@ss@w0rd", proxy.seen_credentials)
+
+        def test_encoded_user_name(self):
+            with MockProxy("px@user:secret") as proxy:
+                result = self.login(
+                    "http://px%40user:secret@127.0.0.1:{0}".format(proxy.port)
+                )
+            self.assertLoggedIn(result)
+
+        def test_wrong_password_uses_failmode(self):
+            for config in [MOCKDUO_CONF, MOCKDUO_FAILSECURE]:
+                with MockProxy("pxuser:right") as proxy:
+                    result = self.login(
+                        "http://pxuser:wrong@127.0.0.1:{0}".format(proxy.port),
+                        base=config,
+                    )
+                self.assertRegexSomeline(
+                    result["stderr"],
+                    r"{0} Duo login for 'preauth-allow'.*Couldn't connect".format(
+                        config.failmode_as_prefix()
+                    ),
+                )
+                self.assertIn("pxuser:wrong", proxy.seen_credentials)
+
+        @unittest.skipUnless(ipv6_loopback_available(), "no IPv6 loopback")
+        def test_bracketed_ipv6_proxy(self):
+            with MockProxy("pxuser:secret", ipv6=True) as proxy:
+                result = self.login(
+                    "http://pxuser:secret@[::1]:{0}/".format(proxy.port)
+                )
+            self.assertLoggedIn(result)
+
+        def test_malformed_values_warn_and_use_failmode(self):
+            # Logged at startup, then fail on connect like an unreachable
+            # proxy, so failmode applies rather than an API handle error
+            for http_proxy, warning in [
+                ("http://127.0.0.1:http", "port is not a number from 1 to 65535"),
+                ("http://127.0.0.1:0", "port is not a number from 1 to 65535"),
+                ("http://::1:3128", "an IPv6 address must be in brackets"),
+                ("http://[::1", "missing its closing ']'"),
+                ("http://[::1]x", "unexpected text after the bracketed"),
+                ("http://user:secret@", "has no host name"),
+                ("http://us%3Aer:secret@127.0.0.1:9", "user name contains ':'"),
+                ("http://user:a%00b@127.0.0.1:9", "credentials contain %00"),
+            ]:
+                with self.subTest(http_proxy=http_proxy):
+                    result = self.login(http_proxy)
+                    self.assertRegexSomeline(
+                        result["stderr"],
+                        r"\[4\] http_proxy .*" + re.escape(warning),
+                    )
+                    self.assertRegexSomeline(
+                        result["stderr"],
+                        r"Failsafe Duo login for 'preauth-allow'",
+                    )
+                    self.assertNotRegexAnyline(
+                        result["stderr"], r"Couldn't open Duo API handle"
+                    )
+
+        def test_valid_proxy_does_not_warn(self):
+            with MockProxy("pxuser:secret") as proxy:
+                result = self.login(
+                    "http://pxuser:secret@127.0.0.1:{0}".format(proxy.port)
+                )
+            self.assertLoggedIn(result)
+            self.assertNotRegexAnyline(result["stderr"], r"\[4\] http_proxy")

@@ -26,6 +26,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -802,6 +803,146 @@ _apply_min_tls(SSL_CTX *ssl_ctx, int min_tls)
     return (0);
 }
 
+static int
+_hex_value(int c)
+{
+    return (isdigit(c) ? c - '0' : tolower(c) - 'a' + 10);
+}
+
+/*
+ * Percent-decode s in place. Malformed escapes are kept as they are, as curl
+ * does. %00 is also kept, because a NUL would silently cut the value short.
+ * Returns 1 if a %00 was kept, otherwise 0.
+ */
+static int
+_percent_decode(char *s)
+{
+    char *r, *w;
+    int c, kept_nul = 0;
+
+    for (r = w = s; *r != '\0'; ) {
+        if (r[0] == '%' && isxdigit((unsigned char)r[1]) &&
+            isxdigit((unsigned char)r[2])) {
+            c = (_hex_value((unsigned char)r[1]) << 4) |
+                _hex_value((unsigned char)r[2]);
+            if (c != 0) {
+                *w++ = (char)c;
+                r += 3;
+                continue;
+            }
+            kept_nul = 1;
+        }
+        *w++ = *r++;
+    }
+    *w = '\0';
+    return (kept_nul);
+}
+
+static void
+_proxy_warning(const char *msg)
+{
+    duo_log(LOG_WARNING, msg, NULL, NULL, NULL);
+}
+
+/*
+ * Split an http_proxy value, without its "http://" prefix, of the form
+ * [user[:password]@]host[:port][/path]. This follows the HTTP_PROXY
+ * convention curl uses: the user name and password end at the last '@', so
+ * the password may contain '@', and both are percent-decoded. An IPv6 host
+ * goes in brackets, e.g. [2001:db8::1]:3128. The port defaults to 80.
+ *
+ * *buf is set to a copy of spec that *host, *port and *auth point into; the
+ * caller frees it. *auth is "user:password" or "user", or NULL if there are
+ * no credentials. A malformed value is logged and still used, so that it
+ * fails when connecting, like an unreachable proxy.
+ *
+ * Returns 0, or -1 if memory could not be allocated.
+ */
+int
+_https_parse_proxy(const char *spec, char **buf, char **host, char **port,
+    char **auth)
+{
+    char *p, *h, *sep, *end;
+    long portnum;
+    int kept_nul;
+
+    *host = *port = *auth = NULL;
+    if ((*buf = p = strdup(spec)) == NULL) {
+        return (-1);
+    }
+
+    if ((h = strrchr(p, '@')) != NULL) {
+        *h++ = '\0';
+        *auth = p;
+        /* Decode the user name and password separately, so an encoded ':'
+           in the password can't end up in the user name */
+        if ((sep = strchr(p, ':')) != NULL) {
+            *sep++ = '\0';
+        }
+        kept_nul = _percent_decode(p);
+        if (strchr(p, ':') != NULL) {
+            _proxy_warning("http_proxy user name contains ':', which "
+                "the proxy will read as the start of the password");
+        }
+        if (sep != NULL) {
+            size_t user_len = strlen(p);
+
+            kept_nul |= _percent_decode(sep);
+            /* Decoding only shrinks, so this stays within the buffer */
+            memmove(p + user_len + 1, sep, strlen(sep) + 1);
+            p[user_len] = ':';
+        }
+        if (kept_nul) {
+            _proxy_warning("http_proxy credentials contain %00, which "
+                "cannot be sent and is passed through undecoded");
+        }
+    } else {
+        h = p;
+    }
+    h[strcspn(h, "/")] = '\0';
+
+    sep = NULL;
+    if (h[0] == '[' && (end = strchr(h, ']')) != NULL) {
+        *end++ = '\0';
+        *host = h + 1;
+        if (*end == ':') {
+            *port = end + 1;
+        } else if (*end != '\0') {
+            _proxy_warning("http_proxy has unexpected text after the "
+                "bracketed IPv6 address");
+        }
+    } else {
+        if (h[0] == '[') {
+            _proxy_warning("http_proxy IPv6 address is missing its "
+                "closing ']'");
+        }
+        if ((sep = strchr(h, ':')) != NULL) {
+            *sep++ = '\0';
+            *port = sep;
+        }
+        *host = h;
+    }
+    if (*port == NULL) {
+        *port = "80";
+    }
+
+    if (**host == '\0') {
+        _proxy_warning("http_proxy has no host name");
+    }
+    errno = 0;
+    portnum = strtol(*port, &end, 10);
+    if (end == *port || *end != '\0' || errno != 0 ||
+        portnum < 1 || portnum > 65535) {
+        if (sep != NULL && strchr(*port, ':') != NULL) {
+            _proxy_warning("http_proxy port is not valid; an IPv6 address "
+                "must be in brackets, e.g. [2001:db8::1]:3128");
+        } else {
+            _proxy_warning("http_proxy port is not a number from 1 to 65535");
+        }
+    }
+    return (0);
+}
+
 HTTPScode
 https_init(const char *cafile, const char *http_proxy, int min_tls)
 {
@@ -893,23 +1034,10 @@ https_init(const char *cafile, const char *http_proxy, int min_tls)
             }
             http_proxy += 7;
         }
-        if ((p = strdup(http_proxy)) == NULL) {
+        if (_https_parse_proxy(http_proxy, &p, &ctx.proxy, &ctx.proxy_port,
+                &ctx.proxy_auth) != 0) {
             ctx.errstr = strerror(errno);
             return (HTTPS_ERR_SYSTEM);
-        }
-
-        if ((ctx.proxy = strchr(p, '@')) != NULL) {
-            *ctx.proxy++ = '\0';
-            ctx.proxy_auth = p;
-        } else {
-            ctx.proxy = p;
-        }
-        strtok(ctx.proxy, "/");
-
-        if ((ctx.proxy_port = strchr(ctx.proxy, ':')) != NULL) {
-            *ctx.proxy_port++ = '\0';
-        } else {
-            ctx.proxy_port = "80";
         }
     }
     /* Set HTTP parser callbacks */
