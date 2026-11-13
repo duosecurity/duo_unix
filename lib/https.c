@@ -9,6 +9,10 @@
 
 #include "config.h"
 
+#if defined(__FreeBSD__)
+#include <netinet/in.h>
+#endif
+
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
