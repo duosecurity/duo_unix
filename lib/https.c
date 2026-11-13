@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <locale.h>
@@ -1111,18 +1112,28 @@ https_send(struct https_request *req, const char *method, const char *uri,
     char *qs, *p, date[128];
     int i, n, is_get;
     time_t t;
+    struct tm tm;
+    size_t date_len;
     locale_t c_locale;
 
     req->done = 0;
 
     t = time(NULL) + time_offset; /* adjust time by offset */
+    if (gmtime_r(&t, &tm) == NULL) {
+        ctx.errstr = "Failed to convert request time";
+        return (HTTPS_ERR_LIB);
+    }
     c_locale = newlocale(LC_TIME_MASK, "C", (locale_t)0);
     if (c_locale == (locale_t)0) {
         ctx.errstr = "Failed to create C locale";
         return (HTTPS_ERR_LIB);
     }
-    strftime_l(date, sizeof date, "%a, %d %b %Y %T +0000", gmtime(&t), c_locale);
+    date_len = strftime_l(date, sizeof date, "%a, %d %b %Y %T +0000", &tm, c_locale);
     freelocale(c_locale);
+    if (date_len == 0) {
+        ctx.errstr = "Failed to format request date";
+        return (HTTPS_ERR_LIB);
+    }
 
     /* Generate query string and canonical request to sign */
     if ((qs = _argv_to_qs(argc, argv)) == NULL) {

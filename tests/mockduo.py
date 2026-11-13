@@ -89,6 +89,20 @@ class MockDuoHandler(BaseHTTPRequestHandler):
     # to exercise the client's handling of unparseable server responses.
     _malformed = False
 
+    # Server-supplied numbers that a test has replaced, set through
+    # /mockduo/set-field. Keys: "ping_time" (ping "time"), "fail_code"
+    # (preauth-fail "code"), "vp_expiration" (Verified Push "expiration").
+    # A value of _ABSENT drops the member from the response.
+    _ABSENT = object()
+    _fields = {}
+
+    def _set_field(self, obj, key, name, default):
+        value = type(self)._fields.get(name, default)
+        if value is type(self)._ABSENT:
+            obj.pop(key, None)
+        else:
+            obj[key] = value
+
     def _send_malformed(self):
         # The '(' is not a valid header-name token character; placing it at
         # offset 37 makes the HTTP parser report that offset as its consumed
@@ -212,6 +226,18 @@ class MockDuoHandler(BaseHTTPRequestHandler):
             self.qs = ""
             self.args = {}
 
+        # Replace a server-supplied number with a raw JSON value, or drop
+        # it from the response when "value" is omitted
+        if self.path == "/mockduo/set-field":
+            name = self.args.get("name")
+            if name not in ("ping_time", "fail_code", "vp_expiration"):
+                return self._send(400, json.dumps({"stat": "FAIL", "error": "bad name"}))
+            if "value" in self.args:
+                type(self)._fields[name] = json.loads(self.args["value"])
+            else:
+                type(self)._fields[name] = type(self)._ABSENT
+            return self._send(200, json.dumps({"stat": "OK"}))
+
         # Special endpoint to set skew
         if self.path == "/mockduo/set-skew":
             try:
@@ -232,7 +258,9 @@ class MockDuoHandler(BaseHTTPRequestHandler):
             if type(self)._malformed:
                 return self._send_malformed()
             skew = self._get_skew()
-            ret["response"] = {"time": int(time.time()) + skew}
+            ret["response"] = {}
+            self._set_field(ret["response"], "time", "ping_time",
+                            int(time.time()) + skew)
             buf = json.dumps(ret)
             return self._send(200, buf)
 
@@ -282,9 +310,9 @@ class MockDuoHandler(BaseHTTPRequestHandler):
             elif self.args["username"] == "preauth-fail":
                 ret = {
                     "stat": "FAIL",
-                    "code": 1000,
                     "message": "Pre-authentication failed",
                 }
+                self._set_field(ret, "code", "fail_code", 1000)
             elif self.args["username"] == "escape-inject-fail":
                 ret = {
                     "stat": "FAIL",
@@ -423,8 +451,9 @@ class MockDuoHandler(BaseHTTPRequestHandler):
                             "12ab" if username == VP_BAD_CODE_USER
                             else VERIFIED_PUSH_CODE
                         )
-                        ret["response"]["expiration"] = (
-                            now - 1 if username == VP_EXPIRED_USER else now + 60
+                        self._set_field(
+                            ret["response"], "expiration", "vp_expiration",
+                            now - 1 if username == VP_EXPIRED_USER else now + 60,
                         )
         elif self.path == "/auth/v2/auth":
             if self.args["factor"] == "prompt":
