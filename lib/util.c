@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <errno.h>
 #include <netdb.h>
 #include <sys/types.h>
@@ -47,15 +48,38 @@ duo_config_default(struct duo_config *cfg)
     cfg->gecos_delim = ',';
 }
 
+/* Values accepted for boolean options, compared case-insensitively */
+static const char *const bool_true_values[] = { "yes", "true", "on", "1", NULL };
+static const char *const bool_false_values[] = { "no", "false", "off", "0", NULL };
+
+static int
+_bool_value_in(const char *val, const char *const *values)
+{
+    for (; *values != NULL; values++) {
+        if (strcasecmp(val, *values) == 0) {
+            return (1);
+        }
+    }
+    return (0);
+}
+
 int
 duo_set_boolean_option(const char *val)
 {
-    if (strcmp(val, "yes") == 0 || strcmp(val, "true") == 0 ||
-        strcmp(val, "on") == 0 || strcmp(val, "1") == 0) {
+    return (val != NULL && _bool_value_in(val, bool_true_values));
+}
+
+int
+duo_parse_boolean_option(const char *name, const char *val)
+{
+    if (duo_set_boolean_option(val)) {
         return (1);
-    } else {
-        return (0);
     }
+    if (val == NULL || !_bool_value_in(val, bool_false_values)) {
+        duo_syslog(LOG_WARNING, "Unrecognized value for %s, which is "
+            "treated as \"no\"; use \"yes\" or \"no\"", name);
+    }
+    return (0);
 }
 
 int
@@ -156,9 +180,9 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
             return (0);
         }
     } else if (strcmp(name, "pushinfo") == 0) {
-        cfg->pushinfo = duo_set_boolean_option(val);
+        cfg->pushinfo = duo_parse_boolean_option(name, val);
     } else if (strcmp(name, "noverify") == 0) {
-        cfg->noverify = duo_set_boolean_option(val);
+        cfg->noverify = duo_parse_boolean_option(name, val);
     } else if (strcmp(name, "prompts") == 0) {
         int int_val = atoi(val);
         /* Clamp the value into acceptable range */
@@ -169,11 +193,11 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
             cfg->prompts = int_val;
         }
     } else if (strcmp(name, "autopush") == 0) {
-        cfg->autopush = duo_set_boolean_option(val);
+        cfg->autopush = duo_parse_boolean_option(name, val);
     } else if (strcmp(name, "accept_env_factor") == 0) {
-        cfg->accept_env = duo_set_boolean_option(val);
+        cfg->accept_env = duo_parse_boolean_option(name, val);
     } else if (strcmp(name, "fallback_local_ip") == 0) {
-        cfg->local_ip_fallback = duo_set_boolean_option(val);
+        cfg->local_ip_fallback = duo_parse_boolean_option(name, val);
     } else if (strcmp(name, "https_timeout") == 0) {
         cfg->https_timeout = atoi(val);
         if (cfg->https_timeout <= 0) {
@@ -183,7 +207,7 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
             cfg->https_timeout *= 1000;
         }
     } else if (strcmp(name, "send_gecos") == 0) {
-        cfg->send_gecos = duo_set_boolean_option(val);
+        cfg->send_gecos = duo_parse_boolean_option(name, val);
     } else if (strcmp(name, "gecos_parsed") == 0) {
         duo_log(LOG_ERR, "The gecos_parsed configuration item for Duo Unix is deprecated and no longer has any effect. Use gecos_delim and gecos_username_pos instead", NULL, NULL, NULL);
     } else if (strcmp(name, "dev_fips_mode") == 0) {
@@ -215,9 +239,9 @@ duo_common_ini_handler(struct duo_config *cfg, const char *section,
             cfg->gecos_username_pos = gecos_username_pos - 1;
         }
     } else if (strcmp(name, "verified_push") == 0) {
-        cfg->verified_push = duo_set_boolean_option(val);
+        cfg->verified_push = duo_parse_boolean_option(name, val);
     } else if (strcmp(name, "disable_ca_pinning") == 0) {
-        cfg->disable_ca_pinning = duo_set_boolean_option(val);
+        cfg->disable_ca_pinning = duo_parse_boolean_option(name, val);
     } else if (strcmp(name, "min_tls") == 0) {
         /* Opt-in minimum TLS version floor. An empty or unrecognized value
            leaves the floor unset (current negotiation behavior) rather than
