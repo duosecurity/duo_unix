@@ -53,7 +53,19 @@ Send command to be approved via Duo Push authentication. Default is
 .Dq Li no .
 .It Cm http_proxy
 Use the specified HTTP proxy, same format as the HTTP_PROXY environment
-variable.
+variable:
+.Dq Li http://[user[:password]@]host[:port] .
+The port defaults to 80, and an IPv6 address goes in brackets, e.g.
+.Dq Li http://[2001:db8::1]:3128 .
+The user name and password are percent-decoded, so a
+.Sq %
+in either must be written as
+.Dq Li %25 ;
+other characters, such as
+.Sq @
+(%40) or
+.Sq /
+(%2F), may be written either way.
 .It Cm autopush
 Automatically send a login request to the first factor (usually push),
 instead of prompting the user. Default is "no".
