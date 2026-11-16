@@ -73,7 +73,7 @@ __ini_handler(void *u, const char *section, const char *name, const char *val)
     if (!duo_common_ini_handler(cfg, section, name, val)) {
         /* Extra login_duo options */
         if (strcmp(name, "motd") == 0) {
-            cfg->motd = duo_set_boolean_option(val);
+            cfg->motd = duo_parse_boolean_option(name, val);
         } else {
             fprintf(stderr, "Invalid login_duo option: '%s'\n", name);
             return (0);
