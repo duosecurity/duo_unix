@@ -152,8 +152,9 @@ int ini_parse(FILE *file,
             /* Non-black line with leading whitespace, treat as continuation
                of previous name's value (as per Python ConfigParser). */
             value = lskip(start);
-            /* Skip line if this line is a comment with whitespace infront */
-            if (*value == ';') {
+            /* Skip line if this line is a comment with whitespace infront.
+               Both ';' and '#' start a comment, as on an unindented line. */
+            if (*value == ';' || *value == '#') {
                 continue;
             }
             if (!handler(user, section, prev_name, start) && !error) {

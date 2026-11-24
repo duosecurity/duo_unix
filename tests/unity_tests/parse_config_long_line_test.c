@@ -222,6 +222,32 @@ static void test_final_line_without_newline() {
     TEST_ASSERT_EQUAL_STRING(value, last_skey);
 }
 
+/* An indented comment line is skipped, not parsed as a continuation that
+ * replaces the previous option's value. This applies to both ';' and '#'
+ * comments, as on an unindented line. */
+static void test_indented_comment_is_not_a_continuation() {
+    const char *prefixes[] = { ";", "#" };
+    size_t i;
+
+    for (i = 0; i < sizeof(prefixes) / sizeof(prefixes[0]); i++) {
+        char conf[256];
+
+        /* Each case is its own test: remove the previous case's file and
+           reset what the handler recorded. */
+        tearDown();
+        setUp();
+        snprintf(conf, sizeof(conf),
+            "[duo]\nskey = realsecret\n    %s rotate this key every 90 days\n"
+            "failmode = secure\n", prefixes[i]);
+
+        _write_conf(conf);
+        TEST_ASSERT_EQUAL(0, duo_parse_config(conf_path, _record, NULL));
+        TEST_ASSERT_EQUAL(1, skey_calls);
+        TEST_ASSERT_EQUAL_STRING("realsecret", last_skey);
+        TEST_ASSERT_EQUAL_STRING("secure", last_failmode);
+    }
+}
+
 /* Line numbers in parse errors still count physical lines when long lines
  * come first. */
 static void test_parse_error_line_number_after_long_line() {
@@ -245,5 +271,6 @@ int main() {
     RUN_TEST(test_lines_at_buffer_boundary);
     RUN_TEST(test_final_line_without_newline);
     RUN_TEST(test_parse_error_line_number_after_long_line);
+    RUN_TEST(test_indented_comment_is_not_a_continuation);
     return UNITY_END();
 }
