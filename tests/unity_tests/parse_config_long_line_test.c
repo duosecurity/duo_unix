@@ -143,8 +143,7 @@ static void test_options_after_long_comment_still_read() {
     TEST_ASSERT_EQUAL_STRING("realsecret", last_skey);
 }
 
-/* A long groups list (one of the triggers in ZTCSI-3213) is read in full,
- * not cut off partway through. */
+/* A long groups list is read in full, not cut off partway through. */
 static void test_long_groups_line_read_in_full() {
     char groups[1024] = "";
     char conf[2048];
