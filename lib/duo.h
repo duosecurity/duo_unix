@@ -42,8 +42,9 @@ typedef struct duo_ctx duo_t;
  *   -2  file is world-readable, or group-readable while not owned by root
  *       (a non-root owner must keep the file readable only by that owner;
  *       a root-owned file may be group-readable, e.g. root:<group> 0640)
- *   -3  could not disable stdio buffering (fail closed; a buffered read
- *       could leave secret material in an unscrubbed heap buffer)
+ *   -3  internal error (fail closed): stdio buffering could not be
+ *       disabled, so a buffered read could leave secret material in an
+ *       unscrubbed heap buffer; or memory for a line couldn't be allocated
  */
 int duo_parse_config(
     const char *filename,

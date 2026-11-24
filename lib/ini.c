@@ -66,8 +66,8 @@ static char* strncpy0(char* dest, const char* src, size_t size)
 }
 
 /* Zero memory in a way the compiler can't optimize away. Config lines may
-   contain secrets (skey), so line buffers are always scrubbed before reuse
-   or free. */
+   contain secrets (skey), so line buffers are always scrubbed before they're
+   freed. */
 static void ini_zero(void* p, size_t n)
 {
 #ifdef HAVE_EXPLICIT_BZERO

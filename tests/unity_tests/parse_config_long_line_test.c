@@ -190,6 +190,9 @@ static void test_lines_at_buffer_boundary() {
         char conf[1024];
         char comment[2 * INITIAL_LINE + 1];
 
+        /* Each case is its own test: remove the previous case's file and
+           reset what the handler recorded. */
+        tearDown();
         setUp();
         _comment_line(comment, lens[i]);
         snprintf(conf, sizeof(conf),
