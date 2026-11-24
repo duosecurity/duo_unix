@@ -16,12 +16,14 @@ http://code.google.com/p/inih/
 #include "config.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <ctype.h>
+#include <limits.h>
 #include <string.h>
 
 #include "ini.h"
 
-#define MAX_LINE 200
+#define INITIAL_LINE 200
 #define MAX_SECTION 50
 #define MAX_NAME 50
 
@@ -63,13 +65,68 @@ static char* strncpy0(char* dest, const char* src, size_t size)
     return dest;
 }
 
+/* Zero memory in a way the compiler can't optimize away. Config lines may
+   contain secrets (skey), so line buffers are always scrubbed before they're
+   freed. */
+static void ini_zero(void* p, size_t n)
+{
+#ifdef HAVE_EXPLICIT_BZERO
+    explicit_bzero(p, n);
+#else
+    static void* (* volatile ini_memset)(void *, int, size_t) = memset;
+    ini_memset(p, 0, n);
+#endif
+}
+
+/* Read one whole line (including its newline, if any) into *buf, growing the
+   buffer as needed so long lines are never split. *buf and *size describe a
+   heap buffer owned by the caller, which must scrub and free it. Returns 1 if
+   a line was read, 0 at end of file, or -1 on allocation failure. */
+static int read_line(FILE* file, char** buf, size_t* size)
+{
+    size_t len = 0;
+
+    for (;;) {
+        char* bigger;
+        size_t new_size;
+
+        if (fgets(*buf + len, (int)(*size - len), file) == NULL) {
+            /* End of file, possibly after a final line with no newline. */
+            return (len > 0);
+        }
+        len += strlen(*buf + len);
+        if (len < *size - 1 || (*buf)[len - 1] == '\n') {
+            /* fgets() stopped before filling the buffer (newline or EOF). */
+            return 1;
+        }
+
+        /* The buffer filled up without reaching the end of the line. Grow it
+           by hand rather than with realloc(), so the old copy can be scrubbed
+           before it's freed. */
+        if (*size > INT_MAX / 2) {
+            return -1;
+        }
+        new_size = *size * 2;
+        bigger = malloc(new_size);
+        if (bigger == NULL) {
+            return -1;
+        }
+        memcpy(bigger, *buf, len + 1);
+        ini_zero(*buf, *size);
+        free(*buf);
+        *buf = bigger;
+        *size = new_size;
+    }
+}
+
 /* See documentation in header file. */
 int ini_parse(FILE *file,
               int (*handler)(void*, const char*, const char*, const char*),
               void* user)
 {
-    /* Uses a fair bit of stack (use heap instead if you need to) */
-    char line[MAX_LINE];
+    char* line;
+    size_t line_size = INITIAL_LINE;
+    int rc;
     char section[MAX_SECTION] = "";
     char prev_name[MAX_NAME] = "";
 
@@ -80,8 +137,13 @@ int ini_parse(FILE *file,
     int lineno = 0;
     int error = 0;
 
+    line = malloc(line_size);
+    if (line == NULL) {
+        return -3;
+    }
+
     /* Scan through file line by line */
-    while (fgets(line, sizeof(line), file) != NULL) {
+    while ((rc = read_line(file, &line, &line_size)) > 0) {
         lineno++;
         start = lskip(rstrip(line));
 
@@ -90,8 +152,9 @@ int ini_parse(FILE *file,
             /* Non-black line with leading whitespace, treat as continuation
                of previous name's value (as per Python ConfigParser). */
             value = lskip(start);
-            /* Skip line if this line is a comment with whitespace infront */
-            if (*value == ';') {
+            /* Skip line if this line is a comment with whitespace infront.
+               Both ';' and '#' start a comment, as on an unindented line. */
+            if (*value == ';' || *value == '#') {
                 continue;
             }
             if (!handler(user, section, prev_name, start) && !error) {
@@ -145,13 +208,13 @@ int ini_parse(FILE *file,
         }
     }
 
-#ifdef HAVE_EXPLICIT_BZERO
-    explicit_bzero(line, sizeof(line));
-#else
-    {
-        static void* (* volatile ini_memset)(void *, int, size_t) = memset;
-        ini_memset(line, 0, sizeof(line));
+    if (rc < 0 && !error) {
+        /* Out of memory. Report it as an internal error rather than a parse
+           error, since this isn't a problem with the config file. */
+        error = -3;
     }
-#endif
+
+    ini_zero(line, line_size);
+    free(line);
     return error;
 }
