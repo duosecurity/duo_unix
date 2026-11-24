@@ -122,11 +122,7 @@ static void test_long_comment_after_skey_is_ignored() {
     TEST_ASSERT_EQUAL_STRING("realsecret", last_skey);
 }
 
-/*
- * A long comment must not stop the parse: options after it, such as
- * failmode = secure, must still be read. (Treating long lines as a parse
- * error would leave failmode at its fail-open default.)
- */
+/* Options after a long line are still parsed. */
 static void test_options_after_long_comment_still_read() {
     char conf[2048];
     char comment[1024];
