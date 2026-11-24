@@ -151,21 +151,37 @@ AC_CHECK_HEADERS([inttypes.h limits.h memory.h stdint.h stdlib.h string.h unistd
 
 # Check OpenSSL
 AX_CHECK_OPENSSL([], AC_MSG_FAILURE([OpenSSL not found]))
-# Require at least OpenSSL 1.0.1: the TLS 1.1/1.2 version constants and the
-# min_tls floor and downgrade-warning code depend on it (see README.md).
-AC_MSG_CHECKING([for OpenSSL >= 1.0.1])
+# Require at least OpenSSL 1.0.2: certificate hostname validation uses
+# X509_check_host(), and the TLS 1.1/1.2 version constants and the min_tls
+# floor and downgrade-warning code need 1.0.1 or later (see README.md).
+AC_MSG_CHECKING([for OpenSSL >= 1.0.2])
 save_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $OPENSSL_INCLUDES"
 AC_COMPILE_IFELSE(
     [AC_LANG_PROGRAM(
         [[#include <openssl/opensslv.h>]],
         [[
-#if OPENSSL_VERSION_NUMBER < 0x10001000L
-#error "OpenSSL 1.0.1 or later required"
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
+#error "OpenSSL 1.0.2 or later required"
 #endif
         ]])],
     [AC_MSG_RESULT([yes])],
-    [AC_MSG_FAILURE([OpenSSL 1.0.1 or later is required for TLS 1.2 support])])
+    [AC_MSG_FAILURE([OpenSSL 1.0.2 or later is required])])
+# Link against X509_check_host() too, so headers from one OpenSSL and
+# libraries from an older one fail here rather than at build time.
+AC_MSG_CHECKING([for X509_check_host])
+save_LDFLAGS="$LDFLAGS"
+save_LIBS="$LIBS"
+LDFLAGS="$LDFLAGS $OPENSSL_LDFLAGS"
+LIBS="$OPENSSL_LIBS $LIBS"
+AC_LINK_IFELSE(
+    [AC_LANG_PROGRAM(
+        [[#include <openssl/x509v3.h>]],
+        [[return X509_check_host(NULL, "example.com", 0, 0, NULL);]])],
+    [AC_MSG_RESULT([yes])],
+    [AC_MSG_FAILURE([OpenSSL 1.0.2 or later is required: X509_check_host() not found])])
+LDFLAGS="$save_LDFLAGS"
+LIBS="$save_LIBS"
 CPPFLAGS="$save_CPPFLAGS"
 # Define if X509_TEA_set_state exists
 AX_CHECK_X509(AC_DEFINE([HAVE_X509_TEA_SET_STATE],[1],[Define if X509_set_state exists]), [])
