@@ -43,7 +43,6 @@
 #include "cacert.h"
 #include "http_parser.h"
 #include "https.h"
-#include "match.h"
 #include "util.h"
 
 #ifdef HAVE_X509_TEA_SET_STATE
@@ -270,34 +269,20 @@ _https_ipaddr_matches(const void *addr, size_t addrsize, const void *altptr, siz
     return (altsize == addrsize && memcmp(altptr, addr, altsize) == 0);
 }
 
-/* Server certificate name check, logic adapted from libcurl */
+/*
+ * Check an IP address hostname against the certificate's iPAddress
+ * subjectAltNames, falling back to an exact match on the last CN when the
+ * certificate has no iPAddress subjectAltName. Wildcards never match an IP
+ * address. Returns 1 on a match, 0 otherwise.
+ */
 static int
-_SSL_check_server_cert(SSL *ssl, const char *hostname)
+_https_cert_matches_ipaddr(X509 *cert, const char *hostname,
+        const void *addr, size_t addrsize)
 {
-    X509 *cert;
     X509_NAME *subject;
     STACK_OF(GENERAL_NAME) *altnames;
     ASN1_STRING *tmp;
     int i, n, match = -1;
-    struct in6_addr addr;
-    int hostnametype = GEN_DNS;
-    size_t addrsize;
-
-    if (SSL_get_verify_mode(ssl) == SSL_VERIFY_NONE) {
-        return (1);
-    }
-    if ((cert = SSL_get_peer_certificate(ssl)) == NULL) {
-        return (0);
-    }
-
-    /* Check if hostname is an IP address */
-    if (inet_pton(AF_INET6, hostname, &addr) == 1) {
-        hostnametype = GEN_IPADD;
-        addrsize = sizeof(struct in6_addr);
-    } else if (inet_pton(AF_INET, hostname, &addr) == 1) {
-        hostnametype = GEN_IPADD;
-        addrsize = sizeof(struct in_addr);
-    }
 
     /* Check subjectAltName */
     if ((altnames = X509_get_ext_d2i(cert, NID_subject_alt_name,
@@ -306,22 +291,16 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
 
         for (i = 0; i < n && match != 1; i++) {
             const GENERAL_NAME *altname = sk_GENERAL_NAME_value(altnames, i);
-            if (hostnametype == altname->type) {
-                if (altname->type == GEN_DNS) {
-                    char *altptr = (char *)ASN1_STRING_data(altname->d.dNSName);
-                    size_t altsize = (size_t)ASN1_STRING_length(altname->d.dNSName);
-                    match = (altsize == strlen(altptr) && match_pattern(hostname, altptr));
-                } else if (altname->type == GEN_IPADD) {
-                    unsigned char *altptr = ASN1_STRING_data(altname->d.iPAddress);
-                    size_t altsize = (size_t)ASN1_STRING_length(altname->d.iPAddress);
-                    match = _https_ipaddr_matches(&addr, addrsize, altptr,
-                        altsize);
-                }
+            if (altname->type == GEN_IPADD) {
+                unsigned char *altptr = ASN1_STRING_data(altname->d.iPAddress);
+                size_t altsize = (size_t)ASN1_STRING_length(altname->d.iPAddress);
+                match = _https_ipaddr_matches(addr, addrsize, altptr,
+                    altsize);
             }
         }
         GENERAL_NAMES_free(altnames);
     }
-    /* No subjectAltName, try CN */
+    /* No iPAddress subjectAltName, try CN */
     if (match == -1 &&
         (subject = X509_get_subject_name(cert)) != NULL) {
         for (i = -1; (n = X509_NAME_get_index_by_NID(subject,
@@ -334,19 +313,61 @@ _SSL_check_server_cert(SSL *ssl, const char *hostname)
                 ASN1_STRING_type(tmp) == V_ASN1_UTF8STRING) {
                 const char *pattern = (char *)ASN1_STRING_data(tmp);
                 size_t patternsize = (size_t)ASN1_STRING_length(tmp);
-                if (patternsize == strlen(pattern)) {
-                    if (!strchr(pattern, '*')) {
-                        match = strcasecmp(hostname, pattern) == 0;
-                    } else if (hostnametype == GEN_DNS) {
-                        match = match_pattern(hostname, pattern);
-                    }
+                if (patternsize == strlen(pattern) && !strchr(pattern, '*')) {
+                    match = strcasecmp(hostname, pattern) == 0;
                 }
             }
         }
     }
-    X509_free(cert);
 
     return (match > 0);
+}
+
+/*
+ * Check that cert is valid for hostname. Returns 1 on a match, 0 otherwise.
+ *
+ * DNS names are matched by OpenSSL following RFC 6125: a wildcard is only
+ * accepted as the entire left-most label, so it never matches across a dot
+ * or as part of a label, and the CN is only used when the certificate has no
+ * DNS subjectAltName.
+ */
+int
+_https_cert_matches_host(X509 *cert, const char *hostname)
+{
+    struct in6_addr addr;
+
+    if (cert == NULL || hostname == NULL || *hostname == '\0') {
+        return (0);
+    }
+    if (inet_pton(AF_INET6, hostname, &addr) == 1) {
+        return (_https_cert_matches_ipaddr(cert, hostname, &addr,
+            sizeof(struct in6_addr)));
+    }
+    if (inet_pton(AF_INET, hostname, &addr) == 1) {
+        return (_https_cert_matches_ipaddr(cert, hostname, &addr,
+            sizeof(struct in_addr)));
+    }
+    return (X509_check_host(cert, hostname, strlen(hostname),
+        X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS, NULL) == 1);
+}
+
+/* Server certificate name check */
+static int
+_SSL_check_server_cert(SSL *ssl, const char *hostname)
+{
+    X509 *cert;
+    int match;
+
+    if (SSL_get_verify_mode(ssl) == SSL_VERIFY_NONE) {
+        return (1);
+    }
+    if ((cert = SSL_get_peer_certificate(ssl)) == NULL) {
+        return (0);
+    }
+    match = _https_cert_matches_host(cert, hostname);
+    X509_free(cert);
+
+    return (match);
 }
 
 /* Wait msecs milliseconds for the fd to become writable.  Return

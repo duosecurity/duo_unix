@@ -169,7 +169,7 @@ For production deployments Duo recommends using our stable release tarballs or p
 
 ### TLS 1.2 and 1.3 Support
 
-Duo Unix uses the system's OpenSSL library for TLS operations.  It will use the highest TLS version available when making API calls to Duo.  TLS 1.2 support requires OpenSSL 1.0.1 or higher; TLS 1.3 support requires OpenSSL 1.1.1 or higher.
+Duo Unix uses the system's OpenSSL library for TLS operations.  It will use the highest TLS version available when making API calls to Duo.  Duo Unix requires OpenSSL 1.0.2 or higher, which supports TLS 1.2; TLS 1.3 support requires OpenSSL 1.1.1 or higher.
 
 ## Contributing
 
