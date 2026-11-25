@@ -47,7 +47,15 @@ shell with a \-c option.
 .Sh CONFIGURATION
 The INI-format configuration file must have a
 .Dq Li duo
-section with the following options:
+section with the following options.
+Options that take
+.Dq Li yes
+or
+.Dq Li no
+accept them in any case.
+An unrecognized value is treated as
+.Dq Li no
+and logged as a warning.
 .Pp
 .Bl -tag -width ".Cm failmode"
 .It Cm host
