@@ -25,6 +25,7 @@ from config import (
     BAD_EMPTY_CONF,
     BAD_HEADER_CONF,
     BAD_MISSING_VALUES_CONF,
+    DuoUnixConfig,
     MOCKDUO_AUTOPUSH,
     MOCKDUO_AUTOPUSH_SECURE,
     MOCKDUO_BADKEYS,
@@ -41,6 +42,7 @@ from config import (
     TESTCONF,
     TempConfig,
 )
+from mockduo import VP_USER
 from mockduo_context import NORMAL_CERT, SELFSIGNED_CERT, WRONGHOST_CERT, MockDuo
 
 from typing import Sequence
@@ -974,4 +976,98 @@ class CommonSuites:
                     self.assertRegexSomeline(
                         result["stderr"],
                         r"Successful Duo login for 'client_supports_verified_push-ignored'",
+                    )
+    class ApiNumberValidation(CommonTestCase):
+        """Numbers in API responses that are absent, of the wrong type,
+        fractional, or out of range are bad responses: they go through
+        failmode, they don't crash or get used"""
+
+        # 9999-12-31T23:59:59Z, the largest timestamp accepted
+        MAX_TIMESTAMP = 253402300799
+        BAD_TIMESTAMPS = (
+            None, "null", "true", '"1700000000"', "0", "-5", "1700000000.5",
+            str(MAX_TIMESTAMP + 1), "1e19", "1e300", "-1e300",
+        )
+        VP_FAILSECURE = DuoUnixConfig(MOCKDUO_VERIFIED_PUSH, failmode="secure")
+
+        def run(self, result=None):
+            with MockDuo(NORMAL_CERT):
+                return super(CommonSuites.ApiNumberValidation, self).run(result)
+
+        def set_field(self, name, value):
+            """Set a mock response field to a raw JSON value, None drops it"""
+            params = {"name": name}
+            if value is not None:
+                params["value"] = value
+            url = "https://localhost:4443/mockduo/set-field?{0}".format(
+                urllib.parse.urlencode(params)
+            )
+            context = ssl._create_unverified_context()
+            with urllib.request.urlopen(url, context=context) as response:
+                response.read()
+
+        def check_failmode(self, configs, user, message):
+            for config in configs:
+                with TempConfig(config) as temp:
+                    result = self.call_binary(
+                        ["-d", "-c", temp.name, "-f", user, "true"]
+                    )
+                self.assertRegexSomeline(
+                    result["stderr"],
+                    r"{prefix} Duo login for '{user}': {message}".format(
+                        prefix=config.failmode_as_prefix(),
+                        user=re.escape(user),
+                        message=re.escape(message),
+                    ),
+                )
+                expected = 1 if config.get("failmode") == "secure" else 0
+                self.assertEqual(result["returncode"], expected, result["stderr"])
+
+        def test_bad_ping_time(self):
+            for value in self.BAD_TIMESTAMPS:
+                with self.subTest(time=value):
+                    self.set_field("ping_time", value)
+                    self.check_failmode(
+                        [MOCKDUO_CONF, MOCKDUO_FAILSECURE], "foobar",
+                        "JSON missing valid 'time'",
+                    )
+
+        def test_ping_time_limits_accepted(self):
+            # In range, so the offset is applied; the mock then rejects the
+            # request date as outside its signature window
+            for value in ("1", str(self.MAX_TIMESTAMP)):
+                with self.subTest(time=value):
+                    self.set_field("ping_time", value)
+                    self.check_failmode(
+                        [MOCKDUO_CONF], "foobar", "Invalid ikey or skey"
+                    )
+
+        def test_integral_float_ping_time_accepted(self):
+            self.set_field("ping_time", "{0}.0".format(int(time.time())))
+            # autopush, so pam_duo doesn't wait at the factor prompt
+            with TempConfig(MOCKDUO_AUTOPUSH) as temp:
+                result = self.call_binary(
+                    ["-d", "-c", temp.name, "-f", "foobar", "true"]
+                )
+            self.assertRegexSomeline(
+                result["stderr"], r"Successful Duo login for 'foobar'"
+            )
+
+        def test_bad_fail_code(self):
+            for value in (None, "null", '"40002"', "0", "-1", "40002.5",
+                          "2147483648", "1e300"):
+                with self.subTest(code=value):
+                    self.set_field("fail_code", value)
+                    self.check_failmode(
+                        [MOCKDUO_CONF, MOCKDUO_FAILSECURE], "preauth-fail",
+                        "JSON missing valid 'code'",
+                    )
+
+        def test_bad_vp_expiration(self):
+            for value in [v for v in self.BAD_TIMESTAMPS if v is not None]:
+                with self.subTest(expiration=value):
+                    self.set_field("vp_expiration", value)
+                    self.check_failmode(
+                        [MOCKDUO_VERIFIED_PUSH, self.VP_FAILSECURE], VP_USER,
+                        "JSON missing valid 'expiration'",
                     )
